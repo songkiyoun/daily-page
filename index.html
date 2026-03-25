@@ -15,12 +15,15 @@
   --green:#5fcf85;--red:#e05555;--blue:#5b9bd5;--orange:#e8923a;
 }
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;font-size:15px;display:flex;flex-direction:column}
+
+/* SETUP */
 .setup{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px}
 .sbox{width:100%;max-width:480px;background:rgba(255,255,255,.03);border:1px solid var(--b);border-radius:16px;padding:36px 32px}
 .slogo{font-family:'Playfair Display',serif;font-size:22px;margin-bottom:8px}
 .slogo em{color:var(--gold);font-style:normal}
 .sdesc{font-size:14px;color:var(--mid);line-height:1.8;margin-bottom:24px}
 .sdesc a{color:var(--gold);text-decoration:none}
+.sdesc a:hover{text-decoration:underline}
 .ssteps{background:rgba(255,255,255,.03);border:1px solid var(--b);border-radius:10px;padding:18px 20px;margin-bottom:22px}
 .sstep{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;font-size:13.5px;color:var(--mid);line-height:1.65}
 .sstep:last-child{margin-bottom:0}
@@ -29,11 +32,13 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .srow{display:flex;gap:9px;margin-bottom:10px}
 .sinput{flex:1;background:var(--s);border:1px solid var(--b);border-radius:9px;padding:11px 14px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;transition:border-color .18s}
 .sinput:focus{border-color:var(--gb)}.sinput::placeholder{color:var(--dim)}
-.sbtn{background:var(--gold);border:none;border-radius:9px;padding:0 20px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.sbtn{background:var(--gold);border:none;border-radius:9px;padding:0 20px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:background .18s;white-space:nowrap}
 .sbtn:hover{background:#d9ba82}
 .serr{font-size:12.5px;color:var(--red);margin-bottom:10px;display:none}
 .snote{font-size:12px;color:var(--dim);line-height:1.7}
 .snote strong{color:var(--mid)}
+
+/* HEADER */
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--b);background:rgba(12,12,17,.97);flex-shrink:0;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:50}
 .brand{display:flex;flex-direction:column;gap:1px}
 .brand-name{font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:#fff}
@@ -52,6 +57,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .htab.on{background:var(--gs);border:1px solid var(--gb);color:var(--gold)}
 .hbtn{background:var(--s);border:1px solid var(--b);border-radius:7px;padding:6px 12px;color:var(--mid);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .18s;white-space:nowrap}
 .hbtn:hover{border-color:var(--gb);color:var(--gold)}
+
+/* WORKSPACE */
 .workspace{display:grid;grid-template-columns:1fr 270px;flex:1;height:calc(100vh - 56px);overflow:hidden}
 .col{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--b)}
 .col:last-child{border-right:none}
@@ -59,29 +66,39 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .ctitle{font-family:'Playfair Display',serif;font-size:14px;color:var(--gold);letter-spacing:.8px;text-transform:uppercase}
 .csub{font-size:13px;color:var(--dim);margin-top:3px}
 .col-body{flex:1;overflow-y:auto;padding:14px}
+
+/* QUICK BAR */
 .qbar{padding:10px 15px;border-bottom:1px solid var(--b);background:rgba(255,255,255,.02);flex-shrink:0}
 .qrow{display:flex;gap:7px}
 .qinput{flex:1;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .18s}
 .qinput:focus{border-color:var(--gb)}.qinput::placeholder{color:var(--dim)}
-.qadd{background:var(--gold);border:none;border-radius:8px;padding:9px 15px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer}
+.qadd{background:var(--gold);border:none;border-radius:8px;padding:9px 15px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer;transition:background .18s}
 .qadd:hover{background:#d9ba82}
 .qhint{font-size:12px;color:var(--dim);margin-top:5px}
+
+/* BRIEFING */
 .bcard{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;animation:up .3s ease}
+.bcard.alert{border-color:rgba(224,85,85,.4);background:rgba(224,85,85,.05)}
 .bcardtitle{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:11px;font-weight:700;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .brow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);line-height:1.55}
 .brow:last-child{border-bottom:none;padding-bottom:0}
 .brow-left{flex:1;min-width:0}
 .bname{font-size:15px;font-weight:700;color:#fff;margin-bottom:3px}
 .bsub{font-size:13px;color:var(--dim)}
+.bval{font-size:15px;font-weight:700;color:#fff;text-align:right;flex-shrink:0}
 .btags{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 .tag{display:inline-flex;align-items:center;padding:3px 8px;border-radius:9px;font-size:11px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
 .tag.g{background:rgba(95,207,133,.15);color:var(--green);border:1px solid rgba(95,207,133,.3)}
 .tag.r{background:rgba(224,85,85,.15);color:var(--red);border:1px solid rgba(224,85,85,.3)}
+.tag.o{background:rgba(232,146,58,.15);color:var(--orange);border:1px solid rgba(232,146,58,.3)}
 .tag.gold{background:var(--gs);color:var(--gold);border:1px solid var(--gb)}
 .tag.b{background:rgba(91,155,213,.12);color:var(--blue);border:1px solid rgba(91,155,213,.25)}
+
+/* EVENTS */
 .day-group{margin-bottom:14px}
 .dlabel{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px;display:flex;align-items:center;gap:7px;font-weight:700}
-.dlabel.tdy{color:var(--gold)}.dline{flex:1;height:1px;background:var(--b)}
+.dlabel.tdy{color:var(--gold)}
+.dline{flex:1;height:1px;background:var(--b)}
 .ecard{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:11px 13px 11px 17px;margin-bottom:7px;position:relative;cursor:pointer;transition:all .18s;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;animation:up .3s ease both}
 .ecard::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:2px;background:var(--gold);border-radius:0 2px 2px 0;opacity:.7}
 .ecard:hover{background:var(--sh);border-color:var(--gb)}
@@ -90,6 +107,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .emeta{font-size:12px;color:var(--dim);margin-top:3px}
 .edel{opacity:0;background:none;border:none;color:var(--dim);font-size:13px;cursor:pointer;flex-shrink:0;padding:2px 4px;border-radius:4px;transition:all .16s;line-height:1}
 .ecard:hover .edel{opacity:.55}.edel:hover{opacity:1!important;color:var(--red)}
+
+/* MODAL */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px);padding:16px}
 .overlay.show{display:flex}
 .modal{width:100%;max-width:390px;background:#13131a;border:1px solid var(--b);border-radius:14px;padding:24px 22px;animation:up .28s ease}
@@ -103,6 +122,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .mbtn{border:none;border-radius:7px;padding:10px 20px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .16s}
 .mbtn.cancel{background:var(--s);border:1px solid var(--b);color:var(--mid)}.mbtn.cancel:hover{border-color:var(--gb)}
 .mbtn.save{background:var(--gold);color:#0c0c11;font-weight:700}.mbtn.save:hover{background:#d9ba82}
+
+/* TODO */
 .tadd-row{display:flex;gap:6px;margin-bottom:7px}
 .tinput{flex:1;background:var(--s);border:1px solid var(--b);border-radius:7px;padding:9px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .16s}
 .tinput:focus{border-color:var(--gb)}.tinput::placeholder{color:var(--dim)}
@@ -125,11 +146,72 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .ptag.low{background:rgba(91,155,213,.12);color:#7aafd4;border:1px solid rgba(91,155,213,.25)}
 .delbtn{background:none;border:none;cursor:pointer;color:var(--dim);font-size:13px;opacity:0;transition:opacity .16s;padding:0;line-height:1;flex-shrink:0}
 .titem:hover .delbtn{opacity:.55}.delbtn:hover{opacity:1!important}
+
+/* MISC */
 .empty{text-align:center;color:var(--dim);font-size:14px;padding:28px 0;font-style:italic;line-height:2}
+.loading{display:flex;flex-direction:column;align-items:center;gap:10px;padding:32px 0}
+.spin{width:19px;height:19px;border:2px solid var(--b);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+.spin-t{font-size:13px;color:var(--dim)}
 .advice-box{background:linear-gradient(135deg,rgba(201,169,110,.08),rgba(201,169,110,.03));border:1px solid var(--gb);border-radius:var(--r);padding:13px 15px;margin-bottom:12px}
 .advice-title{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:7px;font-weight:700}
 .advice-text{font-size:14px;color:var(--mid);line-height:1.8}
-.mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(12,12,17,.97);border-top:1px solid var(--b);z-index:50;grid-template-columns:repeat(3,1fr)}
+
+/* STATUS BAR */
+.status-bar{font-size:12.5px;padding:6px 15px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--b);color:var(--dim);display:flex;gap:14px;flex-wrap:wrap;flex-shrink:0}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.dot-ok{background:var(--green)}.dot-err{background:var(--red)}
+.dot-wait{background:var(--orange);animation:pulse 1.2s ease infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.warn-box{background:rgba(224,85,85,.08);border:1px solid rgba(224,85,85,.25);border-radius:7px;padding:9px 13px;font-size:13px;color:#ff9999;line-height:1.7;margin-top:8px}
+.retry-btn{background:var(--gs);border:1px solid var(--gb);border-radius:6px;padding:5px 11px;color:var(--gold);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:7px;transition:background .16s}
+.retry-btn:hover{background:rgba(201,169,110,.28)}
+.goal-row{display:flex;align-items:center;gap:7px;margin-left:auto}
+.goal-row label{font-size:12px;color:var(--dim)}
+.goal-sel{background:var(--s);border:1px solid var(--b);border-radius:5px;padding:3px 8px;color:var(--mid);font-family:'DM Sans',sans-serif;font-size:12px;outline:none}
+.goal-sel option{background:#13131a}
+
+/* HELP MODAL */
+.help-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:flex-start;justify-content:center;z-index:250;backdrop-filter:blur(5px);padding:16px;overflow-y:auto}
+.help-overlay.show{display:flex}
+.help-modal{width:100%;max-width:680px;background:#0f0f16;border:1px solid var(--b);border-radius:16px;overflow:hidden;animation:up .3s ease;margin:auto}
+.help-header{background:linear-gradient(135deg,rgba(201,169,110,.1),rgba(201,169,110,.03));border-bottom:1px solid var(--b);padding:22px 26px;display:flex;align-items:center;justify-content:space-between}
+.help-header-left{}
+.help-title{font-family:'Playfair Display',serif;font-size:20px;color:#fff;margin-bottom:4px}
+.help-title em{color:var(--gold);font-style:normal}
+.help-sub{font-size:13px;color:var(--dim)}
+.help-close{background:var(--s);border:1px solid var(--b);border-radius:8px;width:34px;height:34px;color:var(--mid);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .16s;flex-shrink:0}
+.help-close:hover{border-color:var(--gb);color:var(--gold)}
+.help-body{padding:24px 26px;max-height:75vh;overflow-y:auto}
+.h-sec{margin-bottom:28px}
+.h-sec:last-child{margin-bottom:0}
+.h-sec-title{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.h-sec-title::after{content:'';flex:1;height:1px;background:var(--b)}
+.h-steps{display:flex;flex-direction:column;gap:0}
+.h-step{display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.h-step:last-child{border-bottom:none;padding-bottom:0}
+.h-num{width:28px;height:28px;border-radius:50%;background:var(--gs);border:1px solid var(--gb);color:var(--gold);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.h-step-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+.h-step-desc{font-size:13px;color:var(--mid);line-height:1.75}
+.h-step-desc a{color:var(--gold);text-decoration:none}
+.h-step-desc a:hover{text-decoration:underline}
+.h-step-desc strong{color:#fff}
+.h-code{background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:7px;padding:9px 13px;font-family:monospace;font-size:12.5px;color:var(--gold);margin:8px 0;line-height:1.6;word-break:break-all}
+.h-note{background:rgba(201,169,110,.07);border:1px solid var(--gb);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;padding:10px 14px;margin:9px 0;font-size:13px;color:var(--mid);line-height:1.7}
+.h-note strong{color:#fff}
+.h-warn{background:rgba(224,85,85,.07);border:1px solid rgba(224,85,85,.25);border-left:3px solid var(--red);border-radius:0 7px 7px 0;padding:10px 14px;margin:9px 0;font-size:13px;color:#ffaaaa;line-height:1.7}
+.h-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+@media(max-width:500px){.h-cards{grid-template-columns:1fr}}
+.h-card{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:14px 15px}
+.h-card-icon{font-size:18px;margin-bottom:7px}
+.h-card-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+.h-card-desc{font-size:12.5px;color:var(--mid);line-height:1.65}
+.h-faq{display:flex;flex-direction:column;gap:8px}
+.h-faq-item{background:var(--s);border:1px solid var(--b);border-radius:9px;padding:13px 15px}
+.h-faq-q{font-size:13.5px;font-weight:700;color:var(--gold);margin-bottom:5px}
+.h-faq-a{font-size:13px;color:var(--mid);line-height:1.7}
+
+/* MOBILE */
+.mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(12,12,17,.97);border-top:1px solid var(--b);z-index:50;grid-template-columns:repeat(4,1fr)}
 @media(max-width:750px){
   .mob-bar{display:grid}
   .workspace{grid-template-columns:1fr;height:auto;overflow:visible}
@@ -140,33 +222,162 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 }
 .mobtab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--dim);cursor:pointer;padding:7px 4px;transition:color .16s;border:none;background:none;font-family:'DM Sans',sans-serif}
 .mobtab.on{color:var(--gold)}.mobtab .i{font-size:19px}
+
 @keyframes up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(201,169,110,.3)}
 </style>
 </head>
 <body>
 
-<div class="setup" id="setupScreen">
-  <div class="sbox">
-    <div class="slogo">Semo<em>View</em> Daily</div>
-    <p class="sdesc">처음 사용하시면 Google Apps Script를 연결해주세요. 한 번만 설정하면 PC·모바일 데이터가 자동으로 동기화됩니다.</p>
-    <div class="ssteps">
-      <div class="sstep"><div class="snum">1</div><span><a href="https://script.google.com" target="_blank" style="color:var(--gold)">script.google.com</a> → 새 프로젝트 → 받은 <strong style="color:#fff">AppScript.gs</strong> 코드 붙여넣기</span></div>
-      <div class="sstep"><div class="snum">2</div><span>배포 → 새 배포 → 유형: 웹 앱 → 액세스: <strong style="color:#fff">모든 사용자</strong> → 배포</span></div>
-      <div class="sstep"><div class="snum">3</div><span>생성된 웹 앱 URL을 아래 입력</span></div>
+<!-- HELP MODAL -->
+<div class="help-overlay" id="helpOverlay">
+  <div class="help-modal">
+    <div class="help-header">
+      <div class="help-header-left">
+        <div class="help-title">Semo<em>View</em> Daily</div>
+        <div class="help-sub">사용 설명서 · 설정 가이드</div>
+      </div>
+      <button class="help-close" onclick="closeHelp()">✕</button>
     </div>
-    <div class="slabel">Apps Script 웹 앱 URL</div>
-    <div class="srow">
-      <input class="sinput" id="scriptUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" onkeydown="if(event.key==='Enter')saveUrl()">
-      <button class="sbtn" onclick="saveUrl()">시작 →</button>
+    <div class="help-body">
+
+      <!-- 기능 소개 -->
+      <div class="h-sec">
+        <div class="h-sec-title">📋 주요 기능</div>
+        <div class="h-cards">
+          <div class="h-card"><div class="h-card-icon">📋</div><div class="h-card-title">브리핑</div><div class="h-card-desc">이번주·오늘 일정, 할일, 유튜브·클라이언트 현황 한눈에 요약</div></div>
+          <div class="h-card"><div class="h-card-icon">📅</div><div class="h-card-title">일정 관리</div><div class="h-card-desc">자연어 입력 또는 + 버튼으로 일정 추가·수정·삭제</div></div>
+          <div class="h-card"><div class="h-card-icon">✅</div><div class="h-card-title">할 일 & 우선순위</div><div class="h-card-desc">🔴높음 / 🟡보통 / 🔵낮음 분류, 우선순위 자동 정렬</div></div>
+          <div class="h-card"><div class="h-card-icon">🔄</div><div class="h-card-title">PC·모바일 동기화</div><div class="h-card-desc">Google 시트에 자동 저장, 어느 기기에서도 같은 데이터</div></div>
+        </div>
+      </div>
+
+      <!-- 일정 추가 -->
+      <div class="h-sec">
+        <div class="h-sec-title">📅 일정 추가 방법</div>
+        <div class="h-steps">
+          <div class="h-step">
+            <div class="h-num" style="font-size:16px">⌨</div>
+            <div>
+              <div class="h-step-title">자연어 빠른 입력</div>
+              <div class="h-step-desc">상단 입력창에 아래처럼 입력하면 자동 파싱됩니다.</div>
+              <div class="h-code">내일 오전 10시 팀 회의</div>
+              <div class="h-code">3/28 14:00 클라이언트 미팅 강남역</div>
+              <div class="h-code">오늘 오후 3시-5시 보고서 검토</div>
+            </div>
+          </div>
+          <div class="h-step">
+            <div class="h-num" style="font-size:16px">+</div>
+            <div>
+              <div class="h-step-title">직접 입력 (+ 일정 버튼)</div>
+              <div class="h-step-desc">상단 <strong>+ 일정</strong> 버튼 → 날짜·시간·장소 직접 입력. 등록된 일정 카드 클릭 시 수정, ✕ 버튼으로 삭제 가능.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 동기화 설정 -->
+      <div class="h-sec">
+        <div class="h-sec-title">🔄 동기화 설정 (최초 1회)</div>
+        <div class="h-steps">
+          <div class="h-step">
+            <div class="h-num">1</div>
+            <div>
+              <div class="h-step-title">구글 시트 만들기</div>
+              <div class="h-step-desc"><a href="https://sheets.new" target="_blank">sheets.new</a> → 빈 시트 생성 → 이름 지정 (예: 일정)</div>
+            </div>
+          </div>
+          <div class="h-step">
+            <div class="h-num">2</div>
+            <div>
+              <div class="h-step-title">Apps Script 열기</div>
+              <div class="h-step-desc">시트 상단 메뉴 <strong>확장 프로그램 → Apps Script</strong> 클릭</div>
+            </div>
+          </div>
+          <div class="h-step">
+            <div class="h-num">3</div>
+            <div>
+              <div class="h-step-title">코드 붙여넣기</div>
+              <div class="h-step-desc">편집창 기존 코드 전체 삭제 → <strong>AppScript.gs</strong> 내용 전체 붙여넣기 → Ctrl+S 저장</div>
+            </div>
+          </div>
+          <div class="h-step">
+            <div class="h-num">4</div>
+            <div>
+              <div class="h-step-title">웹 앱으로 배포</div>
+              <div class="h-step-desc">
+                상단 <strong>배포 → 새 배포</strong><br>
+                · 유형: <strong>웹 앱</strong><br>
+                · 다음 사용자로 실행: <strong>나</strong><br>
+                · 액세스 권한: <strong>모든 사용자</strong><br>
+                → 배포 → 권한 승인 → URL 복사
+              </div>
+              <div class="h-warn">액세스 권한을 반드시 <strong>모든 사용자</strong>로 설정해야 합니다.</div>
+            </div>
+          </div>
+          <div class="h-step">
+            <div class="h-num">5</div>
+            <div>
+              <div class="h-step-title">앱에 URL 연결</div>
+              <div class="h-step-desc">상단 <strong>🔗 URL 변경</strong> → 복사한 URL 붙여넣기 → 연결. 모바일에서도 동일한 URL 입력하면 데이터 공유 시작.</div>
+              <div class="h-code">https://script.google.com/macros/s/AKfy.../exec</div>
+            </div>
+          </div>
+        </div>
+        <div class="h-note">데이터는 시트 <strong>A1(일정)</strong>, <strong>B1(할일)</strong> 셀에 JSON으로 자동 저장됩니다. 변경 후 약 1.5초 뒤 자동 저장됩니다.</div>
+      </div>
+
+      <!-- 동기화 상태 -->
+      <div class="h-sec">
+        <div class="h-sec-title">💡 동기화 상태 표시</div>
+        <div class="h-steps">
+          <div class="h-step"><div class="h-num" style="background:rgba(95,207,133,.15);border-color:rgba(95,207,133,.3);color:var(--green)">●</div><div><div class="h-step-title" style="color:var(--green)">저장 완료 / 동기화 완료</div><div class="h-step-desc">데이터가 정상적으로 시트에 저장됐습니다.</div></div></div>
+          <div class="h-step"><div class="h-num" style="background:rgba(232,146,58,.15);border-color:rgba(232,146,58,.3);color:var(--orange)">●</div><div><div class="h-step-title" style="color:var(--orange)">저장 중 / 동기화 중</div><div class="h-step-desc">데이터를 시트에 저장하는 중입니다.</div></div></div>
+          <div class="h-step"><div class="h-num" style="background:rgba(224,85,85,.15);border-color:rgba(224,85,85,.3);color:var(--red)">●</div><div><div class="h-step-title" style="color:var(--red)">오류</div><div class="h-step-desc"><strong>↻ 동기화</strong> 버튼으로 재시도. 반복 시 URL 재설정이 필요할 수 있습니다.</div></div></div>
+        </div>
+      </div>
+
+      <!-- FAQ -->
+      <div class="h-sec">
+        <div class="h-sec-title">❓ 자주 묻는 질문</div>
+        <div class="h-faq">
+          <div class="h-faq-item"><div class="h-faq-q">모바일에서 앱처럼 사용하려면?</div><div class="h-faq-a">GitHub Pages로 배포 후 Safari → 공유 → 홈 화면에 추가 (아이폰), Chrome → 메뉴 → 홈 화면에 추가 (안드로이드)</div></div>
+          <div class="h-faq-item"><div class="h-faq-q">동기화가 계속 실패하면?</div><div class="h-faq-a">Apps Script에서 배포 → 기존 배포 관리 → 새 버전으로 다시 배포한 후 새 URL을 🔗 URL 변경으로 다시 입력해주세요.</div></div>
+          <div class="h-faq-item"><div class="h-faq-q">데이터가 안전한가요?</div><div class="h-faq-a">Apps Script URL을 아는 사람만 접근 가능합니다. URL을 외부에 공유하지 않는 한 안전하며, 데이터는 본인 Google 계정 시트에 저장됩니다.</div></div>
+          <div class="h-faq-item"><div class="h-faq-q">유튜브/클라이언트 데이터가 안 불러와지면?</div><div class="h-faq-a">프록시 서버 상태에 따라 간헐적으로 실패할 수 있습니다. ↻ 새로고침을 눌러 재시도하세요.</div></div>
+        </div>
+      </div>
+
     </div>
-    <div class="serr" id="setupErr">올바른 Apps Script URL을 입력해주세요.</div>
-    <div class="snote">🔒 <strong>URL은 이 브라우저에만 저장됩니다.</strong> 같은 URL을 다른 기기에도 입력하면 데이터가 공유됩니다. URL 변경은 상단 🔗 버튼을 누르세요.</div>
   </div>
 </div>
 
+<!-- SETUP SCREEN -->
+<div class="setup" id="setupScreen">
+  <div class="sbox">
+    <div class="slogo">Semo<em>View</em> Daily</div>
+    <p class="sdesc">Google Apps Script 주소를 연결하면 PC·모바일 데이터가 자동으로 동기화됩니다.</p>
+
+    <div class="ssteps">
+      <div class="sstep"><div class="snum">1</div><span><a href="https://script.google.com" target="_blank">script.google.com</a> → 새 프로젝트 → <strong style="color:#fff">AppScript.gs</strong> 코드 붙여넣기</span></div>
+      <div class="sstep"><div class="snum">2</div><span>배포 → <strong style="color:#fff">새 배포</strong> → 유형: 웹 앱 → 액세스: <strong style="color:#fff">모든 사용자</strong> → 배포</span></div>
+      <div class="sstep"><div class="snum">3</div><span>생성된 <strong style="color:#fff">웹 앱 URL</strong>을 아래에 붙여넣기</span></div>
+    </div>
+
+    <div class="slabel">Apps Script 웹 앱 URL</div>
+    <div class="srow">
+      <input class="sinput" id="scriptUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" onkeydown="if(event.key==='Enter')saveUrl()">
+      <button class="sbtn" onclick="saveUrl()">연결 →</button>
+    </div>
+    <div class="serr" id="setupErr">올바른 Apps Script URL이 아닙니다.</div>
+    <div class="snote">🔒 <strong>URL은 이 브라우저에만 저장됩니다.</strong> 같은 URL을 모바일에도 입력하면 데이터가 공유됩니다.</div>
+  </div>
+</div>
+
+<!-- EVENT MODAL -->
 <div class="overlay" id="evModal">
   <div class="modal">
     <div class="mtitle" id="mtitle">일정 추가</div>
@@ -184,6 +395,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   </div>
 </div>
 
+<!-- HEADER -->
 <header class="hdr">
   <div class="brand">
     <div class="brand-name">Semo<em>View</em> Daily</div>
@@ -203,9 +415,18 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     <button class="hbtn" onclick="openModal()">+ 일정</button>
     <button class="hbtn" onclick="syncFromSheet()">↻ 동기화</button>
     <button class="hbtn" onclick="resetUrl()">🔗 URL 변경</button>
+    <button class="hbtn" onclick="openHelp()" title="사용 설명서">?</button>
   </div>
 </header>
 
+<!-- STATUS BAR -->
+<div class="status-bar" id="statusBar" style="display:none">
+  <span><span class="status-dot dot-wait" id="dotYT"></span>유튜브</span>
+  <span><span class="status-dot dot-wait" id="dotCL"></span>클라이언트</span>
+  <span><span class="status-dot dot-wait" id="dotTL"></span>타임라인</span>
+</div>
+
+<!-- WORKSPACE -->
 <div class="workspace">
   <div class="col">
     <div class="qbar" id="qbar" style="display:none">
@@ -218,8 +439,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     <div class="col-head">
       <div><div class="ctitle" id="mainTitle">브리핑</div><div class="csub" id="mainSub">오늘 현황 요약</div></div>
     </div>
-    <div class="col-body" id="mainBody"></div>
+    <div class="col-body" id="mainBody">
+      <div class="loading"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>
+    </div>
   </div>
+
   <div class="col todo-col" id="todoCol">
     <div class="col-head">
       <div><div class="ctitle">할 일 & 우선순위</div><div class="csub" id="todoSub">오늘 집중할 업무</div></div>
@@ -241,19 +465,37 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 
 <div class="mob-bar">
   <button class="mobtab on" onclick="mobV('brief',this)"><span class="i">📋</span>브리핑</button>
-  <button class="mobtab" onclick="mobV('today',this)"><span class="i">📅</span>일정</button>
+  <button class="mobtab" onclick="mobV('today',this)"><span class="i">📅</span>오늘</button>
+  <button class="mobtab" onclick="mobV('week',this)"><span class="i">🗓</span>이번주</button>
   <button class="mobtab" onclick="mobV('todo',this)"><span class="i">✅</span>할일</button>
 </div>
 
 <script>
-let curV='brief',editId=null,scriptUrl='',syncTimer=null,syncBusy=false;
-let events=[],todos=[];
+// ── CONFIG (시트 연동 부분은 별도 관리) ────────────
+const PROXIES=[
+  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
+];
+const SH_CLIENTS={id:'1Np9f7hRRZq-WtBkw-KTGeiLFnvFZlWX602O4REZ638I',gid:'2114109509'};
+const SH_TIMELINE={id:'14t8MTgpyjap_gyys8K6cuRJEuc0dIZLIhY2UZHnJoJs',gid:'0'};
+const YT_RSS='https://www.youtube.com/feeds/videos.xml?channel_id=UCEftmElUZRmdDk_WFlWUiiQ';
+
+// ── STATE ──────────────────────────────────────────
+let curV='brief',editId=null,scriptUrl='';
+let events=[],todos=[],ytData=null,clients=[],timeline=[];
+let ytGoal=parseInt(localStorage.getItem('ytGoal')||'7');
+let syncTimer=null,syncBusy=false;
 
 (function(){
   tick();setInterval(tick,30000);
   scriptUrl=localStorage.getItem('sv-script-url')||'';
-  if(scriptUrl){showApp();syncFromSheet();}
-  else renderTodos();
+  if(scriptUrl){
+    document.getElementById('setupScreen').style.display='none';
+    document.getElementById('syncBadge').style.display='flex';
+    document.getElementById('statusBar').style.display='flex';
+    syncFromSheet();
+    loadExternalData();
+  }
 })();
 
 function tick(){
@@ -263,6 +505,7 @@ function tick(){
     ' '+d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
 }
 
+// ── SETUP ──────────────────────────────────────────
 function saveUrl(){
   const v=document.getElementById('scriptUrl').value.trim();
   const err=document.getElementById('setupErr');
@@ -270,20 +513,23 @@ function saveUrl(){
   err.style.display='none';
   scriptUrl=v;
   localStorage.setItem('sv-script-url',v);
-  showApp();syncFromSheet();
-}
-function showApp(){
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('syncBadge').style.display='flex';
+  document.getElementById('statusBar').style.display='flex';
+  syncFromSheet();
+  loadExternalData();
 }
+
 function resetUrl(){
-  if(!confirm('URL을 초기화하시겠습니까?'))return;
-  localStorage.removeItem('sv-script-url');scriptUrl='';
+  if(!confirm('Apps Script URL을 변경하시겠습니까?'))return;
+  localStorage.removeItem('sv-script-url');
+  scriptUrl='';
   document.getElementById('scriptUrl').value='';
   document.getElementById('setupScreen').style.display='flex';
   document.getElementById('syncBadge').style.display='none';
 }
 
+// ── SYNC ───────────────────────────────────────────
 function setSyncStatus(state,text){
   const dot=document.getElementById('syncDot');
   const txt=document.getElementById('syncText');
@@ -293,30 +539,177 @@ function setSyncStatus(state,text){
 
 async function syncFromSheet(){
   if(syncBusy||!scriptUrl)return;
-  syncBusy=true;setSyncStatus('ing','동기화 중…');
+  syncBusy=true;
+  setSyncStatus('ing','동기화 중…');
   try{
-    const res=await fetch(scriptUrl,{redirect:'follow'});
-    const json=await res.json();
+    // Apps Script는 리다이렉트를 포함하므로 no-cors 대신 프록시 우회
+    const proxyUrl=`https://corsproxy.io/?${encodeURIComponent(scriptUrl)}`;
+    let res=await fetch(proxyUrl,{method:'GET'});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    let text=await res.text();
+    // 응답이 HTML(오류페이지)인 경우 직접 fetch 재시도
+    if(text.trim().startsWith('<')){
+      res=await fetch(scriptUrl,{redirect:'follow',mode:'cors'});
+      text=await res.text();
+    }
+    const json=JSON.parse(text);
     if(json.ok&&json.data){
-      events=json.data.events||[];todos=json.data.todos||[];
-      renderTodos();render();setSyncStatus('ok','동기화 완료');
-    }else throw new Error('응답 오류');
-  }catch(e){setSyncStatus('err','동기화 실패 — ↻ 재시도');}
+      events=json.data.events||[];
+      todos=json.data.todos||[];
+      renderTodos();render();
+      setSyncStatus('ok','동기화 완료');
+    } else {
+      throw new Error(json.error||'응답 오류');
+    }
+  }catch(e){
+    console.warn('sync read fail',e);
+    setSyncStatus('err','동기화 실패 — ↻ 재시도');
+  }
   syncBusy=false;
 }
+
 async function syncToSheet(){
   if(!scriptUrl)return;
   setSyncStatus('ing','저장 중…');
   try{
-    await fetch(scriptUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({events,todos}),redirect:'follow'});
-    setSyncStatus('ok','저장 완료');
-  }catch(e){setSyncStatus('err','저장 실패');}
+    const body=JSON.stringify({events,todos});
+    // POST도 프록시 우회
+    const proxyUrl=`https://corsproxy.io/?${encodeURIComponent(scriptUrl)}`;
+    let res=await fetch(proxyUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text=await res.text();
+    const json=JSON.parse(text);
+    if(json.ok) setSyncStatus('ok','저장 완료');
+    else throw new Error(json.error||'저장 실패');
+  }catch(e){
+    // 프록시 실패 시 직접 시도
+    try{
+      await fetch(scriptUrl,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({events,todos}),
+        mode:'no-cors'  // no-cors로 폴백 (응답 확인 불가하지만 전송은 됨)
+      });
+      setSyncStatus('ok','저장됨');
+    }catch(e2){
+      console.warn('sync write fail',e2);
+      setSyncStatus('err','저장 실패');
+    }
+  }
 }
-function scheduleSave(){clearTimeout(syncTimer);syncTimer=setTimeout(syncToSheet,1500);}
 
+function scheduleSave(){
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(syncToSheet,1500);
+}
+
+// ── EXTERNAL DATA (유튜브 + 시트) ──────────────────
+function setDot(id,state){
+  const el=document.getElementById(id);if(!el)return;
+  el.className='status-dot '+(state==='ok'?'dot-ok':state==='err'?'dot-err':'dot-wait');
+}
+
+async function proxyFetch(url,ms=12000){
+  for(let i=0;i<PROXIES.length;i++){
+    try{
+      const ctrl=new AbortController();
+      const t=setTimeout(()=>ctrl.abort(),ms);
+      const res=await fetch(PROXIES[i](url),{signal:ctrl.signal});
+      clearTimeout(t);
+      if(!res.ok)throw new Error(res.status);
+      const txt=await res.text();
+      if(txt&&txt.length>10)return txt;
+      throw new Error('empty');
+    }catch(e){if(i===PROXIES.length-1)throw e;}
+  }
+}
+
+function csvParse(txt){
+  const rows=[];
+  for(const line of txt.replace(/\r/g,'').split('\n')){
+    if(!line.trim())continue;
+    const fields=[];let f='',q=false;
+    for(let i=0;i<line.length;i++){
+      if(line[i]==='"')q=!q;
+      else if(line[i]===','&&!q){fields.push(f.trim());f='';}
+      else f+=line[i];
+    }
+    fields.push(f.trim());rows.push(fields);
+  }
+  return rows;
+}
+
+async function loadExternalData(){
+  await Promise.allSettled([loadYT(),loadClients(),loadTimeline()]);
+  render();
+}
+
+async function loadYT(){
+  try{
+    const xml=await proxyFetch(YT_RSS,10000);
+    const doc=new DOMParser().parseFromString(xml,'text/xml');
+    const entry=doc.querySelector('entry');
+    if(!entry)throw new Error('no entry');
+    const pub=entry.querySelector('published')?.textContent;
+    const title=entry.querySelector('title')?.textContent;
+    const link=entry.querySelector('link')?.getAttribute('href');
+    if(pub){ytData={pub:new Date(pub),title,link};setDot('dotYT','ok');}
+    else throw new Error('no pub');
+  }catch(e){ytData=null;setDot('dotYT','err');}
+}
+
+async function loadClients(){
+  try{
+    const url=`https://docs.google.com/spreadsheets/d/${SH_CLIENTS.id}/export?format=csv&gid=${SH_CLIENTS.gid}`;
+    const csv=await proxyFetch(url,15000);
+    const rows=csvParse(csv);clients=[];
+    for(let i=2;i<rows.length;i++){
+      const r=rows[i];
+      if(!r[0]||!r[4]||!r[4].trim())continue;
+      clients.push({no:r[0],status:r[3],name:r[4],monthlyPosts:r[6],
+        published:r[8],lastPost:r[9],remaining:r[17],bigo:r[18]||''});
+    }
+    setDot('dotCL','ok');
+  }catch(e){setDot('dotCL','err');}
+}
+
+async function loadTimeline(){
+  try{
+    const url=`https://docs.google.com/spreadsheets/d/${SH_TIMELINE.id}/export?format=csv&gid=${SH_TIMELINE.gid}`;
+    const csv=await proxyFetch(url,15000);
+    const rows=csvParse(csv);timeline=[];
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];
+      if(!r[1]||!r[1].trim())continue;
+      const d=parseKorDate(r[1]);
+      if(!d||isNaN(d))continue;
+      timeline.push({date:d,name:r[2],cat:r[3],status:r[4],round:r[5],content:r[7]});
+    }
+    setDot('dotTL','ok');
+  }catch(e){setDot('dotTL','err');}
+}
+
+// ── HELPERS ────────────────────────────────────────
 function todayISO(){return new Date().toISOString().slice(0,10);}
+function todayD(){const d=new Date();d.setHours(0,0,0,0);return d;}
+function daysDiff(a,b){return Math.round((a-b)/86400000);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtDate(d){return d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});}
+function fmtMoney(s){const n=parseInt((s||'').replace(/[^\d]/g,''));return n&&!isNaN(n)?n.toLocaleString()+'원':'-';}
+function parseKorDate(s){const m=s.match(/(\d{4})년\s*(\d{1,2})\s*(\d{1,2})일/);return m?new Date(+m[1],+m[2]-1,+m[3]):null;}
+function nextPayDate(bigo){
+  const t=todayD();
+  if(/매달\s*말/.test(bigo)){let d=new Date(t.getFullYear(),t.getMonth()+1,0);if(d<t)d=new Date(t.getFullYear(),t.getMonth()+2,0);return d;}
+  const m=bigo.match(/매달\s*(\d+)일/);
+  if(m){const day=+m[1];let d=new Date(t.getFullYear(),t.getMonth(),day);if(d<=t)d=new Date(t.getFullYear(),t.getMonth()+1,day);return d;}
+  return null;
+}
 
+// ── VIEW ───────────────────────────────────────────
 function setV(v,el){
   curV=v;
   document.querySelectorAll('.htab').forEach(t=>t.classList.remove('on'));
@@ -327,7 +720,8 @@ function setV(v,el){
 function mobV(v,el){
   document.querySelectorAll('.mobtab').forEach(t=>t.classList.remove('on'));
   el.classList.add('on');
-  const tc=document.getElementById('todoCol'),main=document.querySelector('.workspace .col');
+  const tc=document.getElementById('todoCol');
+  const main=document.querySelector('.workspace .col');
   if(v==='todo'){tc.classList.add('mob-show');main.style.display='none';}
   else{tc.classList.remove('mob-show');main.style.display='';setV(v,null);}
 }
@@ -339,7 +733,8 @@ function wkRange(){
 }
 function render(){
   const body=document.getElementById('mainBody');
-  const title=document.getElementById('mainTitle'),sub=document.getElementById('mainSub');
+  const title=document.getElementById('mainTitle');
+  const sub=document.getElementById('mainSub');
   if(curV==='brief'){title.textContent='브리핑';sub.textContent='오늘 현황 요약';renderBrief(body);}
   else if(curV==='today'){
     const list=events.filter(e=>e.date===todayISO());
@@ -351,12 +746,19 @@ function render(){
   }
 }
 
+// ── BRIEFING ───────────────────────────────────────
+function dataErr(label){
+  return `<div class="brow"><div class="brow-left"><div class="bsub" style="color:var(--orange)">⚠ ${label} 데이터를 불러오지 못했습니다.</div><button class="retry-btn" onclick="loadExternalData()">↻ 다시 시도</button></div></div>`;
+}
+
 function renderBrief(body){
-  let html='';
+  const today=todayD();let html='';
+
+  // 1. 이번주
   const{mon,sun}=wkRange();
   const wk=events.filter(e=>e.date>=mon&&e.date<=sun).sort((a,b)=>a.date!==b.date?a.date.localeCompare(b.date):(a.start||'99').localeCompare(b.start||'99'));
   html+=`<div class="bcard"><div class="bcardtitle">🗓 이번주 일정 <span class="tag gold">${wk.length}건</span></div>`;
-  if(!wk.length)html+=`<div class="brow"><div class="bsub">이번 주 등록된 일정이 없습니다.</div></div>`;
+  if(!wk.length){html+=`<div class="brow"><div class="bsub">이번 주 등록된 일정이 없습니다.</div></div>`;}
   else{
     const G={};wk.forEach(ev=>{if(!G[ev.date])G[ev.date]=[];G[ev.date].push(ev);});
     Object.keys(G).sort().forEach(d=>{
@@ -369,6 +771,8 @@ function renderBrief(body){
     });
   }
   html+=`</div>`;
+
+  // 2. 오늘 일정
   const todayEvs=events.filter(e=>e.date===todayISO()).sort((a,b)=>(a.start||'99').localeCompare(b.start||'99'));
   html+=`<div class="bcard"><div class="bcardtitle">📅 오늘 일정 <span class="tag gold">${todayEvs.length}건</span></div>`;
   if(!todayEvs.length)html+=`<div class="brow"><div class="bsub">등록된 일정이 없습니다.</div></div>`;
@@ -377,24 +781,79 @@ function renderBrief(body){
     html+=`<div class="brow"><div class="brow-left"><div class="bname">${t} · ${esc(ev.title)}</div>${ev.loc?`<div class="bsub">📍 ${esc(ev.loc)}</div>`:''}</div></div>`;
   });
   html+=`</div>`;
+
+  // 3. 할일
   const ac=todos.filter(t=>!t.done),hi=ac.filter(t=>t.p==='high');
   html+=`<div class="bcard"><div class="bcardtitle">✅ 할 일 <span class="tag ${hi.length?'r':'gold'}">${ac.length}건 미완</span></div>`;
   if(!todos.length)html+=`<div class="brow"><div class="bsub">할 일이 없습니다.</div></div>`;
   else{
     const ord=['high','mid','low'];
     [...ac].sort((a,b)=>ord.indexOf(a.p)-ord.indexOf(b.p)).slice(0,4).forEach(t=>{
-      const lc={high:'r',mid:'gold',low:'b'}[t.p],ll={high:'🔴 높음',mid:'🟡 보통',low:'🔵 낮음'}[t.p];
+      const lc={high:'r',mid:'gold',low:'b'}[t.p];
+      const ll={high:'🔴 높음',mid:'🟡 보통',low:'🔵 낮음'}[t.p];
       html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(t.text)}</div></div><span class="tag ${lc}">${ll}</span></div>`;
     });
     if(ac.length>4)html+=`<div style="font-size:12px;color:var(--dim);text-align:center;padding-top:7px">+${ac.length-4}건 더 있음</div>`;
   }
   html+=`</div>`;
+
+  // 4. 조언
   const h=new Date().getHours();
   const adv=h<10?'오전 집중 타임입니다. 중요한 업무부터 처리하세요.':h<13?'오전 마무리 타임입니다. 오후 일정을 미리 확인해보세요.':h<15?'점심 후 시간입니다. 이메일·가벼운 업무에 적합합니다.':h<18?'오후 마무리 중입니다. 내일 할 일을 미리 정리해보세요.':'하루 마무리 시간입니다. 완료한 항목을 체크해보세요.';
   html+=`<div class="advice-box"><div class="advice-title">💡 오늘의 조언</div><div class="advice-text">${adv}</div></div>`;
+
+  // 5. 유튜브
+  html+=`<div class="bcard"><div class="bcardtitle">📺 유튜브 현황
+    <div class="goal-row"><label>업로드 목표</label>
+      <select class="goal-sel" onchange="setGoal(this.value)">
+        ${[[3,'3일'],[7,'주 1회'],[14,'2주 1회'],[30,'월 1회']].map(([v,l])=>`<option value="${v}"${ytGoal===+v?' selected':''}>${l}</option>`).join('')}
+      </select>
+    </div></div>`;
+  if(ytData){
+    const days=daysDiff(today,ytData.pub),over=days>ytGoal;
+    html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(ytData.title)}</div><div class="bsub">${fmtDate(ytData.pub)} 업로드</div></div>
+      <div style="text-align:right"><div class="bval" style="color:${over?'var(--red)':'var(--green)'}">${days}일 전</div><span class="tag ${over?'r':'g'}">${over?'⚠ 지연':'✓ 정상'}</span></div></div>`;
+    if(over)html+=`<div class="warn-box">목표 주기(${ytGoal}일)를 <strong>${days-ytGoal}일</strong> 초과했습니다.</div>`;
+  }else html+=dataErr('유튜브');
+  html+=`</div>`;
+
+  // 6. 콘텐츠 발행
+  const tPend=timeline.filter(t=>t.status==='발행전');
+  const tOv=tPend.filter(t=>daysDiff(t.date,today)<-1);
+  const tUp=tPend.filter(t=>daysDiff(t.date,today)>=-1&&daysDiff(t.date,today)<=14);
+  html+=`<div class="bcard ${tOv.length?'alert':''}"><div class="bcardtitle">📝 콘텐츠 발행 현황${tOv.length?` <span class="tag r">미발행 ${tOv.length}건</span>`:''}</div>`;
+  if(!timeline.length)html+=dataErr('타임라인 시트');
+  else{
+    tOv.slice(0,2).forEach(t=>{const d=Math.abs(daysDiff(t.date,today));html+=`<div class="brow" style="border-left:2px solid var(--red);padding-left:10px;margin-left:-2px"><div class="brow-left"><div class="bname" style="color:var(--red)">⚠ 미발행 D+${d}일 · ${esc(t.round)}</div><div class="bsub">${esc(t.content||'내용 미정')}</div></div><div class="bval" style="color:var(--red);font-size:11px">${fmtDate(t.date)}</div></div>`;});
+    tUp.slice(0,4).forEach(t=>{const d=daysDiff(t.date,today);const lbl=d===0?'🔴 오늘':d===1?'🟡 내일':`D-${d}일`;html+=`<div class="brow"><div class="brow-left"><div class="bname">${lbl} · ${esc(t.round)}</div><div class="bsub">${esc(t.content||'내용 미정')}</div></div><div class="bval" style="font-size:11px;color:${d<=1?'var(--orange)':'var(--mid)'}">${fmtDate(t.date)}</div></div>`;});
+    if(!tOv.length&&!tUp.length)html+=`<div class="brow"><div class="bsub">2주 내 예정 발행이 없습니다.</div></div>`;
+  }
+  html+=`</div>`;
+
+  // 7. 클라이언트
+  const active=clients.filter(c=>c.status==='진행중');
+  html+=`<div class="bcard"><div class="bcardtitle">💼 클라이언트 현황 <span class="tag gold">${active.length}명 진행중</span></div>`;
+  if(!clients.length)html+=dataErr('클라이언트 시트');
+  else clients.forEach(c=>{
+    const pay=nextPayDate(c.bigo);
+    const dd=pay?daysDiff(pay,today):null;
+    const overdue=dd!==null&&dd<0,urgent=dd!==null&&dd>=0&&dd<=3;
+    let pt='';
+    if(dd!==null){if(overdue)pt=`<span class="tag r">💸 연체 D+${Math.abs(dd)}일</span>`;else if(urgent)pt=`<span class="tag o">💰 결제 D-${dd}일</span>`;else pt=`<span class="tag b">결제 D-${dd}일</span>`;}
+    html+=`<div class="brow" style="${overdue?'border-left:2px solid var(--red);padding-left:10px;margin-left:-2px':''}">
+      <div class="brow-left"><div class="bname">${esc(c.name)} <span class="tag ${c.status==='진행중'?'g':'b'}">${c.status}</span></div>
+      <div class="bsub">${c.monthlyPosts} · 발행 ${c.published} · 마지막 ${c.lastPost}</div>
+      <div class="btags">${pt}${pay?`<span class="tag b" style="opacity:.65">${fmtDate(pay)}</span>`:''}</div></div>
+      <div style="text-align:right;min-width:78px"><div class="bval" style="font-size:13px;color:${overdue?'var(--red)':'var(--mid)'}">${fmtMoney(c.remaining)}</div><div class="bsub">잔여</div></div>
+    </div>`;
+  });
+  html+=`</div>`;
+
   body.innerHTML=html;
 }
+function setGoal(v){ytGoal=+v;localStorage.setItem('ytGoal',v);render();}
 
+// ── EVENTS ─────────────────────────────────────────
 function renderEvList(body,list,group){
   if(!list.length){body.innerHTML=`<div class="empty">등록된 일정이 없습니다.<br>상단 입력창이나 + 버튼으로 추가해보세요.</div>`;return;}
   list.sort((a,b)=>a.date!==b.date?a.date.localeCompare(b.date):(a.start||'99').localeCompare(b.start||'99'));
@@ -420,7 +879,8 @@ function quickAdd(){
   const ev=parseNat(txt);events.push(ev);save();el.value='';render();
 }
 function parseNat(orig){
-  let txt=orig,date=todayISO(),start='',end='',loc='';const td=new Date();
+  let txt=orig,date=todayISO(),start='',end='',loc='';
+  const td=new Date();
   if(/내일/.test(txt)){const d=new Date(td);d.setDate(d.getDate()+1);date=d.toISOString().slice(0,10);txt=txt.replace(/내일/,'').trim();}
   else if(/모레/.test(txt)){const d=new Date(td);d.setDate(d.getDate()+2);date=d.toISOString().slice(0,10);txt=txt.replace(/모레/,'').trim();}
   else if(/오늘/.test(txt)){txt=txt.replace(/오늘/,'').trim();}
@@ -428,7 +888,9 @@ function parseNat(orig){
   const tr=txt.match(/(\d{1,2})(?::(\d{2}))?시?[-~](\d{1,2})(?::(\d{2}))?시?/);
   if(tr){start=`${tr[1].padStart(2,'0')}:${tr[2]||'00'}`;end=`${tr[3].padStart(2,'0')}:${tr[4]||'00'}`;txt=txt.replace(tr[0],'').trim();}
   else{
-    const ap=txt.match(/(오전|오후)\s*(\d{1,2})(?::(\d{2}))?시?/),hm=txt.match(/(\d{1,2}):(\d{2})/),ho=txt.match(/(\d{1,2})시/);
+    const ap=txt.match(/(오전|오후)\s*(\d{1,2})(?::(\d{2}))?시?/);
+    const hm=txt.match(/(\d{1,2}):(\d{2})/);
+    const ho=txt.match(/(\d{1,2})시/);
     if(ap){let h=+ap[2];if(ap[1]==='오후'&&h<12)h+=12;if(ap[1]==='오전'&&h===12)h=0;start=`${String(h).padStart(2,'0')}:${ap[3]||'00'}`;txt=txt.replace(ap[0],'').trim();}
     else if(hm){start=`${hm[1].padStart(2,'0')}:${hm[2]}`;txt=txt.replace(hm[0],'').trim();}
     else if(ho){start=`${ho[1].padStart(2,'0')}:00`;txt=txt.replace(ho[0],'').trim();}
@@ -438,7 +900,8 @@ function parseNat(orig){
   return{id:Date.now()+Math.random(),title:txt.replace(/\s+/g,' ').trim()||'새 일정',date,start,end,loc,note:''};
 }
 function openModal(id){
-  editId=id||null;const ev=id?events.find(e=>e.id===id):null;
+  editId=id||null;
+  const ev=id?events.find(e=>e.id===id):null;
   document.getElementById('mtitle').textContent=ev?'일정 수정':'일정 추가';
   document.getElementById('mTitle').value=ev?ev.title:'';
   document.getElementById('mDate').value=ev?ev.date:todayISO();
@@ -456,6 +919,8 @@ function saveEvent(){
   save();render();closeModal();
 }
 function delEv(id,e){e.stopPropagation();if(!confirm('삭제하시겠습니까?'))return;events=events.filter(x=>x.id!==id);save();render();}
+
+// ── TODOS ──────────────────────────────────────────
 function addTodo(){
   const el=document.getElementById('tinput'),t=el.value.trim();if(!t)return;
   todos.unshift({id:Date.now(),text:t,p:document.getElementById('psel').value,done:false});
@@ -463,12 +928,15 @@ function addTodo(){
 }
 function toggleTodo(id){const t=todos.find(x=>x.id===id);if(t){t.done=!t.done;save();renderTodos();}}
 function delTodo(id){todos=todos.filter(x=>x.id!==id);save();renderTodos();}
+
 function renderTodos(){
-  const list=document.getElementById('todoList'),sub=document.getElementById('todoSub');
+  const list=document.getElementById('todoList');
+  const sub=document.getElementById('todoSub');
   const ac=todos.filter(t=>!t.done),dn=todos.filter(t=>t.done);
   sub.textContent=`미완 ${ac.length}건 · 완료 ${dn.length}건`;
   if(!todos.length){list.innerHTML=`<div class="empty">할 일을 추가해보세요.</div>`;return;}
-  const ord=['high','mid','low'],sorted=[...ac].sort((a,b)=>ord.indexOf(a.p)-ord.indexOf(b.p));
+  const ord=['high','mid','low'];
+  const sorted=[...ac].sort((a,b)=>ord.indexOf(a.p)-ord.indexOf(b.p));
   let html='';
   if(sorted.length)html+=`<div class="glabel">진행 중 · ${sorted.length}</div>`+sorted.map(tItem).join('');
   if(dn.length)html+=`<div class="glabel">완료 · ${dn.length}</div>`+dn.map(tItem).join('');
@@ -478,8 +946,17 @@ function tItem(t){
   const lbl={high:'높음',mid:'보통',low:'낮음'};
   return `<div class="titem"><div class="cb ${t.done?'done':''}" onclick="toggleTodo(${t.id})"></div><div class="tlabel ${t.done?'done':''}">${esc(t.text)}</div>${!t.done?`<span class="ptag ${t.p}">${lbl[t.p]}</span>`:''}<button class="delbtn" onclick="delTodo(${t.id})">✕</button></div>`;
 }
-function save(){scheduleSave();}
+
+// ── SAVE (시트 + 로컬 백업) ────────────────────────
+function save(){
+  try{localStorage.setItem('sv-events',JSON.stringify(events));localStorage.setItem('sv-todos',JSON.stringify(todos));}catch(_){}
+  scheduleSave();
+}
+
 document.getElementById('evModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.getElementById('helpOverlay').addEventListener('click',function(e){if(e.target===this)closeHelp();});
+function openHelp(){document.getElementById('helpOverlay').classList.add('show');}
+function closeHelp(){document.getElementById('helpOverlay').classList.remove('show');}
 </script>
 </body>
 </html>
