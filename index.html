@@ -694,8 +694,8 @@ const PROXIES=[
   u=>`https://thingproxy.freeboard.io/fetch/${u}`,
 ];
 const YT_RSS='https://www.youtube.com/feeds/videos.xml?channel_id=UCEftmElUZRmdDk_WFlWUiiQ';
-// rss2json API — YouTube RSS 전용 (CORS 제한 없음)
-const YT_RSS2JSON=`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(YT_RSS)}`;
+// rss2json.com API — CORS 없음, 무료 사용 가능
+const YT_RSS2JSON=`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(YT_RSS)}&api_key=&count=10`;
 let ytGoal=parseInt(localStorage.getItem('ytGoal')||'7');
 
 let scriptUrl='',syncBusy=false,syncTimer=null,editId=null;
@@ -897,10 +897,21 @@ function renderBrief(){
 
   // 협찬 마감 임박
   const spUrgent=sponsors.filter(s=>!s.done&&s.deadline&&daysDiff(new Date(s.deadline),today)<=2&&daysDiff(new Date(s.deadline),today)>=-1);
-  // 블로그 발행 지연
-  const blogOverdue=blogTimeline.filter(t=>t.status==='발행전'&&daysDiff(t.date,today)<-1);
-  // 블로그 발행 예정 (이번주)
-  const blogUpcoming=blogTimeline.filter(t=>t.status==='발행전'&&daysDiff(t.date,today)>=0&&daysDiff(t.date,today)<=7);
+  // 블로그 발행 지연 — blogTimeline date는 Date 객체
+  const blogOverdue=blogTimeline.filter(t=>{
+    if(!t||!t.date)return false;
+    const st=(t.status||'').trim();
+    if(st==='발행완료'||st==='발행')return false;
+    return daysDiff(t.date,today)<0; // 오늘 기준 과거면 지연
+  });
+  // 블로그 발행 예정 (D-0 기준, 오늘~7일 이내)
+  const blogUpcoming=blogTimeline.filter(t=>{
+    if(!t||!t.date)return false;
+    const st=(t.status||'').trim();
+    if(st==='발행완료'||st==='발행')return false;
+    const d=daysDiff(t.date,today);
+    return d>=0&&d<=7;
+  });
 
   // ── KPI 상단 6칸
   html+=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px">
@@ -991,12 +1002,24 @@ function renderBrief(){
     html+=`<div class="bcard ${blogOverdue.length?'alert':''}"><div class="bcardtitle">📝 블로그 발행 현황${blogOverdue.length?` <span class="tag r">지연 ${blogOverdue.length}건</span>`:''}</div>`;
     blogOverdue.slice(0,2).forEach(t=>{
       const d=Math.abs(daysDiff(t.date,today));
-      html+=`<div class="brow" style="border-left:2px solid var(--red);padding-left:10px;margin-left:-2px"><div class="brow-left"><div class="bname" style="color:var(--red)">⚠ D+${d}일 · ${esc(t.round||'')}</div><div class="bsub-t">${esc(t.name)} · ${esc(t.content||'내용 미정')}</div></div><div class="bval" style="font-size:11px;color:var(--red)">${fmtDate(t.date)}</div></div>`;
+      html+=`<div class="brow" style="border-left:2px solid var(--red);padding-left:10px;margin-left:-2px">
+        <div class="brow-left">
+          <div class="bname" style="color:var(--red)">⚠ D+${d}일 · ${esc(t.name||t.round||'')}</div>
+          <div class="bsub-t">${esc(t.content||t.cat||'내용 미정')} · ${esc(t.status||'')}</div>
+        </div>
+        <div class="bval" style="font-size:11px;color:var(--red)">${fmtDate(t.date)}</div>
+      </div>`;
     });
     blogUpcoming.slice(0,3).forEach(t=>{
       const d=daysDiff(t.date,today);
       const lbl=d===0?'🔴 오늘':d===1?'🟡 내일':`D-${d}일`;
-      html+=`<div class="brow"><div class="brow-left"><div class="bname">${lbl} · ${esc(t.round||'')}</div><div class="bsub-t">${esc(t.name)} · ${esc(t.content||'내용 미정')}</div></div><div class="bval" style="font-size:11px;color:${d<=1?'var(--orange)':'var(--mid)'}">${fmtDate(t.date)}</div></div>`;
+      html+=`<div class="brow">
+        <div class="brow-left">
+          <div class="bname">${lbl} · ${esc(t.name||t.round||'')}</div>
+          <div class="bsub-t">${esc(t.content||t.cat||'내용 미정')} · ${esc(t.status||'')}</div>
+        </div>
+        <div class="bval" style="font-size:11px;color:${d<=1?'var(--orange)':'var(--mid)'}">${fmtDate(t.date)}</div>
+      </div>`;
     });
     html+=`</div>`;
   }
@@ -1399,11 +1422,38 @@ async function loadYT(){
   }
   try{
     const to=t=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),t));
-    // rss2json.com - YouTube RSS 전용, CORS 제한 없음
-    const res=await Promise.race([fetch(YT_RSS2JSON),to(12000)]);
-    if(!res.ok)throw new Error('rss2json fail '+res.status);
-    const json=await res.json();
-    if(json.status!=='ok'||!json.items?.length)throw new Error('no items');
+    let json=null;
+
+    // 1차: rss2json.com (CORS 없음)
+    try{
+      const res=await Promise.race([fetch(YT_RSS2JSON),to(10000)]);
+      if(res.ok){
+        const j=await res.json();
+        if(j.status==='ok'&&j.items?.length)json=j;
+      }
+    }catch(_){}
+
+    // 2차: allorigins → XML 직접 파싱
+    if(!json){
+      try{
+        const url=`https://api.allorigins.win/raw?url=${encodeURIComponent(YT_RSS)}`;
+        const res=await Promise.race([fetch(url),to(10000)]);
+        if(res.ok){
+          const xml=await res.text();
+          if(xml.includes('<entry>')){
+            const doc=new DOMParser().parseFromString(xml,'text/xml');
+            const entries=[...doc.querySelectorAll('entry')].slice(0,10);
+            json={status:'ok',items:entries.map(e=>({
+              title:e.querySelector('title')?.textContent||'',
+              link:e.querySelector('link')?.getAttribute('href')||'',
+              pubDate:e.querySelector('published')?.textContent||''
+            }))};
+          }
+        }
+      }catch(_){}
+    }
+
+    if(!json)throw new Error('all failed');
     const items=json.items;
     const first=items[0];
     ytData={
@@ -1861,117 +1911,116 @@ function renderJolgimun(csvC, csvS){
   let html='';
 
   // ── 계약 탭 파싱 (gid=1925642853)
-  // 헤더는 여러 행 — 실데이터는 J열(idx9)=영업담당자가 있는 행
+  // R열(idx17): 계약중·재계약→진행중, 계약만료→종료
   const rowsC=csvParse(csvC);
   const contracts=[];
+  const SKIP=['조합명','총계','합계','합  계','영업담당','계약월','진행여부',''];
   for(let i=0;i<rowsC.length;i++){
     const r=rowsC[i];
-    if(!r[0]||!r[0].trim())continue;
-    // 진행여부는 D열(idx3), 조합명 B열(idx1), 영업담당 J열(idx9)
-    const status=(r[3]||'').trim();
     const name=(r[1]||'').trim();
+    if(!name||SKIP.some(s=>name.includes(s))||name.length<2)continue;
+    const rawStatus=(r[17]||r[3]||'').trim();
+    if(!rawStatus||rawStatus==='진행여부')continue;
+    const status=rawStatus.includes('계약만료')?'종료':
+                 (rawStatus.includes('계약중')||rawStatus.includes('재계약'))?'진행중':rawStatus;
     const manager=(r[9]||'').trim();
-    if(!name||name==='조합명'||name.includes('총계')||name.includes('합계'))continue;
-    if(!status||status==='진행여부')continue;
-    contracts.push({name,status,manager,month:(r[0]||'').trim()});
+    contracts.push({name,status,manager});
   }
 
   const total=contracts.length;
-  const active=contracts.filter(c=>c.status==='진행중'||c.status==='계약중');
-  const ended=contracts.filter(c=>c.status==='종료'||c.status==='완료'||c.status==='정산완료');
-  const other=contracts.filter(c=>!active.includes(c)&&!ended.includes(c));
+  const active=contracts.filter(c=>c.status==='진행중');
+  const ended=contracts.filter(c=>c.status==='종료');
 
-  // 영업담당자별 실적
   const byMgr={};
   contracts.forEach(c=>{
-    const m=c.manager||'미지정';
+    const m=(c.manager||'').trim();
+    if(!m||m==='영업담당'||m==='영업담당자'||m==='미지정')return;
     if(!byMgr[m])byMgr[m]={total:0,active:0,ended:0};
     byMgr[m].total++;
-    if(active.includes(c))byMgr[m].active++;
-    if(ended.includes(c))byMgr[m].ended++;
+    if(c.status==='진행중')byMgr[m].active++;
+    if(c.status==='종료')byMgr[m].ended++;
   });
 
-  // ── 실무표 파싱 (gid=982934532) — 가로방향
-  // row0(1행)=날짜, row2(3행)=주제, row4+(5행~)=값
+  // ── 실무표 파싱 (gid=982934532) — 가로 방향
   const rowsS=csvS?csvParse(csvS):[];
   const sendDates=[];
-  if(rowsS.length>=3){
+  if(rowsS.length>=5){
     const dateRow=rowsS[0]||[];
     const topicRow=rowsS[2]||[];
-    // J열부터 = index 9
-    for(let col=9;col<dateRow.length;col++){
+    for(let col=0;col<dateRow.length;col++){
       const dateStr=(dateRow[col]||'').trim();
       const topic=(topicRow[col]||'').trim();
       if(!dateStr||!topic)continue;
-      // 해당 열의 5행(idx4)부터 끝까지 값 수집
-      let total=0,ready=0,confirm=0,done=0;
+      const dm=dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if(!dm)continue;
+      const dt=new Date(+dm[1],+dm[2]-1,+dm[3]);
+      let tot=0,ready=0,confirm=0,done=0;
       for(let row=4;row<rowsS.length;row++){
-        const val=(rowsS[row][col]||'').trim();
-        if(!val)continue;
-        total++;
+        const val=(rowsS[row]?.[col]||'').trim();
+        if(!val||val==='0')continue;
+        tot++;
         if(val.endsWith('_예정'))ready++;
         else if(val.endsWith('_컨펌중'))confirm++;
         else if(val.endsWith('_완'))done++;
       }
-      if(total===0)continue;
-      let dt=null;
-      // dateStr 형식: 2026-04-01
-      const dm=dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
-      if(dm)dt=new Date(+dm[1],+dm[2]-1,+dm[3]);
-      sendDates.push({dateStr,topic,dt,total,ready,confirm,done});
+      if(tot===0)continue;
+      sendDates.push({dateStr,topic,dt,total:tot,ready,confirm,done});
     }
-    sendDates.sort((a,b)=>(a.dt||0)-(b.dt||0));
+    sendDates.sort((a,b)=>a.dt-b.dt);
   }
 
-  // ── 렌더
-  // 1. 계약 요약
-  html+=`<div class="brief-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+  // ── 렌더 1. 계약 요약
+  html+=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px">
     <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">총 계약건수</div><div class="kpi-val">${total}건</div></div>
     <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-label">진행중</div><div class="kpi-val ok">${active.length}건</div></div>
     <div class="kpi-card"><div class="kpi-icon">🏁</div><div class="kpi-label">종료</div><div class="kpi-val dim">${ended.length}건</div></div>
   </div>`;
 
-  // 2. 영업담당자별 실적
+  // ── 렌더 2. 영업담당자 실적
+  const mgrList=Object.entries(byMgr).sort((a,b)=>b[1].total-a[1].total);
   html+=`<div class="bcard"><div class="bcardtitle">👤 영업담당자 실적</div>`;
-  Object.entries(byMgr).filter(([m])=>m&&m!=='미지정'&&m!=='영업담당').sort((a,b)=>b[1].total-a[1].total).forEach(([m,v])=>{
+  if(!mgrList.length)html+=`<div class="brow"><div class="bsub-t">담당자 데이터 없음 — J열 확인 필요</div></div>`;
+  else mgrList.forEach(([m,v])=>{
     html+=`<div class="brow">
-      <div class="brow-left">
-        <div class="bname">${esc(m)}</div>
-        <div class="bsub-t">진행중 ${v.active}건 · 종료 ${v.ended}건</div>
-      </div>
-      <div class="bval">${v.total}건</div>
+      <div class="brow-left"><div class="bname">${esc(m)}</div>
+      <div class="bsub-t">진행중 ${v.active}건 · 종료 ${v.ended}건</div></div>
+      <span class="tag gold">${v.total}건</span>
     </div>`;
   });
   html+=`</div>`;
 
-  // 3. 발송 예정 일정 (실무표)
-  if(sendDates.length){
-    const upcoming=sendDates.filter(s=>s.dt&&daysDiff(s.dt,today)>=-3&&daysDiff(s.dt,today)<=60);
-    const past=sendDates.filter(s=>s.dt&&daysDiff(s.dt,today)<-3).slice(-3);
+  // ── 렌더 3. 발송 현황 (실무표)
+  if(!sendDates.length){
+    html+=`<div class="bcard"><div class="bcardtitle">📨 발송 현황</div><div class="brow"><div class="bsub-t">실무표 데이터를 불러오지 못했습니다.</div></div></div>`;
+  } else {
+    const upcoming=sendDates.filter(s=>daysDiff(s.dt,today)>=-7&&daysDiff(s.dt,today)<=90);
+    const past=sendDates.filter(s=>daysDiff(s.dt,today)<-7).slice(-3);
 
     if(upcoming.length){
-      html+=`<div class="bcard"><div class="bcardtitle">📨 발송 예정 (60일 이내)</div>`;
+      html+=`<div class="bcard"><div class="bcardtitle">📨 발송 예정 <span class="tag gold">${upcoming.length}건</span></div>`;
       upcoming.forEach(s=>{
         const d=daysDiff(s.dt,today);
         const isPast=d<0;
-        const lbl=d===0?'🔴 오늘':d===1?'🟡 내일':isPast?`D+${Math.abs(d)}일 지남`:`D-${d}일`;
-        const pctDone=s.total?Math.round(s.done/s.total*100):0;
+        const lbl=d===0?'오늘':d===1?'내일':isPast?`D+${Math.abs(d)}일 지남`:`D-${d}일`;
+        const pct=s.total?Math.round(s.done/s.total*100):0;
         html+=`<div class="brow">
           <div class="brow-left">
-            <div class="bname" style="color:${isPast?'var(--red)':d<=2?'var(--orange)':'#fff'}">${lbl} · ${esc(s.topic)}</div>
+            <div class="bname" style="color:${isPast?'var(--red)':d<=2?'var(--orange)':'#fff'}">
+              <span class="tag ${isPast?'r':d<=2?'o':'gold'}" style="margin-right:6px">${lbl}</span>${esc(s.topic)}
+            </div>
             <div class="bsub-t">${s.dateStr} · 총 ${s.total}건 · 준비중 ${s.ready} · 컨펌중 ${s.confirm} · 완료 ${s.done}</div>
             <div style="height:4px;background:var(--b);border-radius:2px;margin-top:5px;max-width:220px">
-              <div style="height:4px;background:${pctDone>=100?'var(--green)':'var(--gold)'};border-radius:2px;width:${pctDone}%"></div>
+              <div style="height:4px;background:${pct>=100?'var(--green)':'var(--gold)'};border-radius:2px;width:${Math.min(pct,100)}%"></div>
             </div>
           </div>
-          <span class="tag ${isPast?'r':d<=2?'o':'gold'}">${pctDone}% 완료</span>
+          <div style="text-align:right;flex-shrink:0"><div class="bval" style="font-size:13px">${pct}%</div><div class="bsub-t">완료</div></div>
         </div>`;
       });
       html+=`</div>`;
     }
 
     if(past.length){
-      html+=`<div class="bcard"><div class="bcardtitle">📋 최근 발송 완료</div>`;
+      html+=`<div class="bcard"><div class="bcardtitle">📋 최근 완료</div>`;
       [...past].reverse().forEach(s=>{
         const d=Math.abs(daysDiff(s.dt,today));
         html+=`<div class="brow">
