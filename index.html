@@ -694,6 +694,12 @@ const PROXIES=[
   u=>`https://thingproxy.freeboard.io/fetch/${u}`,
 ];
 const YT_RSS='https://www.youtube.com/feeds/videos.xml?channel_id=UCEftmElUZRmdDk_WFlWUiiQ';
+// YouTube RSS는 allorigins 우선 사용
+const YT_PROXIES=[
+  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+];
 let ytGoal=parseInt(localStorage.getItem('ytGoal')||'7');
 
 let scriptUrl='',syncBusy=false,syncTimer=null,editId=null;
@@ -701,6 +707,8 @@ let events=[],todos=[];
 let ytData=null;
 let sponsors=[];
 try{sponsors=JSON.parse(localStorage.getItem('sv-sponsors')||'[]')}catch(_){}
+let blogClients=[], blogTimeline=[], blogLoaded=false, activeClient=null;
+let spTab='active';
 let curPage='home',schedTab='week';
 
 try{events=JSON.parse(localStorage.getItem('sv-events')||'[]')}catch(_){}
@@ -1394,7 +1402,17 @@ async function loadYT(){
     body.innerHTML=`<div class="spin-wrap"><div class="spin"></div><div class="spin-t">유튜브 데이터 불러오는 중…</div></div>`;
   }
   try{
-    const xml=await proxyFetch(YT_RSS,10000);
+    const to=t=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),t));
+    let xml=null;
+    for(const pf of YT_PROXIES){
+      try{
+        const res=await Promise.race([fetch(pf(YT_RSS)),to(10000)]);
+        if(!res.ok)continue;
+        const txt=await res.text();
+        if(txt&&txt.includes('<feed')){{xml=txt;break;}}
+      }catch(_){}
+    }
+    if(!xml)throw new Error('All YT proxies failed');
     const doc=new DOMParser().parseFromString(xml,'text/xml');
     const entries=doc.querySelectorAll('entry');
     if(!entries.length)throw new Error('no entries');
@@ -1466,7 +1484,6 @@ async function loadYT(){
 // ══════════════════════════════════════════════
 const SH_BLOG    = {id:'15jBLPGRJr8WzTuHMMKYWyTniOBB0wkL7QqVET16G1CY', gid:'1533269847'};
 const SH_TIMELINE_BLOG = {id:'14t8MTgpyjap_gyys8K6cuRJEuc0dIZLIhY2UZHnJoJs', gid:'0'};
-let blogClients=[], blogTimeline=[], blogLoaded=false, activeClient=null;
 
 async function loadBlog(){
   const body=document.getElementById('blogBody');
@@ -1670,7 +1687,6 @@ function toggleClient(name,el){
 // ══════════════════════════════════════════════
 //  SPONSOR 협찬 포스팅
 // ══════════════════════════════════════════════
-let spTab='active'; // 'active' | 'done'
 
 function initSponsor(){
   const body=document.getElementById('sponsorBody');
