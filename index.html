@@ -185,22 +185,128 @@ function toggleDebug(){
 function setStatus(msg){document.getElementById('statusLine').textContent=msg;}
 
 // ── CSV PARSER ───────────────────────────────
+// 셀 내부 줄바꿈(\n)을 올바르게 처리하는 CSV 파서
 function csvParse(txt){
   const rows=[];
-  for(const line of txt.replace(/\r/g,'').split('\n')){
-    if(!line.trim())continue;
-    const fields=[];let f='',q=false;
-    for(let i=0;i<line.length;i++){
-      if(line[i]==='"'){q=!q;}
-      else if(line[i]===','&&!q){fields.push(f);f='';}
-      else f+=line[i];
+  let fields=[], f='', q=false;
+  for(let i=0;i<txt.length;i++){
+    const c=txt[i];
+    if(c==='\r')continue;
+    if(c==='"'){
+      // 연속 큰따옴표("") = 이스케이프된 따옴표
+      if(q&&txt[i+1]==='"'){f+='"';i++;}
+      else q=!q;
+    } else if(c===','&&!q){
+      fields.push(f);f='';
+    } else if(c==='\n'&&!q){
+      // 따옴표 밖 줄바꿈 = 행 구분
+      fields.push(f);f='';
+      if(fields.some(x=>x.trim()))rows.push(fields);
+      fields=[];
+    } else {
+      f+=c;
     }
-    fields.push(f);rows.push(fields);
   }
+  // 마지막 행 처리
+  if(f||fields.length){fields.push(f);if(fields.some(x=>x.trim()))rows.push(fields);}
   return rows;
 }
 
-// ── FETCH ────────────────────────────────────
+// ── PARSE ────────────────────────────────────
+function parseAll(rows){
+  dbg(`=== 구조 진단 ===`);
+  dbg(`총 행: ${rows.length}, 1행 열수: ${(rows[0]||[]).length}`);
+  dbg(`1행 앞 15열: ${(rows[0]||[]).slice(0,15).map((v,i)=>`[${i}]"${v||''}"`).join(' ')}`);
+
+  // ── 1. 날짜 행 / 절기명 행 / 데이터 시작 행 동적 탐색
+  // YYYY-MM-DD 패턴이 여러 개 나오는 행을 날짜 행으로 간주
+  let DATE_ROW=-1, DATE_COL_START=-1;
+  for(let ri=0;ri<Math.min(20,rows.length);ri++){
+    const r=rows[ri]||[];
+    let cnt=0, firstCol=-1;
+    for(let ci=0;ci<r.length;ci++){
+      if(/^\d{4}-\d{2}-\d{2}$/.test((r[ci]||'').trim())){
+        cnt++;
+        if(firstCol<0)firstCol=ci;
+      }
+    }
+    if(cnt>=2){DATE_ROW=ri;DATE_COL_START=firstCol;break;}
+  }
+  dbg(`날짜 행 idx: ${DATE_ROW}, 날짜 시작 열: ${DATE_COL_START}`);
+
+  if(DATE_ROW<0||DATE_COL_START<0){
+    dbg('❌ 날짜 행을 찾지 못했습니다. 시트 구조를 확인하세요.');
+    // 추가 진단: 전체 행 앞 3열씩 출력
+    for(let ri=0;ri<Math.min(10,rows.length);ri++){
+      dbg(`행${ri+1}: ${(rows[ri]||[]).slice(0,8).map((v,i)=>`[${i}]"${(v||'').substring(0,12)}"`).join(' ')}`);
+    }
+    clients=[];jolgiDates=[];return;
+  }
+
+  // 날짜 행 기준으로 행 위치 설정
+  // bb1=날짜, bb2=비어있음(설명?), bb3=절기명, bb4=총개수, bb5~=값
+  const NAME_ROW = DATE_ROW+2;  // 절기명 행 (bb3)
+  const TOTAL_ROW= DATE_ROW+3;  // 총개수 행 (bb4)
+  const DATA_START= DATE_ROW+4; // 값 시작 행 (bb5~)
+
+  // 클라이언트 행 시작: 날짜행 기준으로 아래쪽 (DATA_START부터)
+  // B열=영업담당, C열=조합명 기준으로 찾기
+  // → 날짜 시작 열(DATE_COL_START) 이전 열이 클라이언트 정보
+  dbg(`절기명 행 idx: ${NAME_ROW}, 총개수 행: ${TOTAL_ROW}, 데이터 시작: ${DATA_START}`);
+  dbg(`절기명 행 샘플: ${(rows[NAME_ROW]||[]).slice(DATE_COL_START,DATE_COL_START+5).map((v,i)=>`[${DATE_COL_START+i}]"${v||''}"`).join(' ')}`);
+  dbg(`총개수 행 샘플: ${(rows[TOTAL_ROW]||[]).slice(DATE_COL_START,DATE_COL_START+5).map((v,i)=>`[${DATE_COL_START+i}]"${v||''}"`).join(' ')}`);
+
+  // ── 2. 클라이언트 파싱 (DATA_START 행부터)
+  // B열(1)=영업담당, C열(2)=조합명, D(3)=문자전체, E(4)=발송, F(5)=잔여
+  // G(6)=캐리전체, H(7)=발송, I(8)=잔여
+  clients=[];
+  for(let i=DATA_START;i<rows.length;i++){
+    const r=rows[i]||[];
+    const manager=(r[1]||'').trim();
+    const name=(r[2]||'').trim();
+    if(!name||!manager)continue;
+    if(manager==='영업 담당'||manager==='영업담당'||name==='조합명')continue;
+    const txtTotal=n(r[3]),txtSent=n(r[4]),txtRemain=n(r[5]);
+    const carTotal=n(r[6]),carSent=n(r[7]),carRemain=n(r[8]);
+    if(!txtTotal&&!carTotal&&!txtSent&&!carSent)continue;
+    clients.push({manager,name,txtTotal,txtSent,txtRemain,carTotal,carSent,carRemain});
+  }
+  dbg(`클라이언트 ${clients.length}건`);
+  if(clients.length>0)dbg(`첫 클라이언트: manager="${clients[0].manager}" name="${clients[0].name}" txt=${clients[0].txtTotal}/${clients[0].txtSent}/${clients[0].txtRemain}`);
+
+  // ── 3. 절기 날짜 파싱
+  jolgiDates=[];
+  const dateRow=rows[DATE_ROW]||[];
+  const nameRow=rows[NAME_ROW]||[];
+  const totalRow=rows[TOTAL_ROW]||[];
+
+  for(let col=DATE_COL_START;col<dateRow.length;col++){
+    const dateStr=(dateRow[col]||'').trim();
+    const jolgiName=(nameRow[col]||'').trim();
+    if(!dateStr)continue;
+    const dm=dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!dm)continue;
+    const dateObj=new Date(+dm[1],+dm[2]-1,+dm[3]);
+
+    const totalFromRow=n(totalRow[col]);
+    let cnt=0,ready=0,confirm=0,done=0;
+    for(let row=DATA_START;row<rows.length;row++){
+      const val=(rows[row]?.[col]||'').trim();
+      if(!val||val==='0')continue;
+      cnt++;
+      if(val.includes('_예정'))ready++;
+      else if(val.includes('_컨펌중'))confirm++;
+      else if(val.includes('_완'))done++;
+    }
+    const useTotal=totalFromRow||cnt;
+    if(!useTotal)continue;
+    jolgiDates.push({dateStr,dateObj,name:jolgiName||dateStr,total:useTotal,ready,confirm,done,col});
+  }
+  jolgiDates.sort((a,b)=>a.dateObj-b.dateObj);
+  dbg(`절기 ${jolgiDates.length}건 파싱 완료`);
+  if(jolgiDates.length>0)dbg(`첫 절기: "${jolgiDates[0].dateStr}" "${jolgiDates[0].name}" 전체${jolgiDates[0].total} 예정${jolgiDates[0].ready} 컨펌${jolgiDates[0].confirm} 완료${jolgiDates[0].done}`);
+  if(jolgiDates.length>1)dbg(`두번째: "${jolgiDates[1].dateStr}" "${jolgiDates[1].name}" 전체${jolgiDates[1].total} 예정${jolgiDates[1].ready} 컨펌${jolgiDates[1].confirm} 완료${jolgiDates[1].done}`);
+}
 async function fetchCSV(){
   const to=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
   for(const pf of PROXIES){
