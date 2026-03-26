@@ -699,6 +699,8 @@ let ytGoal=parseInt(localStorage.getItem('ytGoal')||'7');
 let scriptUrl='',syncBusy=false,syncTimer=null,editId=null;
 let events=[],todos=[];
 let ytData=null;
+let sponsors=[];
+try{sponsors=JSON.parse(localStorage.getItem('sv-sponsors')||'[]')}catch(_){}
 let curPage='home',schedTab='week';
 
 try{events=JSON.parse(localStorage.getItem('sv-events')||'[]')}catch(_){}
@@ -856,7 +858,6 @@ function wkRange(){
 }
 async function proxyFetch(url,ms=12000){
   const to=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
-  // 프록시 순서대로 시도
   for(let i=0;i<PROXIES.length;i++){
     try{
       const res=await Promise.race([fetch(PROXIES[i](url)),to(ms)]);
@@ -864,15 +865,15 @@ async function proxyFetch(url,ms=12000){
       const txt=await res.text();
       if(txt&&txt.length>10&&!txt.startsWith('<!DOCTYPE'))return txt;
       throw new Error('bad response');
-    }catch(e){console.warn(`Proxy ${i+1} fail:`,e.message);}
+    }catch(e){/* try next proxy */}
   }
-  // 마지막: 직접 fetch (CORS 허용 사이트에서만 작동)
+  // 마지막: 직접 fetch
   try{
     const res=await Promise.race([fetch(url,{mode:'cors'}),to(ms)]);
     if(!res.ok)throw new Error('status '+res.status);
     const txt=await res.text();
     if(txt&&txt.length>10)return txt;
-  }catch(e){console.warn('Direct fetch fail:',e.message);}
+  }catch(e){/* all failed */}
   throw new Error('All proxies failed');
 }
 
@@ -1403,7 +1404,6 @@ async function loadYT(){
       title:first.querySelector('title')?.textContent,
       link:first.querySelector('link')?.getAttribute('href')
     };
-    // render YT page if active
     if(body){
       const today=todayD();
       const days=daysDiff(today,ytData.pub);
@@ -1428,8 +1428,6 @@ async function loadYT(){
       </div>`;
       if(over)html+=`<div class="warn-box">목표 주기(${ytGoal}일)를 <strong>${days-ytGoal}일</strong> 초과했습니다.</div>`;
       html+=`</div>`;
-
-      // 최근 영상 5개
       html+=`<div class="bcard"><div class="bcardtitle">📋 최근 영상</div>`;
       entries.forEach((entry,i)=>{
         if(i>=5)return;
@@ -1450,9 +1448,15 @@ async function loadYT(){
     }
     renderBrief();
   }catch(e){
-    console.warn('YT fail',e);
+    // file:// 환경에서는 조용히 실패 처리 (콘솔 warn 제거)
+    ytData=null;
     if(body&&!body.querySelector('.bcard')){
-      body.innerHTML=`<div class="bcard"><div class="bcardtitle">📺 유튜브 현황</div><div class="brow"><div class="bsub-t" style="color:var(--orange)">⚠ 데이터를 불러오지 못했습니다.</div></div></div>`;
+      body.innerHTML=`<div class="bcard"><div class="bcardtitle">📺 유튜브 현황</div>
+        <div class="brow"><div class="brow-left">
+          <div class="bsub-t" style="color:var(--orange)">⚠ 데이터를 불러오지 못했습니다.</div>
+          <div class="bsub-t" style="margin-top:4px">GitHub Pages 배포 후 정상 작동합니다.</div>
+        </div></div>
+      </div>`;
     }
   }
 }
@@ -1666,9 +1670,7 @@ function toggleClient(name,el){
 // ══════════════════════════════════════════════
 //  SPONSOR 협찬 포스팅
 // ══════════════════════════════════════════════
-let sponsors=[];
 let spTab='active'; // 'active' | 'done'
-try{sponsors=JSON.parse(localStorage.getItem('sv-sponsors')||'[]')}catch(_){}
 
 function initSponsor(){
   const body=document.getElementById('sponsorBody');
