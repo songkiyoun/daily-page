@@ -208,12 +208,12 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .mob-bottom{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(12,12,17,.97);border-top:1px solid var(--b);z-index:55;grid-template-columns:repeat(4,1fr)}
 @media(max-width:750px){
   .mob-bottom{display:grid}
-  body{padding-bottom:60px}
-  .app-body{overflow:visible}
-  .main{overflow:visible}
-  .page{overflow:visible}
-  .page.active{height:auto}
-  .page-body{overflow:visible;max-height:none}
+  body{padding-bottom:60px;height:auto !important;overflow:auto !important}
+  .app-body{overflow:visible;height:auto}
+  .main{overflow:visible;height:auto}
+  .page{overflow:visible;height:auto}
+  .page.active{height:auto;min-height:0}
+  .page-body{overflow:visible;max-height:none;height:auto}
 }
 .mobtab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--dim);cursor:pointer;padding:7px 4px;border:none;background:none;font-family:'DM Sans',sans-serif;transition:color .16s;width:100%}
 .mobtab.on{color:var(--gold)}
