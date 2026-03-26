@@ -705,6 +705,7 @@ let sponsors=[];
 try{sponsors=JSON.parse(localStorage.getItem('sv-sponsors')||'[]')}catch(_){}
 let blogClients=[], blogTimeline=[], blogLoaded=false, activeClient=null;
 let spTab='active';
+let jolgiDatesGlobal=[];  // 절기문자 전역 (브리핑에서 참조)
 let curPage='home',schedTab='week';
 
 try{events=JSON.parse(localStorage.getItem('sv-events')||'[]')}catch(_){}
@@ -1920,9 +1921,6 @@ function renderErr(bodyId,msg){
 // ══════════════════════════════════════════════
 //  절기문자 (신규 시트)
 // ══════════════════════════════════════════════
-
-// 전역 절기 데이터 (브리핑에서 참조)
-let jolgiDatesGlobal=[];
 
 async function loadJolgimun(){
   renderLoading('jolgimunBody');
