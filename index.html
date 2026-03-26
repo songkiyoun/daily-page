@@ -694,11 +694,8 @@ const PROXIES=[
   u=>`https://thingproxy.freeboard.io/fetch/${u}`,
 ];
 const YT_RSS='https://www.youtube.com/feeds/videos.xml?channel_id=UCEftmElUZRmdDk_WFlWUiiQ';
-// YouTube RSS 전용 프록시 (corsproxy는 YT를 404로 차단하므로 제외)
-const YT_PROXIES=[
-  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-];
+// rss2json API — YouTube RSS 전용 (CORS 제한 없음)
+const YT_RSS2JSON=`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(YT_RSS)}`;
 let ytGoal=parseInt(localStorage.getItem('ytGoal')||'7');
 
 let scriptUrl='',syncBusy=false,syncTimer=null,editId=null;
@@ -1402,24 +1399,17 @@ async function loadYT(){
   }
   try{
     const to=t=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),t));
-    let xml=null;
-    for(const pf of YT_PROXIES){
-      try{
-        const res=await Promise.race([fetch(pf(YT_RSS)),to(10000)]);
-        if(!res.ok)continue;
-        const txt=await res.text();
-        if(txt&&txt.includes('<feed')){{xml=txt;break;}}
-      }catch(_){}
-    }
-    if(!xml)throw new Error('All YT proxies failed');
-    const doc=new DOMParser().parseFromString(xml,'text/xml');
-    const entries=doc.querySelectorAll('entry');
-    if(!entries.length)throw new Error('no entries');
-    const first=entries[0];
+    // rss2json.com - YouTube RSS 전용, CORS 제한 없음
+    const res=await Promise.race([fetch(YT_RSS2JSON),to(12000)]);
+    if(!res.ok)throw new Error('rss2json fail '+res.status);
+    const json=await res.json();
+    if(json.status!=='ok'||!json.items?.length)throw new Error('no items');
+    const items=json.items;
+    const first=items[0];
     ytData={
-      pub:new Date(first.querySelector('published')?.textContent),
-      title:first.querySelector('title')?.textContent,
-      link:first.querySelector('link')?.getAttribute('href')
+      pub:new Date(first.pubDate),
+      title:first.title,
+      link:first.link
     };
     if(body){
       const today=todayD();
@@ -1446,11 +1436,10 @@ async function loadYT(){
       if(over)html+=`<div class="warn-box">목표 주기(${ytGoal}일)를 <strong>${days-ytGoal}일</strong> 초과했습니다.</div>`;
       html+=`</div>`;
       html+=`<div class="bcard"><div class="bcardtitle">📋 최근 영상</div>`;
-      entries.forEach((entry,i)=>{
-        if(i>=5)return;
-        const t=entry.querySelector('title')?.textContent;
-        const pub=new Date(entry.querySelector('published')?.textContent);
-        const link=entry.querySelector('link')?.getAttribute('href');
+      items.slice(0,5).forEach((item,i)=>{
+        const t=item.title;
+        const pub=new Date(item.pubDate);
+        const link=item.link;
         const d=daysDiff(today,pub);
         html+=`<div class="brow">
           <div class="brow-left">
@@ -1855,129 +1844,145 @@ function renderErr(bodyId,msg){
 // ══════════════════════════════════════════════
 async function loadJolgimun(){
   renderLoading('jolgimunBody');
-  const body=document.getElementById('jolgimunBody');
-
-  // 저장된 gid 우선, 없으면 순서대로 시도
-  const contractGid=getSHGid('jolgi-gid-contract','');
-  const sendGid=getSHGid('jolgi-gid-send','');
-
-  // 절기문자대행 탭 로드 (gid 없으면 기본 탭)
-  let csvContract=null;
-  const contractGids=contractGid?[contractGid]:['','0'];
-  for(const gid of contractGids){
-    try{
-      const url=`https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv${gid?`&gid=${gid}`:''}`;
-      csvContract=await proxyFetch(url);
-      if(csvContract)break;
-    }catch(_){}
+  try{
+    const [csvC, csvS] = await Promise.all([
+      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=1925642853`),
+      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=982934532`)
+    ]);
+    renderJolgimun(csvC, csvS);
+  }catch(e){
+    renderErr('jolgimunBody','절기문자 시트를 불러오지 못했습니다. 시트 공유 설정을 확인해주세요.');
   }
-
-  // 발송현황표 탭 로드 (gid 미확인이면 null)
-  let csvSend=null;
-  if(sendGid){
-    try{
-      csvSend=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=${sendGid}`);
-    }catch(_){}
-  }
-
-  if(!csvContract){
-    body.innerHTML=`<div class="bcard alert"><div class="bcardtitle">⚠ 절기문자 시트 로드 실패</div>
-      <div class="brow"><div class="brow-left">
-        <div class="bsub-t">시트 탭의 gid를 입력하면 정확하게 불러올 수 있습니다.</div>
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <label style="font-size:12px;color:var(--dim);min-width:140px">절기문자대행 탭 gid</label>
-            <input id="jolgiGid1" placeholder="예: 1234567890" value="${contractGid}" style="background:var(--s);border:1px solid var(--b);border-radius:6px;padding:6px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:180px">
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <label style="font-size:12px;color:var(--dim);min-width:140px">문자발송현황표 탭 gid</label>
-            <input id="jolgiGid2" placeholder="예: 9876543210" value="${sendGid}" style="background:var(--s);border:1px solid var(--b);border-radius:6px;padding:6px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:180px">
-          </div>
-          <button onclick="setSHGid('jolgi-gid-contract',document.getElementById('jolgiGid1').value);setSHGid('jolgi-gid-send',document.getElementById('jolgiGid2').value);loadJolgimun()" style="background:var(--gold);border:none;border-radius:7px;padding:8px 16px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-start;margin-top:4px">저장 후 다시 로드</button>
-        </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--dim);line-height:1.8">
-          💡 gid 확인 방법: 시트에서 해당 탭 클릭 → 브라우저 URL의 <strong style="color:var(--mid)">?gid=숫자</strong> 부분 복사
-        </div>
-      </div></div>
-    </div>`;
-    return;
-  }
-  renderJolgimun(csvContract, csvSend);
 }
 
 function renderJolgimun(csvC, csvS){
   const body=document.getElementById('jolgimunBody');
-  const rowsC=csvParse(csvC);
-  const rowsS=csvS?csvParse(csvS):[];
   const today=todayD();
-
-  // 계약 현황 파싱 (절기문자대행 탭: 조합명, 담당자, 계약금액 등)
-  const contracts=[];
-  for(let i=1;i<rowsC.length;i++){
-    const r=rowsC[i];
-    if(!r[0]||!r[0].trim())continue;
-    contracts.push({month:r[0],name:r[1],manager:r[2],amount:r[3],status:r[4]||'진행중'});
-  }
-
-  // 발송현황 파싱 (날짜, 절기명, 예정건수, 컨펌건수)
-  const sends=[];
-  for(let i=1;i<rowsS.length;i++){
-    const r=rowsS[i];
-    if(!r[0]||!r[0].trim())continue;
-    const d=parseKorDate(r[0])||new Date(r[0]);
-    if(!d||isNaN(d))continue;
-    sends.push({date:d,label:r[1]||'',total:parseInt(r[2])||0,confirmed:parseInt(r[3])||0,sent:parseInt(r[4])||0});
-  }
-
-  const active=contracts.filter(c=>c.status!=='종료');
-  const upcoming=sends.filter(s=>daysDiff(s.date,today)>=-3&&daysDiff(s.date,today)<=60).sort((a,b)=>a.date-b.date);
-
   let html='';
 
-  // 요약
-  html+=`<div class="bcard"><div class="bcardtitle">📊 계약 현황 요약</div>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px">
-      <div><div style="font-size:22px;font-weight:700;color:#fff">${contracts.length}<span style="font-size:13px;color:var(--dim);margin-left:4px">건</span></div><div style="font-size:11px;color:var(--dim)">총 계약</div></div>
-      <div><div style="font-size:22px;font-weight:700;color:var(--green)">${active.length}<span style="font-size:13px;color:var(--dim);margin-left:4px">건</span></div><div style="font-size:11px;color:var(--dim)">진행중</div></div>
-      <div><div style="font-size:22px;font-weight:700;color:var(--gold)">${upcoming.filter(s=>daysDiff(s.date,today)>=0).length}<span style="font-size:13px;color:var(--dim);margin-left:4px">건</span></div><div style="font-size:11px;color:var(--dim)">발송 예정</div></div>
-    </div>
-  </div>`;
-
-  // 발송 예정 일정
-  if(upcoming.length){
-    html+=`<div class="bcard"><div class="bcardtitle">📨 발송 예정 (60일 이내)</div>`;
-    upcoming.forEach(s=>{
-      const d=daysDiff(s.date,today);
-      const isPast=d<0;
-      const lbl=d===0?'🔴 오늘':d===1?'🟡 내일':isPast?`D+${Math.abs(d)}일 지남`:`D-${d}일`;
-      const pct=s.total?Math.round(s.confirmed/s.total*100):0;
-      html+=`<div class="brow">
-        <div class="brow-left">
-          <div class="bname" style="color:${isPast?'var(--red)':d<=2?'var(--orange)':'#fff'}">${lbl} · ${esc(s.label||'발송')}</div>
-          <div class="bsub-t">${fmtDate(s.date)} · 예정 ${s.total}건 · 컨펌 ${s.confirmed}건 · 발송완료 ${s.sent}건</div>
-          <div style="height:4px;background:var(--b);border-radius:2px;margin-top:6px;width:100%;max-width:200px">
-            <div style="height:4px;background:${pct>=100?'var(--green)':'var(--gold)'};border-radius:2px;width:${pct}%"></div>
-          </div>
-        </div>
-        <span class="tag ${isPast?'r':d<=2?'o':'gold'}">${pct}% 컨펌</span>
-      </div>`;
-    });
-    html+=`</div>`;
+  // ── 계약 탭 파싱 (gid=1925642853)
+  // 헤더는 여러 행 — 실데이터는 J열(idx9)=영업담당자가 있는 행
+  const rowsC=csvParse(csvC);
+  const contracts=[];
+  for(let i=0;i<rowsC.length;i++){
+    const r=rowsC[i];
+    if(!r[0]||!r[0].trim())continue;
+    // 진행여부는 D열(idx3), 조합명 B열(idx1), 영업담당 J열(idx9)
+    const status=(r[3]||'').trim();
+    const name=(r[1]||'').trim();
+    const manager=(r[9]||'').trim();
+    if(!name||name==='조합명'||name.includes('총계')||name.includes('합계'))continue;
+    if(!status||status==='진행여부')continue;
+    contracts.push({name,status,manager,month:(r[0]||'').trim()});
   }
 
-  // 계약 목록
-  html+=`<div class="bcard"><div class="bcardtitle">📋 계약 조합 목록 <span class="tag gold">${contracts.length}건</span></div>`;
-  contracts.slice(0,15).forEach(c=>{
+  const total=contracts.length;
+  const active=contracts.filter(c=>c.status==='진행중'||c.status==='계약중');
+  const ended=contracts.filter(c=>c.status==='종료'||c.status==='완료'||c.status==='정산완료');
+  const other=contracts.filter(c=>!active.includes(c)&&!ended.includes(c));
+
+  // 영업담당자별 실적
+  const byMgr={};
+  contracts.forEach(c=>{
+    const m=c.manager||'미지정';
+    if(!byMgr[m])byMgr[m]={total:0,active:0,ended:0};
+    byMgr[m].total++;
+    if(active.includes(c))byMgr[m].active++;
+    if(ended.includes(c))byMgr[m].ended++;
+  });
+
+  // ── 실무표 파싱 (gid=982934532) — 가로방향
+  // row0(1행)=날짜, row2(3행)=주제, row4+(5행~)=값
+  const rowsS=csvS?csvParse(csvS):[];
+  const sendDates=[];
+  if(rowsS.length>=3){
+    const dateRow=rowsS[0]||[];
+    const topicRow=rowsS[2]||[];
+    // J열부터 = index 9
+    for(let col=9;col<dateRow.length;col++){
+      const dateStr=(dateRow[col]||'').trim();
+      const topic=(topicRow[col]||'').trim();
+      if(!dateStr||!topic)continue;
+      // 해당 열의 5행(idx4)부터 끝까지 값 수집
+      let total=0,ready=0,confirm=0,done=0;
+      for(let row=4;row<rowsS.length;row++){
+        const val=(rowsS[row][col]||'').trim();
+        if(!val)continue;
+        total++;
+        if(val.endsWith('_예정'))ready++;
+        else if(val.endsWith('_컨펌중'))confirm++;
+        else if(val.endsWith('_완'))done++;
+      }
+      if(total===0)continue;
+      let dt=null;
+      // dateStr 형식: 2026-04-01
+      const dm=dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if(dm)dt=new Date(+dm[1],+dm[2]-1,+dm[3]);
+      sendDates.push({dateStr,topic,dt,total,ready,confirm,done});
+    }
+    sendDates.sort((a,b)=>(a.dt||0)-(b.dt||0));
+  }
+
+  // ── 렌더
+  // 1. 계약 요약
+  html+=`<div class="brief-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+    <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">총 계약건수</div><div class="kpi-val">${total}건</div></div>
+    <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-label">진행중</div><div class="kpi-val ok">${active.length}건</div></div>
+    <div class="kpi-card"><div class="kpi-icon">🏁</div><div class="kpi-label">종료</div><div class="kpi-val dim">${ended.length}건</div></div>
+  </div>`;
+
+  // 2. 영업담당자별 실적
+  html+=`<div class="bcard"><div class="bcardtitle">👤 영업담당자 실적</div>`;
+  Object.entries(byMgr).filter(([m])=>m&&m!=='미지정'&&m!=='영업담당').sort((a,b)=>b[1].total-a[1].total).forEach(([m,v])=>{
     html+=`<div class="brow">
       <div class="brow-left">
-        <div class="bname">${esc(c.name)}</div>
-        <div class="bsub-t">${c.month} · 담당: ${esc(c.manager||'—')} · ${fmtMoney(c.amount)}</div>
+        <div class="bname">${esc(m)}</div>
+        <div class="bsub-t">진행중 ${v.active}건 · 종료 ${v.ended}건</div>
       </div>
-      <span class="tag ${c.status==='종료'?'b':'g'}">${c.status||'진행중'}</span>
+      <div class="bval">${v.total}건</div>
     </div>`;
   });
-  if(contracts.length>15)html+=`<div style="font-size:12px;color:var(--dim);text-align:center;padding-top:6px">+${contracts.length-15}건 더 있음</div>`;
   html+=`</div>`;
+
+  // 3. 발송 예정 일정 (실무표)
+  if(sendDates.length){
+    const upcoming=sendDates.filter(s=>s.dt&&daysDiff(s.dt,today)>=-3&&daysDiff(s.dt,today)<=60);
+    const past=sendDates.filter(s=>s.dt&&daysDiff(s.dt,today)<-3).slice(-3);
+
+    if(upcoming.length){
+      html+=`<div class="bcard"><div class="bcardtitle">📨 발송 예정 (60일 이내)</div>`;
+      upcoming.forEach(s=>{
+        const d=daysDiff(s.dt,today);
+        const isPast=d<0;
+        const lbl=d===0?'🔴 오늘':d===1?'🟡 내일':isPast?`D+${Math.abs(d)}일 지남`:`D-${d}일`;
+        const pctDone=s.total?Math.round(s.done/s.total*100):0;
+        html+=`<div class="brow">
+          <div class="brow-left">
+            <div class="bname" style="color:${isPast?'var(--red)':d<=2?'var(--orange)':'#fff'}">${lbl} · ${esc(s.topic)}</div>
+            <div class="bsub-t">${s.dateStr} · 총 ${s.total}건 · 준비중 ${s.ready} · 컨펌중 ${s.confirm} · 완료 ${s.done}</div>
+            <div style="height:4px;background:var(--b);border-radius:2px;margin-top:5px;max-width:220px">
+              <div style="height:4px;background:${pctDone>=100?'var(--green)':'var(--gold)'};border-radius:2px;width:${pctDone}%"></div>
+            </div>
+          </div>
+          <span class="tag ${isPast?'r':d<=2?'o':'gold'}">${pctDone}% 완료</span>
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+
+    if(past.length){
+      html+=`<div class="bcard"><div class="bcardtitle">📋 최근 발송 완료</div>`;
+      [...past].reverse().forEach(s=>{
+        const d=Math.abs(daysDiff(s.dt,today));
+        html+=`<div class="brow">
+          <div class="brow-left"><div class="bname" style="color:var(--dim)">${s.dateStr} · ${esc(s.topic)}</div>
+          <div class="bsub-t">${d}일 전 · 총 ${s.total}건 · 완료 ${s.done}건</div></div>
+          <span class="tag g">완료</span>
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+  }
 
   body.innerHTML=html;
 }
@@ -1990,273 +1995,157 @@ async function loadDaigeo(){
   try{
     const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_DAIGEO.id}/export?format=csv&gid=0`);
     renderDaigeo(csv);
-  }catch(e){renderErr('daigeoBody','다이겨 시트를 불러오지 못했습니다.<br>시트가 공개(링크 공유) 상태인지 확인해주세요.');}
+  }catch(e){renderErr('daigeoBody','다이겨 시트를 불러오지 못했습니다.');}
 }
 
 function renderDaigeo(csv){
   const body=document.getElementById('daigeoBody');
   const rows=csvParse(csv);
   const today=todayD();
-
   const items=[];
   for(let i=1;i<rows.length;i++){
     const r=rows[i];
-    if(!r[0]||!r[0].trim()||!r[3])continue;
+    if(!r[0]||!r[0].trim())continue;
     const contract=parseInt((r[13]||'0').replace(/[^\d]/g,''))||0;
     const paid=parseInt((r[14]||'0').replace(/[^\d]/g,''))||0;
     const remain=parseInt((r[16]||'0').replace(/[^\d]/g,''))||0;
-    items.push({
-      no:r[0],contractDate:r[1],contractMonth:r[2],
-      client:r[3],item:r[4],manager:r[12],
-      contract,paid,remain,note:r[17]||''
-    });
+    items.push({no:r[0],contractDate:r[1],contractMonth:r[2],client:r[3],item:r[4],manager:r[12],contract,paid,remain,note:r[17]||''});
   }
-
-  // 집계
   const totalContract=items.reduce((s,i)=>s+i.contract,0);
   const totalPaid=items.reduce((s,i)=>s+i.paid,0);
   const totalRemain=items.reduce((s,i)=>s+i.remain,0);
   const unpaidItems=items.filter(i=>i.remain>0);
-
-  // 담당자별
   const byManager={};
-  items.forEach(i=>{
-    const m=i.manager||'미지정';
-    if(!byManager[m])byManager[m]={contract:0,paid:0,count:0};
-    byManager[m].contract+=i.contract;
-    byManager[m].paid+=i.paid;
-    byManager[m].count++;
-  });
-
-  // 품목별
+  items.forEach(i=>{const m=i.manager||'미지정';if(!byManager[m])byManager[m]={contract:0,paid:0,count:0};byManager[m].contract+=i.contract;byManager[m].paid+=i.paid;byManager[m].count++;});
   const byItem={};
-  items.forEach(i=>{
-    const it=i.item||'기타';
-    if(!byItem[it])byItem[it]={count:0,amount:0};
-    byItem[it].count++;byItem[it].amount+=i.contract;
-  });
-
-  // 월별 (최근 6개월)
+  items.forEach(i=>{const it=i.item||'기타';if(!byItem[it])byItem[it]={count:0,amount:0};byItem[it].count++;byItem[it].amount+=i.contract;});
   const byMonth={};
-  items.forEach(i=>{
-    if(!i.contractMonth)return;
-    const m=i.contractMonth.trim();
-    if(!byMonth[m])byMonth[m]=0;
-    byMonth[m]+=i.contract;
-  });
+  items.forEach(i=>{if(!i.contractMonth)return;const m=i.contractMonth.trim();if(!byMonth[m])byMonth[m]=0;byMonth[m]+=i.contract;});
   const recentMonths=Object.keys(byMonth).sort().slice(-6);
-
   let html='';
-
-  // 총괄 요약
   html+=`<div class="brief-grid" style="margin-bottom:12px">
-    <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">총 계약 건수</div><div class="kpi-val">${items.length}건</div></div>
+    <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">총 계약</div><div class="kpi-val">${items.length}건</div></div>
     <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">총 계약금액</div><div class="kpi-val" style="font-size:16px">${(totalContract/10000).toFixed(0)}만원</div></div>
     <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-label">총 입금액</div><div class="kpi-val ok" style="font-size:16px">${(totalPaid/10000).toFixed(0)}만원</div></div>
-    <div class="kpi-card"><div class="kpi-icon">⏳</div><div class="kpi-label">미수금</div><div class="kpi-val ${totalRemain>0?'danger':''}" style="font-size:16px">${(totalRemain/10000).toFixed(0)}만원</div><div class="kpi-sub">${unpaidItems.length}건 미입금</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⏳</div><div class="kpi-label">미수금</div><div class="kpi-val ${totalRemain>0?'danger':''}" style="font-size:16px">${(totalRemain/10000).toFixed(0)}만원</div><div class="kpi-sub">${unpaidItems.length}건</div></div>
   </div>`;
-
-  // 미수금 목록
-  if(unpaidItems.length){
-    html+=`<div class="bcard alert"><div class="bcardtitle">⚠ 미수금 내역 <span class="tag r">${unpaidItems.length}건</span></div>`;
-    unpaidItems.forEach(i=>{
-      html+=`<div class="brow">
-        <div class="brow-left">
-          <div class="bname">${esc(i.client)} · ${esc(i.item)}</div>
-          <div class="bsub-t">${i.contractMonth} · 담당: ${esc(i.manager)}</div>
-        </div>
-        <div class="bval" style="color:var(--red);font-size:13px">${i.remain.toLocaleString()}원</div>
-      </div>`;
-    });
-    html+=`</div>`;
-  }
-
-  // 담당자별 실적
+  if(unpaidItems.length){html+=`<div class="bcard alert"><div class="bcardtitle">⚠ 미수금 내역 <span class="tag r">${unpaidItems.length}건</span></div>`;unpaidItems.forEach(i=>{html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(i.client)} · ${esc(i.item)}</div><div class="bsub-t">${i.contractMonth} · ${esc(i.manager)}</div></div><div class="bval" style="color:var(--red);font-size:13px">${i.remain.toLocaleString()}원</div></div>`;});html+=`</div>`;}
   html+=`<div class="bcard"><div class="bcardtitle">👤 담당자별 실적</div>`;
-  Object.entries(byManager).sort((a,b)=>b[1].contract-a[1].contract).forEach(([m,v])=>{
-    const pct=totalContract?Math.round(v.contract/totalContract*100):0;
-    html+=`<div class="brow">
-      <div class="brow-left">
-        <div class="bname">${esc(m)} <span style="font-size:12px;color:var(--dim);font-weight:400">${v.count}건</span></div>
-        <div style="height:4px;background:var(--b);border-radius:2px;margin-top:6px;max-width:240px">
-          <div style="height:4px;background:var(--gold);border-radius:2px;width:${pct}%"></div>
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div class="bval" style="font-size:13px">${(v.contract/10000).toFixed(0)}만원</div>
-        <div class="bsub-t">${pct}%</div>
-      </div>
-    </div>`;
-  });
+  Object.entries(byManager).sort((a,b)=>b[1].contract-a[1].contract).forEach(([m,v])=>{const pct=totalContract?Math.round(v.contract/totalContract*100):0;html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(m)} <span style="font-size:12px;color:var(--dim)">${v.count}건</span></div><div style="height:4px;background:var(--b);border-radius:2px;margin-top:6px;max-width:200px"><div style="height:4px;background:var(--gold);border-radius:2px;width:${pct}%"></div></div></div><div style="text-align:right"><div class="bval" style="font-size:13px">${(v.contract/10000).toFixed(0)}만원</div><div class="bsub-t">${pct}%</div></div></div>`;});
   html+=`</div>`;
-
-  // 품목별
-  html+=`<div class="bcard"><div class="bcardtitle">📦 품목별 현황</div>`;
-  Object.entries(byItem).sort((a,b)=>b[1].count-a[1].count).forEach(([it,v])=>{
-    html+=`<div class="brow">
-      <div class="brow-left"><div class="bname">${esc(it)}</div><div class="bsub-t">${v.count}건</div></div>
-      <div class="bval" style="font-size:13px">${(v.amount/10000).toFixed(0)}만원</div>
-    </div>`;
-  });
+  html+=`<div class="bcard"><div class="bcardtitle">📦 품목별</div>`;
+  Object.entries(byItem).sort((a,b)=>b[1].count-a[1].count).forEach(([it,v])=>{html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(it)}</div><div class="bsub-t">${v.count}건</div></div><div class="bval" style="font-size:13px">${(v.amount/10000).toFixed(0)}만원</div></div>`;});
   html+=`</div>`;
-
-  // 월별 트렌드
-  if(recentMonths.length){
-    const max=Math.max(...recentMonths.map(m=>byMonth[m]));
-    html+=`<div class="bcard"><div class="bcardtitle">📈 월별 매출 (최근 ${recentMonths.length}개월)</div>
-      <div style="display:flex;align-items:flex-end;gap:6px;height:80px;padding:0 2px">`;
-    recentMonths.forEach(m=>{
-      const h=max?Math.round(byMonth[m]/max*72):0;
-      html+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="font-size:10px;color:var(--gold)">${(byMonth[m]/10000).toFixed(0)}만</div>
-        <div style="width:100%;background:var(--gold);border-radius:3px 3px 0 0;height:${h}px;opacity:.8"></div>
-        <div style="font-size:10px;color:var(--dim);white-space:nowrap">${m.slice(5)}</div>
-      </div>`;
-    });
-    html+=`</div></div>`;
-  }
-
+  if(recentMonths.length){const max=Math.max(...recentMonths.map(m=>byMonth[m]));html+=`<div class="bcard"><div class="bcardtitle">📈 월별 매출</div><div style="display:flex;align-items:flex-end;gap:6px;height:80px;padding:0 2px">`;recentMonths.forEach(m=>{const h=max?Math.round(byMonth[m]/max*72):0;html+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:10px;color:var(--gold)">${(byMonth[m]/10000).toFixed(0)}만</div><div style="width:100%;background:var(--gold);border-radius:3px 3px 0 0;height:${h}px;opacity:.8"></div><div style="font-size:10px;color:var(--dim)">${m.slice(5)}</div></div>`;});html+=`</div></div>`;}
   body.innerHTML=html;
 }
 
 // ══════════════════════════════════════════════
-//  에이아이무빙
+//  에이아이무빙 (gid=0, ai무빙 탭)
 // ══════════════════════════════════════════════
 async function loadAimoving(){
   renderLoading('aimovingBody');
-  const body=document.getElementById('aimovingBody');
-  const gid=getSHGid('aimoving-gid','1985073299');
-  let csv=null;
-  const gids=gid?[gid,'']:['1985073299',''];
-  for(const g of gids){
-    try{
-      const url=`https://docs.google.com/spreadsheets/d/${SH_AIMOVING.id}/export?format=csv${g?`&gid=${g}`:''}`;
-      csv=await proxyFetch(url);
-      if(csv)break;
-    }catch(_){}
-  }
-  if(!csv){
-    body.innerHTML=`<div class="bcard alert"><div class="bcardtitle">⚠ 에이아이무빙 시트 로드 실패</div>
-      <div class="brow"><div class="brow-left">
-        <div class="bsub-t">참조할 탭의 gid를 입력해주세요.</div>
-        <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <label style="font-size:12px;color:var(--dim)">탭 gid</label>
-          <input id="aimovingGid" placeholder="예: 1985073299" value="${gid}" style="background:var(--s);border:1px solid var(--b);border-radius:6px;padding:6px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:180px">
-          <button onclick="setSHGid('aimoving-gid',document.getElementById('aimovingGid').value);loadAimoving()" style="background:var(--gold);border:none;border-radius:7px;padding:8px 16px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">저장 후 다시 로드</button>
-        </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--dim);line-height:1.8">
-          💡 gid 확인: 시트에서 탭 클릭 → URL의 <strong style="color:var(--mid)">?gid=숫자</strong> 복사
-        </div>
-      </div></div>
-    </div>`;
-    return;
-  }
-  renderAimoving(csv);
+  try{
+    // gid=0 = ai무빙 탭
+    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_AIMOVING.id}/export?format=csv&gid=0`);
+    renderAimoving(csv);
+  }catch(e){renderErr('aimovingBody','에이아이무빙 시트를 불러오지 못했습니다.');}
 }
 
 function renderAimoving(csv){
   const body=document.getElementById('aimovingBody');
   const rows=csvParse(csv);
-
+  // 5행(idx4)이 헤더 행
+  // A=고유ID(0) B=견적일자(1) C=월별(2) D=진행여부(3) E=업체명(4) F=항목(5)
+  // G=매체사(6) H=유형(7) I=계약건수(8) L=마감일(11)
+  // S=최종금액(18) T=결제금액(19) X=영업담당(23)
+  // AA=원가(26) AB=수익(27) AC=영업수당(28) AD=순수익(29)
   const items=[];
-  for(let i=1;i<rows.length;i++){
+  for(let i=5;i<rows.length;i++){
     const r=rows[i];
-    if(!r[0]||!r[0].trim())continue;
-    const revenue=parseInt((r[5]||'0').replace(/[^\d-]/g,''))||0;
-    const cost=parseInt((r[6]||'0').replace(/[^\d-]/g,''))||0;
-    const profit=parseInt((r[7]||'0').replace(/[^\d-]/g,''))||0;
+    if(!r[0]||!r[0].trim()||!r[4]||!r[4].trim())continue;
+    const status=(r[3]||'').trim();
+    if(!status)continue;
+    const paid=parseInt((r[19]||'0').replace(/[^\d]/g,''))||0;
+    const profit=parseInt((r[27]||'0').replace(/[^\d-]/g,'').replace(/계산전/,'')||'0')||0;
+    const bonus=parseInt((r[28]||'0').replace(/[^\d-]/g,'').replace(/계산전/,'')||'0')||0;
     items.push({
-      month:r[0],manager:r[1],client:r[2],
-      status:r[3],type:r[4],
-      revenue,cost,profit,note:r[8]||''
+      id:r[0],date:r[1],month:r[2],status,
+      client:(r[4]||'').trim(),item:(r[5]||'').trim(),
+      media:(r[6]||'').trim(),type:(r[7]||'').trim(),
+      count:(r[8]||'').trim(),deadline:(r[11]||'').trim(),
+      paid,profit,bonus,
+      manager:(r[23]||'').trim()
     });
   }
 
-  const totalRevenue=items.reduce((s,i)=>s+i.revenue,0);
-  const totalCost=items.reduce((s,i)=>s+i.cost,0);
-  const totalProfit=items.reduce((s,i)=>s+i.profit,0);
-  const inProgress=items.filter(i=>i.status==='진행중'||i.status==='계약');
+  const statusCount=(st)=>items.filter(i=>i.status===st).length;
+  const total=items.length;
+  const cancelled=items.filter(i=>i.status==='중지'||i.status==='종료').length;
+  const active=['대기중','예약중','진행중'];
+  const activeItems=items.filter(i=>active.includes(i.status));
 
-  // 담당자별
+  // 영업담당별 실적 — 중지·견적발송 제외, 결제금액 기준
+  const excluded=['중지','견적발송'];
   const byMgr={};
-  items.forEach(i=>{
-    const m=i.manager||'미지정';
-    if(!byMgr[m])byMgr[m]={revenue:0,count:0,profit:0};
-    byMgr[m].revenue+=i.revenue;byMgr[m].count++;byMgr[m].profit+=i.profit;
+  items.filter(i=>!excluded.includes(i.status)&&i.manager).forEach(i=>{
+    const m=i.manager;
+    if(!byMgr[m])byMgr[m]={paid:0,bonus:0,count:0};
+    byMgr[m].paid+=i.paid;
+    byMgr[m].bonus+=i.bonus;
+    byMgr[m].count++;
   });
-
-  // 월별
-  const byMonth={};
-  items.forEach(i=>{
-    if(!i.month)return;
-    const m=i.month.trim();
-    if(!byMonth[m])byMonth[m]={revenue:0,profit:0};
-    byMonth[m].revenue+=i.revenue;byMonth[m].profit+=i.profit;
-  });
-  const recentMonths=Object.keys(byMonth).sort().slice(-5);
 
   let html='';
 
-  // 총괄
-  html+=`<div class="brief-grid" style="margin-bottom:12px">
-    <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">총 건수</div><div class="kpi-val">${items.length}건</div><div class="kpi-sub">진행중 ${inProgress.length}건</div></div>
-    <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">총 매출</div><div class="kpi-val" style="font-size:16px">${(totalRevenue/10000).toFixed(0)}만원</div></div>
-    <div class="kpi-card"><div class="kpi-icon">🏦</div><div class="kpi-label">총 지출</div><div class="kpi-val warn" style="font-size:16px">${(totalCost/10000).toFixed(0)}만원</div></div>
-    <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-label">순 수익</div><div class="kpi-val ${totalProfit>=0?'ok':'danger'}" style="font-size:16px">${(totalProfit/10000).toFixed(0)}만원</div></div>
+  // ── 현황 요약
+  html+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+    <div class="kpi-card"><div class="kpi-label">전체</div><div class="kpi-val">${total}</div></div>
+    <div class="kpi-card"><div class="kpi-label">견적발송</div><div class="kpi-val warn">${statusCount('견적발송')}</div></div>
+    <div class="kpi-card"><div class="kpi-label">대기중</div><div class="kpi-val">${statusCount('대기중')}</div></div>
+    <div class="kpi-card"><div class="kpi-label">예약중</div><div class="kpi-val ok">${statusCount('예약중')}</div></div>
+    <div class="kpi-card"><div class="kpi-label">진행중</div><div class="kpi-val ok">${statusCount('진행중')}</div></div>
+    <div class="kpi-card"><div class="kpi-label">중지&종료</div><div class="kpi-val dim">${cancelled}</div></div>
+    <div class="kpi-card"><div class="kpi-label">검수중</div><div class="kpi-val">${statusCount('검수중')}</div></div>
+    <div class="kpi-card"><div class="kpi-label">정산완료</div><div class="kpi-val">${statusCount('정산완료')}</div></div>
   </div>`;
 
-  // 담당자별
-  html+=`<div class="bcard"><div class="bcardtitle">👤 담당자별 실적</div>`;
-  Object.entries(byMgr).sort((a,b)=>b[1].revenue-a[1].revenue).forEach(([m,v])=>{
+  // ── 영업담당별 실적
+  html+=`<div class="bcard"><div class="bcardtitle">👤 영업담당 실적 <span class="tag gold">중지·견적발송 제외</span></div>`;
+  const mgrEntries=Object.entries(byMgr).sort((a,b)=>b[1].paid-a[1].paid);
+  if(!mgrEntries.length){html+=`<div class="brow"><div class="bsub-t">실적 데이터 없음</div></div>`;}
+  else mgrEntries.forEach(([m,v])=>{
     html+=`<div class="brow">
       <div class="brow-left">
-        <div class="bname">${esc(m)} <span style="font-size:12px;color:var(--dim);font-weight:400">${v.count}건</span></div>
-        <div class="bsub-t">순수익 ${(v.profit/10000).toFixed(0)}만원</div>
-      </div>
-      <div class="bval" style="font-size:13px">${(v.revenue/10000).toFixed(0)}만원</div>
-    </div>`;
-  });
-  html+=`</div>`;
-
-  // 월별 트렌드
-  if(recentMonths.length){
-    const maxR=Math.max(...recentMonths.map(m=>byMonth[m].revenue),1);
-    html+=`<div class="bcard"><div class="bcardtitle">📈 월별 매출 / 수익</div>
-      <div style="display:flex;align-items:flex-end;gap:6px;height:90px;padding:0 2px">`;
-    recentMonths.forEach(m=>{
-      const hR=Math.round(byMonth[m].revenue/maxR*72);
-      const hP=Math.round(Math.max(0,byMonth[m].profit)/maxR*72);
-      html+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="font-size:10px;color:var(--dim)">${(byMonth[m].revenue/10000).toFixed(0)}만</div>
-        <div style="width:100%;position:relative;height:${hR}px;background:rgba(201,169,110,.25);border-radius:3px 3px 0 0">
-          <div style="position:absolute;bottom:0;left:0;right:0;background:var(--green);border-radius:3px 3px 0 0;height:${hP}px;opacity:.8"></div>
-        </div>
-        <div style="font-size:10px;color:var(--dim);white-space:nowrap">${m.slice(2)}</div>
-      </div>`;
-    });
-    html+=`</div>
-      <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--dim)">
-        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(201,169,110,.4);border-radius:2px;margin-right:4px"></span>매출</span>
-        <span><span style="display:inline-block;width:10px;height:10px;background:var(--green);border-radius:2px;margin-right:4px;opacity:.8"></span>순수익</span>
-      </div>
-    </div>`;
-  }
-
-  // 최근 건 목록
-  html+=`<div class="bcard"><div class="bcardtitle">📋 최근 계약 내역</div>`;
-  [...items].reverse().slice(0,8).forEach(i=>{
-    html+=`<div class="brow">
-      <div class="brow-left">
-        <div class="bname">${esc(i.client||'—')} · ${esc(i.type||'—')}</div>
-        <div class="bsub-t">${i.month} · ${esc(i.manager||'—')} · ${i.status||'—'}</div>
+        <div class="bname">${esc(m)} <span class="tag gold">${v.count}건</span></div>
+        <div class="bsub-t">영업수당 ${v.bonus.toLocaleString()}원</div>
       </div>
       <div style="text-align:right">
-        <div class="bval" style="font-size:13px">${(i.revenue/10000).toFixed(0)}만원</div>
-        <div style="font-size:11px;color:${i.profit>=0?'var(--green)':'var(--red)'}">${i.profit>=0?'+':''}${(i.profit/10000).toFixed(0)}만</div>
+        <div class="bval" style="font-size:14px">${(v.paid/10000).toFixed(0)}만원</div>
+        <div class="bsub-t">결제금액</div>
       </div>
     </div>`;
   });
   html+=`</div>`;
+
+  // ── 대기중·예약중·진행중 업체 목록
+  if(activeItems.length){
+    html+=`<div class="bcard"><div class="bcardtitle">📋 진행 현황 <span class="tag gold">${activeItems.length}건</span></div>`;
+    activeItems.forEach(i=>{
+      const sTag={대기중:'gold',예약중:'g',진행중:'b'}[i.status]||'gold';
+      html+=`<div class="brow">
+        <div class="brow-left">
+          <div class="bname">${esc(i.client)} <span class="tag ${sTag}">${i.status}</span></div>
+          <div class="bsub-t">${esc(i.item)} · ${esc(i.media)||'—'} · ${esc(i.count)}건 · 마감 ${esc(i.deadline)||'미정'}</div>
+          <div class="bsub-t" style="margin-top:2px">담당: ${esc(i.manager)||'—'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="bval" style="font-size:13px">${i.paid?i.paid.toLocaleString()+'원':'-'}</div>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
 
   body.innerHTML=html;
 }
