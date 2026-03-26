@@ -1633,17 +1633,26 @@ function parseKorDate(s){
 }
 
 function csvParse(txt){
+  // 셀 내부 \n 포함 처리 — 문자 단위 순회
   const rows=[];
-  for(const line of txt.replace(/\r/g,'').split('\n')){
-    if(!line.trim())continue;
-    const fields=[];let f='',q=false;
-    for(let i=0;i<line.length;i++){
-      if(line[i]==='"')q=!q;
-      else if(line[i]===','&&!q){fields.push(f.trim());f='';}
-      else f+=line[i];
+  let fields=[], f='', q=false;
+  for(let i=0;i<txt.length;i++){
+    const c=txt[i];
+    if(c==='\r')continue;
+    if(c==='"'){
+      if(q&&txt[i+1]==='"'){f+='"';i++;}  // "" = 이스케이프 따옴표
+      else q=!q;
+    } else if(c===','&&!q){
+      fields.push(f);f='';
+    } else if(c==='\n'&&!q){
+      fields.push(f);f='';
+      if(fields.some(x=>x.trim()))rows.push(fields);
+      fields=[];
+    } else {
+      f+=c;
     }
-    fields.push(f.trim());rows.push(fields);
   }
+  if(f||fields.length){fields.push(f);if(fields.some(x=>x.trim()))rows.push(fields);}
   return rows;
 }
 
@@ -1986,37 +1995,39 @@ async function loadJolgimun(){
 }
 
 function parseJolgiCSV(rows){
-  // ── 날짜 행 동적 탐색 (YYYY-MM-DD 패턴 2개 이상인 행)
+  // ── 날짜 행 탐색: YYYY-MM-DD 패턴이 여러 열에 걸쳐 있는 행
   let DATE_ROW=-1, DATE_COL_START=-1;
-  for(let ri=0;ri<Math.min(20,rows.length);ri++){
+  for(let ri=0;ri<Math.min(30,rows.length);ri++){
     const r=rows[ri]||[];
     let cnt=0,firstCol=-1;
     for(let ci=0;ci<r.length;ci++){
-      if(/\d{4}-\d{2}-\d{2}/.test((r[ci]||'').trim())){
+      const v=(r[ci]||'').trim();
+      if(/\d{4}-\d{2}-\d{2}/.test(v)){
         cnt++;if(firstCol<0)firstCol=ci;
+        if(cnt>=3)break; // 3개 이상 발견시 확정
       }
     }
-    if(cnt>=2){DATE_ROW=ri;DATE_COL_START=firstCol;break;}
+    if(cnt>=3){DATE_ROW=ri;DATE_COL_START=firstCol;break;}
   }
   if(DATE_ROW<0)return{clients:[],jolgiDates:[]};
 
-  const NAME_ROW=DATE_ROW+2;
-  const TOTAL_ROW=DATE_ROW+3;
-  const DATA_START=DATE_ROW+4;
+  const NAME_ROW=DATE_ROW+2;  // 날짜행+2 = 절기명
+  const DATA_START=DATE_ROW+4; // 날짜행+4 = 값 시작
 
-  // ── 클라이언트 파싱
+  // ── 클라이언트 파싱 (DATA_START 이후, B열=영업담당, C열=조합명)
   const clients=[];
   for(let i=DATA_START;i<rows.length;i++){
     const r=rows[i]||[];
     const manager=(r[1]||'').trim();
     const name=(r[2]||'').trim();
-    if(!name||!manager||manager==='영업 담당'||manager==='영업담당'||name==='조합명')continue;
+    if(!name||!manager)continue;
+    if(manager==='영업 담당'||manager==='영업담당'||name==='조합명')continue;
     const txtTotal=parseInt((r[3]||'0').replace(/[^\d]/g,''))||0;
     const txtSent=parseInt((r[4]||'0').replace(/[^\d]/g,''))||0;
-    const txtRemain=parseInt((r[5]||'0').replace(/[^\d-]/g,'').replace(/^-$/,'0'))||0;
+    const txtRemain=parseInt((r[5]||'0').replace(/[^\d-]/g,''))||0;
     const carTotal=parseInt((r[6]||'0').replace(/[^\d]/g,''))||0;
     const carSent=parseInt((r[7]||'0').replace(/[^\d]/g,''))||0;
-    const carRemain=parseInt((r[8]||'0').replace(/[^\d-]/g,'').replace(/^-$/,'0'))||0;
+    const carRemain=parseInt((r[8]||'0').replace(/[^\d-]/g,''))||0;
     if(!txtTotal&&!carTotal&&!txtSent&&!carSent)continue;
     clients.push({manager,name,txtTotal,txtSent,txtRemain,carTotal,carSent,carRemain});
   }
