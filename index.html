@@ -694,11 +694,10 @@ const PROXIES=[
   u=>`https://thingproxy.freeboard.io/fetch/${u}`,
 ];
 const YT_RSS='https://www.youtube.com/feeds/videos.xml?channel_id=UCEftmElUZRmdDk_WFlWUiiQ';
-// YouTube RSS는 allorigins 우선 사용
+// YouTube RSS 전용 프록시 (corsproxy는 YT를 404로 차단하므로 제외)
 const YT_PROXIES=[
   u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
 ];
 let ytGoal=parseInt(localStorage.getItem('ytGoal')||'7');
 
@@ -1838,7 +1837,10 @@ function renderSponsorList(){
 // ══════════════════════════════════════════════
 const SH_JOLGI   = {id:'1Iv56UhLiVrHDYyAJhLR-eT1r2g__JszYF4WcXFJyWYU'};
 const SH_DAIGEO  = {id:'1qA8oxCCe0QVQhCsXm-nsbjJSx0tRCLPvWEhDenBfOWU'};
-const SH_AIMOVING= {id:'1Do3aDmmrXoNYj2trcjumRRGNCOy3jXKZiqiiB9M-YN0', gid:'1985073299'};
+const SH_AIMOVING= {id:'1Do3aDmmrXoNYj2trcjumRRGNCOy3jXKZiqiiB9M-YN0'};
+// gid는 시트 탭 클릭 후 URL의 ?gid= 숫자. localStorage로 저장/수정 가능
+function getSHGid(key,fallback){return localStorage.getItem(key)||fallback||'';}
+function setSHGid(key,val){localStorage.setItem(key,val);}
 
 // ── 공통: 로딩/에러 렌더 헬퍼 ──
 function renderLoading(bodyId){
@@ -1853,23 +1855,60 @@ function renderErr(bodyId,msg){
 // ══════════════════════════════════════════════
 async function loadJolgimun(){
   renderLoading('jolgimunBody');
-  try{
-    // 절기문자대행 탭 (gid 미확인 → 기본 탭 0으로 시도, 실제 gid 필요시 수정)
-    const [csvContract, csvSend] = await Promise.all([
-      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0`),
-      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=1`)
-    ]);
-    renderJolgimun(csvContract, csvSend);
-  }catch(e){
-    console.warn('jolgi fail',e);
-    renderErr('jolgimunBody');
+  const body=document.getElementById('jolgimunBody');
+
+  // 저장된 gid 우선, 없으면 순서대로 시도
+  const contractGid=getSHGid('jolgi-gid-contract','');
+  const sendGid=getSHGid('jolgi-gid-send','');
+
+  // 절기문자대행 탭 로드 (gid 없으면 기본 탭)
+  let csvContract=null;
+  const contractGids=contractGid?[contractGid]:['','0'];
+  for(const gid of contractGids){
+    try{
+      const url=`https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv${gid?`&gid=${gid}`:''}`;
+      csvContract=await proxyFetch(url);
+      if(csvContract)break;
+    }catch(_){}
   }
+
+  // 발송현황표 탭 로드 (gid 미확인이면 null)
+  let csvSend=null;
+  if(sendGid){
+    try{
+      csvSend=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=${sendGid}`);
+    }catch(_){}
+  }
+
+  if(!csvContract){
+    body.innerHTML=`<div class="bcard alert"><div class="bcardtitle">⚠ 절기문자 시트 로드 실패</div>
+      <div class="brow"><div class="brow-left">
+        <div class="bsub-t">시트 탭의 gid를 입력하면 정확하게 불러올 수 있습니다.</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--dim);min-width:140px">절기문자대행 탭 gid</label>
+            <input id="jolgiGid1" placeholder="예: 1234567890" value="${contractGid}" style="background:var(--s);border:1px solid var(--b);border-radius:6px;padding:6px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:180px">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--dim);min-width:140px">문자발송현황표 탭 gid</label>
+            <input id="jolgiGid2" placeholder="예: 9876543210" value="${sendGid}" style="background:var(--s);border:1px solid var(--b);border-radius:6px;padding:6px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:180px">
+          </div>
+          <button onclick="setSHGid('jolgi-gid-contract',document.getElementById('jolgiGid1').value);setSHGid('jolgi-gid-send',document.getElementById('jolgiGid2').value);loadJolgimun()" style="background:var(--gold);border:none;border-radius:7px;padding:8px 16px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-start;margin-top:4px">저장 후 다시 로드</button>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--dim);line-height:1.8">
+          💡 gid 확인 방법: 시트에서 해당 탭 클릭 → 브라우저 URL의 <strong style="color:var(--mid)">?gid=숫자</strong> 부분 복사
+        </div>
+      </div></div>
+    </div>`;
+    return;
+  }
+  renderJolgimun(csvContract, csvSend);
 }
 
 function renderJolgimun(csvC, csvS){
   const body=document.getElementById('jolgimunBody');
   const rowsC=csvParse(csvC);
-  const rowsS=csvParse(csvS);
+  const rowsS=csvS?csvParse(csvS):[];
   const today=todayD();
 
   // 계약 현황 파싱 (절기문자대행 탭: 조합명, 담당자, 계약금액 등)
@@ -1951,7 +1990,7 @@ async function loadDaigeo(){
   try{
     const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_DAIGEO.id}/export?format=csv&gid=0`);
     renderDaigeo(csv);
-  }catch(e){console.warn('daigeo fail',e);renderErr('daigeoBody');}
+  }catch(e){renderErr('daigeoBody','다이겨 시트를 불러오지 못했습니다.<br>시트가 공개(링크 공유) 상태인지 확인해주세요.');}
 }
 
 function renderDaigeo(csv){
@@ -2085,10 +2124,34 @@ function renderDaigeo(csv){
 // ══════════════════════════════════════════════
 async function loadAimoving(){
   renderLoading('aimovingBody');
-  try{
-    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_AIMOVING.id}/export?format=csv&gid=${SH_AIMOVING.gid}`);
-    renderAimoving(csv);
-  }catch(e){console.warn('aimoving fail',e);renderErr('aimovingBody');}
+  const body=document.getElementById('aimovingBody');
+  const gid=getSHGid('aimoving-gid','1985073299');
+  let csv=null;
+  const gids=gid?[gid,'']:['1985073299',''];
+  for(const g of gids){
+    try{
+      const url=`https://docs.google.com/spreadsheets/d/${SH_AIMOVING.id}/export?format=csv${g?`&gid=${g}`:''}`;
+      csv=await proxyFetch(url);
+      if(csv)break;
+    }catch(_){}
+  }
+  if(!csv){
+    body.innerHTML=`<div class="bcard alert"><div class="bcardtitle">⚠ 에이아이무빙 시트 로드 실패</div>
+      <div class="brow"><div class="brow-left">
+        <div class="bsub-t">참조할 탭의 gid를 입력해주세요.</div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <label style="font-size:12px;color:var(--dim)">탭 gid</label>
+          <input id="aimovingGid" placeholder="예: 1985073299" value="${gid}" style="background:var(--s);border:1px solid var(--b);border-radius:6px;padding:6px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:180px">
+          <button onclick="setSHGid('aimoving-gid',document.getElementById('aimovingGid').value);loadAimoving()" style="background:var(--gold);border:none;border-radius:7px;padding:8px 16px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">저장 후 다시 로드</button>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--dim);line-height:1.8">
+          💡 gid 확인: 시트에서 탭 클릭 → URL의 <strong style="color:var(--mid)">?gid=숫자</strong> 복사
+        </div>
+      </div></div>
+    </div>`;
+    return;
+  }
+  renderAimoving(csv);
 }
 
 function renderAimoving(csv){
