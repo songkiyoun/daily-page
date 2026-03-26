@@ -1992,7 +1992,7 @@ function parseJolgiCSV(rows){
     const r=rows[ri]||[];
     let cnt=0,firstCol=-1;
     for(let ci=0;ci<r.length;ci++){
-      if(/^\d{4}-\d{2}-\d{2}$/.test((r[ci]||'').trim())){
+      if(/\d{4}-\d{2}-\d{2}/.test((r[ci]||'').trim())){
         cnt++;if(firstCol<0)firstCol=ci;
       }
     }
@@ -2029,7 +2029,7 @@ function parseJolgiCSV(rows){
     const dateStr=(dateRow[col]||'').trim();
     const jolgiName=(nameRow[col]||'').trim();
     if(!dateStr)continue;
-    const dm=dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const dm=dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
     if(!dm)continue;
     const dateObj=new Date(+dm[1],+dm[2]-1,+dm[3]);
     let ready=0,confirm=0,done=0;
@@ -2053,11 +2053,41 @@ function renderJolgimun(csv){
   const rows=csvParse(csv);
   const today=todayD();
 
+  // ── 진단: 파싱 전 raw 구조 확인용 정보 수집
+  let diagDateInfo='날짜 패턴(YYYY-MM-DD) 없음';
+  outer: for(let ri=0;ri<Math.min(15,rows.length);ri++){
+    for(let ci=0;ci<(rows[ri]||[]).length;ci++){
+      const v=(rows[ri][ci]||'').trim();
+      if(/\d{4}-\d{2}-\d{2}/.test(v)){
+        diagDateInfo=`행${ri+1} 열${ci}: "${v}"`;
+        break outer;
+      }
+    }
+  }
+
   const{clients,jolgiDates}=parseJolgiCSV(rows);
-  jolgiDatesGlobal=jolgiDates; // 브리핑용 전역 저장
+  jolgiDatesGlobal=jolgiDates;
 
   if(!clients.length&&!jolgiDates.length){
-    body.innerHTML=`<div class="bcard"><div class="bcardtitle">⚠ 데이터 없음</div><div class="brow"><div class="bsub-t">시트 구조를 확인해주세요.</div></div></div>`;
+    const diagRows=rows.slice(0,6).map((r,ri)=>
+      `<tr><td style="color:var(--dim);padding:2px 8px;font-size:11px;white-space:nowrap">행${ri+1}</td>`+
+      (r||[]).slice(0,10).map((v,ci)=>`<td style="padding:2px 6px;font-size:11px;max-width:120px;overflow:hidden;white-space:nowrap;color:${(v||'').trim()?'#fff':'rgba(255,255,255,.2)'}">col${ci}:${(v||'').trim().substring(0,18)||'빈칸'}</td>`).join('')+
+      `</tr>`
+    ).join('');
+    body.innerHTML=`<div class="bcard alert">
+      <div class="bcardtitle">⚠ 파싱 실패 — 진단 정보</div>
+      <div style="font-size:12px;color:var(--mid);margin-bottom:10px;line-height:1.8">
+        총 행: <strong style="color:#fff">${rows.length}</strong> &nbsp;|&nbsp;
+        1행 열수: <strong style="color:#fff">${(rows[0]||[]).length}</strong> &nbsp;|&nbsp;
+        날짜 첫 발견: <strong style="color:var(--gold)">${diagDateInfo}</strong>
+      </div>
+      <div style="overflow-x:auto;margin-bottom:12px;background:rgba(255,255,255,.03);border-radius:8px;padding:8px">
+        <table style="border-collapse:collapse">${diagRows}</table>
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        위 내용을 스크린샷으로 찍어 공유해주시면 정확히 수정할 수 있습니다.
+      </div>
+    </div>`;
     return;
   }
 
