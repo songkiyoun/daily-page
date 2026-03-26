@@ -726,6 +726,10 @@ try{todos=JSON.parse(localStorage.getItem('sv-todos')||'[]')}catch(_){}
   }
   renderBrief();
   renderSched();
+  // 브리핑에서 블로그 지연 표시를 위해 백그라운드 로드
+  loadBlogBg();
+  // 절기문자도 백그라운드 로드 (브리핑 절기 섹션용)
+  loadJolgimuBg();
 })();
 
 function tick(){
@@ -1553,6 +1557,28 @@ async function loadYT(){
 const SH_BLOG    = {id:'15jBLPGRJr8WzTuHMMKYWyTniOBB0wkL7QqVET16G1CY', gid:'1533269847'};
 const SH_TIMELINE_BLOG = {id:'14t8MTgpyjap_gyys8K6cuRJEuc0dIZLIhY2UZHnJoJs', gid:'0'};
 
+// 브리핑용 백그라운드 로드 (UI 변경 없이 데이터만 채움)
+async function loadBlogBg(){
+  if(blogLoaded)return;
+  try{
+    const csvT=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_TIMELINE_BLOG.id}/export?format=csv&gid=${SH_TIMELINE_BLOG.gid}`);
+    blogTimeline=parseBlogTimeline(csvT);
+    renderBrief(); // 타임라인 로드 후 브리핑 갱신
+  }catch(_){}
+}
+
+// 절기문자 백그라운드 로드 (브리핑 절기 섹션용)
+async function loadJolgimuBg(){
+  if(jolgiDatesGlobal.length)return;
+  try{
+    const csv=await fetchJolgiCSV();
+    const rows=csvParse(csv);
+    const{jolgiDates}=parseJolgiCSV(rows);
+    jolgiDatesGlobal=jolgiDates;
+    renderBrief();
+  }catch(_){}
+}
+
 async function loadBlog(){
   const body=document.getElementById('blogBody');
   body.innerHTML=`<div class="spin-wrap"><div class="spin"></div><div class="spin-t">클라이언트 데이터 불러오는 중…</div></div>`;
@@ -1565,8 +1591,8 @@ async function loadBlog(){
     blogTimeline = parseBlogTimeline(csvT);
     blogLoaded=true;
     renderBlogList();
+    renderBrief(); // 블로그 데이터 로드 후 브리핑도 갱신
   }catch(e){
-    console.warn('blog fail',e);
     body.innerHTML=`<div class="bcard"><div class="bcardtitle">⚠ 데이터 로드 실패</div><div class="brow"><div class="bsub-t">프록시 연결 문제일 수 있습니다. GitHub Pages 배포 후 정상 작동합니다.</div></div></div>`;
   }
 }
@@ -1922,13 +1948,40 @@ function renderErr(bodyId,msg){
 //  절기문자 (신규 시트)
 // ══════════════════════════════════════════════
 
+// 절기문자 시트 CSV URL 여러 형식 시도
+async function fetchJolgiCSV(){
+  // gid=0 / gid 없음 두 가지 시도
+  const urls=[
+    `https://docs.google.com/spreadsheets/d/${SH_JOLGI_NEW.id}/export?format=csv&gid=0`,
+    `https://docs.google.com/spreadsheets/d/${SH_JOLGI_NEW.id}/export?format=csv`,
+    `https://docs.google.com/spreadsheets/d/${SH_JOLGI_NEW.id}/gviz/tq?tqx=out:csv&sheet=시트1`,
+    `https://docs.google.com/spreadsheets/d/${SH_JOLGI_NEW.id}/gviz/tq?tqx=out:csv`,
+  ];
+  for(const url of urls){
+    try{
+      const txt=await proxyFetch(url,15000);
+      if(txt&&txt.length>100)return txt;
+    }catch(_){}
+  }
+  throw new Error('절기문자 시트 로드 실패');
+}
+
 async function loadJolgimun(){
   renderLoading('jolgimunBody');
   try{
-    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_JOLGI_NEW.id}/export?format=csv&gid=0`);
+    const csv=await fetchJolgiCSV();
     renderJolgimun(csv);
   }catch(e){
-    renderErr('jolgimunBody','절기문자 시트를 불러오지 못했습니다.');
+    document.getElementById('jolgimunBody').innerHTML=`<div class="bcard alert">
+      <div class="bcardtitle">⚠ 절기문자 시트 로드 실패</div>
+      <div class="brow"><div class="brow-left">
+        <div class="bsub-t">시트 공유 설정을 확인해주세요.</div>
+        <div style="margin-top:10px;font-size:13px;color:var(--mid);line-height:1.8">
+          구글 시트 → 우측 상단 <strong style="color:#fff">공유</strong> → <strong style="color:#fff">링크가 있는 모든 사용자</strong> → 역할: <strong style="color:#fff">뷰어</strong> 이상으로 설정<br>
+          현재 <strong style="color:var(--orange)">편집자</strong> 권한만으로는 CSV 직접 내보내기가 차단됩니다.
+        </div>
+      </div></div>
+    </div>`;
   }
 }
 
