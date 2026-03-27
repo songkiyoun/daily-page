@@ -588,7 +588,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.3</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.1</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -1827,7 +1827,8 @@ async function loadBlogBg(){
   try{
     const csvT=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_TIMELINE_BLOG.id}/export?format=csv&gid=${SH_TIMELINE_BLOG.gid}`);
     blogTimeline=parseBlogTimeline(csvT);
-    renderBrief(); // 타임라인 로드 후 브리핑 갱신
+    blogLoaded=true; // 브리핑에서 재로드 방지
+    renderBrief();
   }catch(_){}
 }
 
@@ -1844,6 +1845,7 @@ async function loadJolgimuBg(){
 }
 
 async function loadBlog(){
+  blogLoaded=false; // 탭 진입 시 최신 데이터 강제 재로드
   const body=document.getElementById('blogBody');
   body.innerHTML=`<div class="spin-wrap"><div class="spin"></div><div class="spin-t">클라이언트 데이터 불러오는 중…</div></div>`;
   try{
@@ -2517,55 +2519,291 @@ function renderJolgiFilter(mode){
 
 
 // ══════════════════════════════════════════════
-//  다이겨 매출현황
+//  다이겨 매출현황 (9개 탭 통합)
 // ══════════════════════════════════════════════
+
+// 탭 정의: name, gid, 컬럼 인덱스(0-based), 특수처리 플래그
+const DAIGEO_TABS = [
+  {
+    name:'홍보물제작', gid:'0',
+    colClient:3, colMgr:12, colContract:13, colPaid:14, colRemain:16,
+    dataStart:1
+  },
+  {
+    name:'투표독려', gid:'2044491677',
+    colClient:8, colMgr:28, colContract:22, colExtra:24, colPaid:25,
+    colRefund:31, colRefundDone:33,
+    dataStart:1, special:'vote'
+    // AC=28(0-based), W=22, Y=24, Z=25, AF=31, AH=33
+  },
+  {
+    name:'모바일명함', gid:'555402062',
+    colClient:5, colMgr:9, colContract:10, colPaid:11, colRemain:13,
+    dataStart:1
+  },
+  {
+    name:'보이는컬러링', gid:'2104411310',
+    colClient:5, colMgr:11, colContract:12, colPaid:13, colRemain:15,
+    dataStart:1
+  },
+  {
+    name:'여론조사', gid:'2005994973',
+    colClient:5, colMgr:10, colContract:11, colPaid:12, colRemain:14,
+    dataStart:1
+  },
+  {
+    name:'사진촬영', gid:'908090005',
+    colClient:5, colMgr:10, colContract:14, colPaid:15, colRemain:16,
+    dataStart:1
+  },
+  {
+    name:'선거공보', gid:'1543334261',
+    colClient:6, colMgr:12, colContract:13, colPaid1:14, colPaid2:15, colRemain:16,
+    dataStart:1, special:'gongbo'
+    // 선수금(O)+중도금(P) = 입금 합산
+  },
+  {
+    name:'소식지', gid:'1290080666',
+    colClient:4, colMgr:12, colContract:13, colPaid:14, colRemain:-1,
+    dataStart:1, special:'calc'
+    // 잔금 = 계약금 - 입금 직접 계산
+  },
+  {
+    name:'연하장', gid:'16474909',
+    colClient:4, colMgr:10, colContract:11, colPaid:12, colRemain:-1,
+    dataStart:1, special:'calc'
+  },
+];
+
+function parseN(s){return parseInt((s||'').replace(/[^\d.-]/g,''))||0;}
+
+function parseDaigeoTab(rows, tab){
+  const items=[];
+  for(let i=tab.dataStart;i<rows.length;i++){
+    const r=rows[i];
+    const client=(r[tab.colClient]||'').trim();
+    if(!client)continue;
+    const mgr=(r[tab.colMgr]||'').trim();
+
+    let contract=0,paid=0,remain=0,refund=0,refundDone=false,needRefund=false;
+
+    if(tab.special==='vote'){
+      contract=parseN(r[tab.colContract])+parseN(r[tab.colExtra]);
+      const paidStr=(r[tab.colPaid]||'').trim();
+      paid=paidStr==='미입금'?0:parseN(paidStr);
+      refund=parseN(r[tab.colRefund]);
+      refundDone=(r[tab.colRefundDone]||'').includes('완료');
+      needRefund=refund>0&&!refundDone;
+      remain=contract-paid+(refundDone?0:refund);
+      if(remain<0)remain=0;
+    } else if(tab.special==='gongbo'){
+      contract=parseN(r[tab.colContract]);
+      paid=parseN(r[tab.colPaid1])+parseN(r[tab.colPaid2]);
+      remain=parseN(r[tab.colRemain]);
+    } else if(tab.special==='calc'){
+      contract=parseN(r[tab.colContract]);
+      paid=parseN(r[tab.colPaid]);
+      remain=Math.max(0,contract-paid);
+    } else {
+      contract=parseN(r[tab.colContract]);
+      paid=parseN(r[tab.colPaid]);
+      remain=parseN(r[tab.colRemain]);
+    }
+
+    if(!contract&&!paid&&!remain)continue;
+    items.push({tab:tab.name,client,mgr,contract,paid,remain,refund,refundDone,needRefund});
+  }
+  return items;
+}
+
 async function loadDaigeo(){
   renderLoading('daigeoBody');
   try{
-    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_DAIGEO.id}/export?format=csv&gid=0`);
-    renderDaigeo(csv);
+    // 9개 탭 병렬 fetch
+    const csvs = await Promise.all(
+      DAIGEO_TABS.map(t=>
+        proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_DAIGEO.id}/export?format=csv&gid=${t.gid}`)
+        .catch(()=>null)
+      )
+    );
+    // 파싱
+    const allItems=[];
+    DAIGEO_TABS.forEach((tab,i)=>{
+      if(!csvs[i])return;
+      const rows=csvParse(csvs[i]);
+      parseDaigeoTab(rows,tab).forEach(item=>allItems.push(item));
+    });
+    renderDaigeo(allItems);
   }catch(e){renderErr('daigeoBody','다이겨 시트를 불러오지 못했습니다.');}
 }
 
-function renderDaigeo(csv){
-  const body=document.getElementById('daigeoBody');
-  const rows=csvParse(csv);
-  const today=todayD();
-  const items=[];
-  for(let i=1;i<rows.length;i++){
-    const r=rows[i];
-    if(!r[0]||!r[0].trim())continue;
-    const contract=parseInt((r[13]||'0').replace(/[^\d]/g,''))||0;
-    const paid=parseInt((r[14]||'0').replace(/[^\d]/g,''))||0;
-    const remain=parseInt((r[16]||'0').replace(/[^\d]/g,''))||0;
-    items.push({no:r[0],contractDate:r[1],contractMonth:r[2],client:r[3],item:r[4],manager:r[12],contract,paid,remain,note:r[17]||''});
+function fmtKRW(n){
+  if(!n||isNaN(n))return '0원';
+  n=Math.round(n);
+  if(n<0)return '-'+fmtKRW(-n);
+  const uk=Math.floor(n/100000000);
+  const man=Math.floor((n%100000000)/10000);
+  const won=n%10000;
+  let s='';
+  if(uk)s+=uk+'억 ';
+  if(man){
+    // 만 단위 천 표시
+    const manChon=Math.floor(man/1000);
+    const manRest=man%1000;
+    if(manChon)s+=manChon+'천 ';
+    if(manRest)s+=manRest+'만 ';
+    else if(manChon)s+='만 ';
   }
-  const totalContract=items.reduce((s,i)=>s+i.contract,0);
-  const totalPaid=items.reduce((s,i)=>s+i.paid,0);
-  const totalRemain=items.reduce((s,i)=>s+i.remain,0);
-  const unpaidItems=items.filter(i=>i.remain>0);
-  const byManager={};
-  items.forEach(i=>{const m=i.manager||'미지정';if(!byManager[m])byManager[m]={contract:0,paid:0,count:0};byManager[m].contract+=i.contract;byManager[m].paid+=i.paid;byManager[m].count++;});
-  const byItem={};
-  items.forEach(i=>{const it=i.item||'기타';if(!byItem[it])byItem[it]={count:0,amount:0};byItem[it].count++;byItem[it].amount+=i.contract;});
-  const byMonth={};
-  items.forEach(i=>{if(!i.contractMonth)return;const m=i.contractMonth.trim();if(!byMonth[m])byMonth[m]=0;byMonth[m]+=i.contract;});
-  const recentMonths=Object.keys(byMonth).sort().slice(-6);
+  if(won){
+    const wonChon=Math.floor(won/1000);
+    const wonRest=won%1000;
+    if(wonChon)s+=wonChon+'천';
+    if(wonRest)s+=(wonChon?' ':'')+(wonRest)+'원';
+    else s+='원';
+  } else if(s){
+    s=s.trim()+'원';
+  } else {
+    s='0원';
+  }
+  return s.trim();
+}
+
+
+function renderDaigeo(allItems){
+  const body=document.getElementById('daigeoBody');
+  if(!allItems.length){body.innerHTML=`<div class="bcard"><div class="bcardtitle">데이터 없음</div></div>`;return;}
+
+  const totalContract=allItems.reduce((s,i)=>s+i.contract,0);
+  const totalPaid=allItems.reduce((s,i)=>s+i.paid,0);
+  const totalRemain=allItems.reduce((s,i)=>s+i.remain,0);
+  const unpaidItems=allItems.filter(i=>i.remain>0);
+  const refundItems=allItems.filter(i=>i.needRefund);
+
+  // 탭별 집계
+  const byTab={};
+  allItems.forEach(i=>{
+    if(!byTab[i.tab])byTab[i.tab]={contract:0,paid:0,remain:0,count:0};
+    byTab[i.tab].contract+=i.contract;
+    byTab[i.tab].paid+=i.paid;
+    byTab[i.tab].remain+=i.remain;
+    byTab[i.tab].count++;
+  });
+
+  // 담당자별 집계 (전체 탭 합산)
+  const byMgr={};
+  allItems.forEach(i=>{
+    const m=i.mgr||'미지정';
+    if(!byMgr[m])byMgr[m]={contract:0,paid:0,remain:0,count:0,tabs:new Set()};
+    byMgr[m].contract+=i.contract;
+    byMgr[m].paid+=i.paid;
+    byMgr[m].remain+=i.remain;
+    byMgr[m].count++;
+    byMgr[m].tabs.add(i.tab);
+  });
+
   let html='';
-  html+=`<div class="brief-grid" style="margin-bottom:12px">
-    <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">총 계약</div><div class="kpi-val">${items.length}건</div></div>
-    <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">총 계약금액</div><div class="kpi-val" style="font-size:16px">${(totalContract/10000).toFixed(0)}만원</div></div>
-    <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-label">총 입금액</div><div class="kpi-val ok" style="font-size:16px">${(totalPaid/10000).toFixed(0)}만원</div></div>
-    <div class="kpi-card"><div class="kpi-icon">⏳</div><div class="kpi-label">미수금</div><div class="kpi-val ${totalRemain>0?'danger':''}" style="font-size:16px">${(totalRemain/10000).toFixed(0)}만원</div><div class="kpi-sub">${unpaidItems.length}건</div></div>
+
+  // ── KPI 4칸
+  html+=`<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:14px">
+    <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">총 계약 건수</div><div class="kpi-val">${allItems.length}건</div><div class="kpi-sub">9개 탭 합산</div></div>
+    <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">총 계약금액</div><div class="kpi-val" style="font-size:16px">${fmtKRW(totalContract)}</div></div>
+    <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-label">총 입금액</div><div class="kpi-val ok" style="font-size:16px">${fmtKRW(totalPaid)}</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⏳</div><div class="kpi-label">총 미수금</div>
+      <div class="kpi-val ${totalRemain>0?'danger':''}" style="font-size:16px">${fmtKRW(totalRemain)}</div>
+      <div class="kpi-sub">${unpaidItems.length}건${refundItems.length?` · 반환대기 ${refundItems.length}건`:''}</div>
+    </div>
   </div>`;
-  if(unpaidItems.length){html+=`<div class="bcard alert"><div class="bcardtitle">⚠ 미수금 내역 <span class="tag r">${unpaidItems.length}건</span></div>`;unpaidItems.forEach(i=>{html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(i.client)} · ${esc(i.item)}</div><div class="bsub-t">${i.contractMonth} · ${esc(i.manager)}</div></div><div class="bval" style="color:var(--red);font-size:13px">${i.remain.toLocaleString()}원</div></div>`;});html+=`</div>`;}
-  html+=`<div class="bcard"><div class="bcardtitle">👤 담당자별 실적</div>`;
-  Object.entries(byManager).sort((a,b)=>b[1].contract-a[1].contract).forEach(([m,v])=>{const pct=totalContract?Math.round(v.contract/totalContract*100):0;html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(m)} <span style="font-size:12px;color:var(--dim)">${v.count}건</span></div><div style="height:4px;background:var(--b);border-radius:2px;margin-top:6px;max-width:200px"><div style="height:4px;background:var(--gold);border-radius:2px;width:${pct}%"></div></div></div><div style="text-align:right"><div class="bval" style="font-size:13px">${(v.contract/10000).toFixed(0)}만원</div><div class="bsub-t">${pct}%</div></div></div>`;});
+
+  // ── 반환 대기 (투표독려)
+  if(refundItems.length){
+    const totalRefund=refundItems.reduce((s,i)=>s+i.refund,0);
+    html+=`<div class="bcard alert"><div class="bcardtitle">🔄 반환 대기 <span class="tag r">${refundItems.length}건</span></div>`;
+    html+=`<div class="brow" style="margin-bottom:8px"><div class="bsub-t">반환 필요 총액</div><div class="bval" style="color:var(--red)">${totalRefund.toLocaleString()}원</div></div>`;
+    refundItems.slice(0,5).forEach(i=>{
+      html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(i.client)}</div><div class="bsub-t">${esc(i.mgr)}</div></div><div class="bval" style="color:var(--orange);font-size:13px">${i.refund.toLocaleString()}원</div></div>`;
+    });
+    if(refundItems.length>5)html+=`<div style="font-size:12px;color:var(--dim);text-align:center;padding-top:6px">+${refundItems.length-5}건 더 있음</div>`;
+    html+=`</div>`;
+  }
+
+  // ── 탭별(상품별) 매출
+  html+=`<div class="bcard"><div class="bcardtitle">📦 상품별 매출 현황</div>`;
+  DAIGEO_TABS.forEach(t=>{
+    const v=byTab[t.name];
+    if(!v)return;
+    const pct=totalContract?Math.round(v.contract/totalContract*100):0;
+    html+=`<div class="brow" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <div class="brow-left">
+        <div class="bname">${esc(t.name)} <span class="tag gold">${v.count}건</span></div>
+        <div style="display:flex;gap:8px;margin-top:4px;font-size:11.5px;color:var(--dim)">
+          <span>계약 ${fmtKRW(v.contract)}</span>
+          <span style="color:var(--green)">입금 ${fmtKRW(v.paid)}</span>
+          ${v.remain>0?`<span style="color:var(--red)">미수 ${fmtKRW(v.remain)}</span>`:''}
+        </div>
+        <div style="height:4px;background:var(--b);border-radius:2px;margin-top:5px;max-width:200px">
+          <div style="height:4px;background:var(--gold);border-radius:2px;width:${pct}%"></div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="bval" style="font-size:13px">${fmtKRW(v.contract)}</div>
+        ${v.remain>0?`<div style="font-size:11px;color:var(--red)">미수 ${fmtKRW(v.remain)}</div>`:'<div style="font-size:11px;color:var(--green)">미수없음</div>'}
+      </div>
+    </div>`;
+  });
   html+=`</div>`;
-  html+=`<div class="bcard"><div class="bcardtitle">📦 품목별</div>`;
-  Object.entries(byItem).sort((a,b)=>b[1].count-a[1].count).forEach(([it,v])=>{html+=`<div class="brow"><div class="brow-left"><div class="bname">${esc(it)}</div><div class="bsub-t">${v.count}건</div></div><div class="bval" style="font-size:13px">${(v.amount/10000).toFixed(0)}만원</div></div>`;});
+
+  // ── 담당자별 실적 (전체 탭 합산)
+  html+=`<div class="bcard"><div class="bcardtitle">👤 영업담당자 실적 <span class="tag gold">전체 탭 합산</span></div>`;
+  Object.entries(byMgr)
+    .filter(([m])=>m&&m!=='미지정')
+    .sort((a,b)=>b[1].contract-a[1].contract)
+    .forEach(([m,v])=>{
+      const pct=totalContract?Math.round(v.contract/totalContract*100):0;
+      html+=`<div class="brow">
+        <div class="brow-left">
+          <div class="bname">${esc(m)} <span class="tag gold">${v.count}건</span></div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">${[...v.tabs].join(' · ')}</div>
+          ${v.remain>0?`<div style="font-size:11.5px;color:var(--red);margin-top:2px">미수금 ${fmtKRW(v.remain)}</div>`:''}
+          <div style="height:4px;background:var(--b);border-radius:2px;margin-top:5px;max-width:200px">
+            <div style="height:4px;background:var(--gold);border-radius:2px;width:${pct}%"></div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="bval" style="font-size:13px">${fmtKRW(v.contract)}</div>
+          <div class="bsub-t">${pct}%</div>
+        </div>
+      </div>`;
+    });
   html+=`</div>`;
-  if(recentMonths.length){const max=Math.max(...recentMonths.map(m=>byMonth[m]));html+=`<div class="bcard"><div class="bcardtitle">📈 월별 매출</div><div style="display:flex;align-items:flex-end;gap:6px;height:80px;padding:0 2px">`;recentMonths.forEach(m=>{const h=max?Math.round(byMonth[m]/max*72):0;html+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:10px;color:var(--gold)">${(byMonth[m]/10000).toFixed(0)}만</div><div style="width:100%;background:var(--gold);border-radius:3px 3px 0 0;height:${h}px;opacity:.8"></div><div style="font-size:10px;color:var(--dim)">${m.slice(5)}</div></div>`;});html+=`</div></div>`;}
+
+  // ── 미수금 통합 리스트
+  if(unpaidItems.length){
+    html+=`<div class="bcard alert"><div class="bcardtitle">⚠ 미수금 내역 <span class="tag r">${unpaidItems.length}건</span></div>`;
+    [...unpaidItems].sort((a,b)=>b.remain-a.remain).slice(0,10).forEach(i=>{
+      html+=`<div class="brow">
+        <div class="brow-left">
+          <div class="bname">${esc(i.client)} <span class="tag" style="background:var(--s);color:var(--dim);border:1px solid var(--b);font-size:10px">${esc(i.tab)}</span></div>
+          <div class="bsub-t">${esc(i.mgr)}</div>
+        </div>
+        <div class="bval" style="color:var(--red);font-size:13px">${i.remain.toLocaleString()}원</div>
+      </div>`;
+    });
+    // 전체 숨겨진 행 추가
+    if(unpaidItems.length>10){
+      const hiddenRows=[...unpaidItems].sort((a,b)=>b.remain-a.remain).slice(10).map(i=>`
+        <div class="brow dgmore" style="display:none">
+          <div class="brow-left">
+            <div class="bname">${esc(i.client)} <span class="tag" style="background:var(--s);color:var(--dim);border:1px solid var(--b);font-size:10px">${esc(i.tab)}</span></div>
+            <div class="bsub-t">${esc(i.mgr)}</div>
+          </div>
+          <div class="bval" style="color:var(--red);font-size:13px">${i.remain.toLocaleString()}원</div>
+        </div>`).join('');
+      html+=hiddenRows;
+      html+=`<button onclick="toggleDgMore(this)" style="width:100%;margin-top:8px;background:var(--gs);border:1px solid var(--gb);border-radius:8px;padding:7px;color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12.5px;cursor:pointer">+ ${unpaidItems.length-10}건 더 보기</button>`;
+    }
+    html+=`</div>`;
+  }
+
   body.innerHTML=html;
 }
 
@@ -2650,7 +2888,7 @@ function renderAimoving(csv){
         <div class="bsub-t">영업수당 ${v.bonus.toLocaleString()}원</div>
       </div>
       <div style="text-align:right">
-        <div class="bval" style="font-size:14px">${(v.paid/10000).toFixed(0)}만원</div>
+        <div class="bval" style="font-size:14px">${fmtKRW(v.paid)}</div>
         <div class="bsub-t">결제금액</div>
       </div>
     </div>`;
@@ -2922,6 +3160,13 @@ function save(){
 // ══════════════════════════════════════════════
 //  MODALS
 // ══════════════════════════════════════════════
+function toggleDgMore(btn){
+  const rows=btn.parentElement.querySelectorAll('.brow.dgmore');
+  const isHidden=rows[0]&&rows[0].style.display==='none';
+  rows.forEach(r=>r.style.display=isHidden?'flex':'none');
+  btn.textContent=isHidden?'▲ 접기':'+ '+rows.length+'건 더 보기';
+}
+
 function openHelp(){document.getElementById('helpOverlay').classList.add('show');}
 function closeHelp(){document.getElementById('helpOverlay').classList.remove('show');}
 document.getElementById('evModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
