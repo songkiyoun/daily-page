@@ -588,7 +588,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.6</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.1</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -988,9 +988,8 @@ try{todos=JSON.parse(localStorage.getItem('sv-todos')||'[]')}catch(_){}
   }
   renderBrief();
   renderSched();
-  // 브리핑에서 블로그 지연 표시를 위해 백그라운드 로드
+  // 블로그 타임라인·절기문자 백그라운드 로드 (동기화와 병렬 실행)
   loadBlogBg();
-  // 절기문자도 백그라운드 로드 (브리핑 절기 섹션용)
   loadJolgimuBg();
 })();
 
@@ -1074,10 +1073,11 @@ async function syncFromSheet(){
   if(syncBusy||!scriptUrl)return;
   syncBusy=true;setSS('ing','동기화 중…');
   const to=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
+  // codetabs는 script.google.com을 차단하므로 제외
   const proxies=[
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(scriptUrl)}`,
     `https://corsproxy.io/?${encodeURIComponent(scriptUrl)}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(scriptUrl)}`,
+    `https://thingproxy.freeboard.io/fetch/${scriptUrl}`,
   ];
   let json=null;
   for(const pu of proxies){
@@ -1091,7 +1091,13 @@ async function syncFromSheet(){
     }catch(e){console.warn('Sync proxy fail:',e.message);}
   }
   if(json?.ok&&json?.data){
-    events=json.data.events||[];todos=json.data.todos||[];
+    events=json.data.events||[];
+    todos=json.data.todos||[];
+    // 협찬 포스팅 동기화 — 시트 데이터가 있으면 덮어씀
+    if(json.data.sponsors&&json.data.sponsors.length){
+      sponsors=json.data.sponsors;
+      try{localStorage.setItem('sv-sponsors',JSON.stringify(sponsors));}catch(_){}
+    }
     renderTodos();renderBrief();renderSched();setSS('ok','동기화 완료');
   }else{
     setSS('err','실패 — GitHub Pages로 배포하면 해결됩니다');
@@ -1101,7 +1107,7 @@ async function syncFromSheet(){
 async function syncToSheet(){
   if(!scriptUrl)return;setSS('ing','저장 중…');
   try{
-    const body=JSON.stringify({events,todos});
+    const body=JSON.stringify({events,todos,sponsors});
     const pu=`https://corsproxy.io/?${encodeURIComponent(scriptUrl)}`;
     let res=await fetch(pu,{method:'POST',headers:{'Content-Type':'text/plain'},body});
     if(!res.ok)throw new Error(res.status);
@@ -1109,7 +1115,7 @@ async function syncToSheet(){
     const json=JSON.parse(txt);
     if(json.ok)setSS('ok','저장 완료');else throw new Error();
   }catch(e){
-    try{await fetch(scriptUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({events,todos}),mode:'no-cors'});setSS('ok','저장됨');}
+    try{await fetch(scriptUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({events,todos,sponsors}),mode:'no-cors'});setSS('ok','저장됨');}
     catch(e2){setSS('err','저장 실패');}
   }
 }
@@ -2151,7 +2157,7 @@ function parseSponsor(orig){
 
 function saveSponsor(){
   try{localStorage.setItem('sv-sponsors',JSON.stringify(sponsors));}catch(_){}
-  // 동기화에도 포함 (옵션)
+  syncToSheet(); // 시트에도 자동 저장
 }
 
 function toggleSponsor(id){
