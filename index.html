@@ -588,7 +588,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.5</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.6</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -1167,19 +1167,18 @@ function renderBrief(){
   // 협찬 마감 임박
   const spUrgent=sponsors.filter(s=>!s.done&&s.deadline&&daysDiff(new Date(s.deadline),today)<=2&&daysDiff(new Date(s.deadline),today)>=-1);
   // 블로그 발행 지연 — 명시적으로 '발행전' 상태이면서 날짜가 과거인 것만
+  // 발행 카테고리만 (블로그_발행, SNS_발행) — 결제 행 제외
   const blogOverdue=blogTimeline.filter(t=>{
     if(!t||!t.date)return false;
-    const st=(t.status||'').trim();
-    if(st!=='발행전')return false; // 발행전만 대상
-    return daysDiff(t.date,today)<0;
+    if(t.cat&&t.cat.includes('결제'))return false;
+    return t.status==='발행전'&&daysDiff(t.date,today)<=0;
   });
-  // 블로그 발행 예정 — 발행전이면서 오늘~7일 이내
   const blogUpcoming=blogTimeline.filter(t=>{
     if(!t||!t.date)return false;
-    const st=(t.status||'').trim();
-    if(st!=='발행전')return false;
+    if(t.cat&&t.cat.includes('결제'))return false;
+    if(t.status!=='발행전')return false;
     const d=daysDiff(t.date,today);
-    return d>=0&&d<=7;
+    return d>0&&d<=7;
   });
 
   // ── KPI 상단 6칸
@@ -1888,14 +1887,31 @@ function parseBlogTimeline(csv){
     if(!r[1]||!r[1].trim())continue;
     const d=parseKorDate(r[1]);
     if(!d||isNaN(d))continue;
-    items.push({date:d,name:r[2],cat:r[3],status:r[4],round:r[5],content:r[7]||''});
+    items.push({
+      date:d,
+      name:(r[2]||'').trim(),      // C: 고객명
+      cat:(r[3]||'').trim(),       // D: 카테고리 (블로그_발행, SNS_발행, 결제)
+      status:(r[4]||'').trim(),    // E: 상태 (발행전, 완료, 입금전, 입금완료)
+      round:(r[5]||'').trim(),     // F: 회차
+      amount:(r[6]||'').trim(),    // G: 금액
+      content:(r[7]||'').trim(),   // H: 주제
+    });
   }
   return items;
 }
 
 function parseKorDate(s){
-  const m=s.match(/(\d{4})년\s*(\d{1,2})\s*(\d{1,2})일/);
-  return m?new Date(+m[1],+m[2]-1,+m[3]):null;
+  if(!s)return null;
+  // 형식1: 2025년 8월 28일
+  let m=s.match(/(\d{4})년\s*(\d{1,2})\s*월?\s*(\d{1,2})/);
+  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  // 형식2: 2025. 8. 28
+  m=s.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  // 형식3: 2025-08-28
+  m=s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  return null;
 }
 
 function csvParse(txt){
@@ -1951,7 +1967,7 @@ function renderBlogList(){
 
   // 요약 바
   const active=blogClients.filter(c=>c.status==='진행중');
-  const overdue=blogTimeline.filter(t=>t.status==='발행전'&&daysDiff(t.date,today)<-1);
+  const overdue=blogTimeline.filter(t=>t.status==='발행전'&&!t.cat?.includes('결제')&&daysDiff(t.date,today)<=0);
   let sumHtml=`<div class="bcard" style="margin-bottom:14px"><div class="bcardtitle">📊 전체 현황</div><div style="display:flex;gap:16px;flex-wrap:wrap">
     <div><div style="font-size:22px;font-weight:700;color:#fff">${active.length}<span style="font-size:13px;color:var(--dim);margin-left:4px">명</span></div><div style="font-size:11px;color:var(--dim)">진행중</div></div>
     <div><div style="font-size:22px;font-weight:700;color:${overdue.length?'var(--red)':'#fff'}">${overdue.length}<span style="font-size:13px;color:var(--dim);margin-left:4px">건</span></div><div style="font-size:11px;color:var(--dim)">발행 지연</div></div>
@@ -1980,8 +1996,8 @@ function renderBlogList(){
 
     // 이 클라이언트의 타임라인
     const cTimeline=blogTimeline.filter(t=>t.name===c.name);
-    const upcoming=cTimeline.filter(t=>t.status==='발행전'&&daysDiff(t.date,today)>=-1).slice(0,3);
-    const overdueItems=cTimeline.filter(t=>t.status==='발행전'&&daysDiff(t.date,today)<-1);
+    const upcoming=cTimeline.filter(t=>t.status==='발행전'&&!t.cat?.includes('결제')&&daysDiff(t.date,today)>=-1).slice(0,3);
+    const overdueItems=cTimeline.filter(t=>t.status==='발행전'&&!t.cat?.includes('결제')&&daysDiff(t.date,today)<=0);
 
     let detailHtml=`<div class="client-detail">
       <div class="detail-grid">
