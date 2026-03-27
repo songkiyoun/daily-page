@@ -588,7 +588,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.1</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.5</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -1051,7 +1051,7 @@ function closeSidebar(){
 function saveUrl(){
   const v=document.getElementById('scriptUrl').value.trim();
   const err=document.getElementById('setupErr');
-  if(!v.includes('script.google.com')&&!v.includes('macros')){err.style.display='block';return;}
+  if(!v.startsWith('https://')){err.style.display='block';return;}
   err.style.display='none';
   scriptUrl=v;localStorage.setItem('sv-script-url',v);
   document.getElementById('setupScreen').style.display='none';
@@ -2599,7 +2599,8 @@ function parseDaigeoTab(rows, tab){
     } else if(tab.special==='gongbo'){
       contract=parseN(r[tab.colContract]);
       paid=parseN(r[tab.colPaid1])+parseN(r[tab.colPaid2]);
-      remain=parseN(r[tab.colRemain]);
+      const paidRemain=parseN(r[tab.colRemain]); // Q열 = 이미 낸 잔금
+      remain=Math.max(0, contract - paid - paidRemain);
     } else if(tab.special==='calc'){
       contract=parseN(r[tab.colContract]);
       paid=parseN(r[tab.colPaid]);
