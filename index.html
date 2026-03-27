@@ -1093,10 +1093,11 @@ async function syncFromSheet(){
   if(json?.ok&&json?.data){
     events=json.data.events||[];
     todos=json.data.todos||[];
-    // 협찬 포스팅 동기화 — 시트 데이터가 있으면 덮어씀
     if(json.data.sponsors&&json.data.sponsors.length){
       sponsors=json.data.sponsors;
       try{localStorage.setItem('sv-sponsors',JSON.stringify(sponsors));}catch(_){}
+      // 협찬 탭이 열려있으면 즉시 화면 갱신
+      if(document.getElementById('spList'))renderSponsorList();
     }
     renderTodos();renderBrief();renderSched();setSS('ok','동기화 완료');
   }else{
@@ -2081,8 +2082,9 @@ function toggleClient(name,el){
 
 function initSponsor(){
   const body=document.getElementById('sponsorBody');
-  if(document.getElementById('spInput'))return; // 이미 초기화됨
-  body.innerHTML=`
+  if(!document.getElementById('spInput')){
+    // 최초 1회만 HTML 구조 생성
+    body.innerHTML=`
     <div class="sp-qbar">
       <div class="sp-row">
         <input class="sp-input" id="spInput" placeholder="3/28 10시까지 킴벌리 협찬 포스팅" onkeydown="if(event.key===&apos;Enter&apos;)addSponsor()">
@@ -2095,6 +2097,8 @@ function initSponsor(){
       <button class="sp-tab" id="spTabDone" onclick="setSpTab('done')">발행완료</button>
     </div>
     <div id="spList"></div>`;
+  }
+  // 탭 방문마다 최신 데이터로 렌더링
   renderSponsorList();
 }
 
