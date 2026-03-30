@@ -588,7 +588,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.1</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.7</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -2614,14 +2614,25 @@ function parseDaigeoTab(rows, tab){
     let contract=0,paid=0,remain=0,refund=0,refundDone=false,needRefund=false;
 
     if(tab.special==='vote'){
-      contract=parseN(r[tab.colContract])+parseN(r[tab.colExtra]);
+      // W = 실사용금액 (Y추가금 포함), Y는 계산에서 제외
+      contract=parseN(r[tab.colContract]);
       const paidStr=(r[tab.colPaid]||'').trim();
       paid=paidStr==='미입금'?0:parseN(paidStr);
-      refund=parseN(r[tab.colRefund]);
-      refundDone=(r[tab.colRefundDone]||'').includes('완료');
-      needRefund=refund>0&&!refundDone;
-      remain=contract-paid+(refundDone?0:refund);
-      if(remain<0)remain=0;
+      const diff=contract-paid;
+      if(diff>0){
+        // W - Z > 0 : 미납금
+        remain=diff;
+        refund=0;needRefund=false;
+      } else if(diff<0){
+        // W - Z < 0 : 반환금 발생
+        remain=0;
+        refund=Math.abs(diff);
+        refundDone=(r[tab.colRefundDone]||'').includes('완료');
+        needRefund=!refundDone;
+      } else {
+        // W - Z = 0 : 납부완료
+        remain=0;refund=0;needRefund=false;
+      }
     } else if(tab.special==='gongbo'){
       contract=parseN(r[tab.colContract]);
       paid=parseN(r[tab.colPaid1])+parseN(r[tab.colPaid2]);
