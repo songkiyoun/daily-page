@@ -401,6 +401,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .e-dhc{background:rgba(255,255,255,.07);border:1px solid var(--b);padding:6px 4px;font-size:10.5px;color:var(--dim);text-align:center;font-weight:700}
 .e-detail-row{display:grid;grid-template-columns:18% 18% 12% 10% 26% 11% auto;gap:3px;margin-bottom:4px;align-items:center}
 .e-dinp{background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:6px;padding:6px 7px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;width:100%}
+.e-dinp option{background:#1a1a2e;color:#fff}
 .e-dinp:focus{border-color:var(--gb)}.e-dinp::placeholder{color:rgba(255,255,255,.2)}
 .e-dinp.r{text-align:right}
 .e-del{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:var(--red);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px}
@@ -471,6 +472,29 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     width:297mm !important;height:210mm !important;
   }
 }
+
+/* ══ 전체검색 ══ */
+.search-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:900;display:none;align-items:flex-start;justify-content:center;padding:60px 16px 16px;backdrop-filter:blur(6px)}
+.search-overlay.show{display:flex}
+.search-modal{background:#16161e;border:1px solid var(--b);border-radius:14px;width:100%;max-width:660px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.search-hdr{padding:14px 16px;border-bottom:1px solid var(--b)}
+.search-inp-wrap{display:flex;align-items:center;gap:10px;background:var(--s);border:1px solid var(--gb);border-radius:10px;padding:8px 14px}
+.search-icon{font-size:16px;flex-shrink:0}
+.search-inp{flex:1;background:none;border:none;outline:none;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px}
+.search-inp::placeholder{color:var(--dim)}
+.search-close{background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;padding:0 2px}
+.search-close:hover{color:#fff}
+.search-body{overflow-y:auto;padding:10px 0}
+.search-empty{text-align:center;color:var(--dim);font-size:13px;padding:32px;font-style:italic}
+.search-section-title{font-size:10.5px;letter-spacing:1px;color:var(--gold);font-weight:700;text-transform:uppercase;padding:10px 16px 5px}
+.search-item{padding:10px 16px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:background .15s}
+.search-item:hover{background:var(--s)}
+.search-item-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.search-item-body{flex:1;min-width:0}
+.search-item-title{font-size:13.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-item-title mark{background:rgba(201,169,110,.35);color:var(--gold);border-radius:3px;padding:0 2px}
+.search-item-meta{font-size:11.5px;color:var(--dim);margin-top:2px}
+.search-divider{height:1px;background:var(--b);margin:6px 0}
 </style>
 </head>
 <body>
@@ -575,6 +599,23 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
   </div>
 </div>
 
+<!-- SEARCH OVERLAY -->
+<div class="search-overlay" id="searchOverlay">
+  <div class="search-modal">
+    <div class="search-hdr">
+      <div class="search-inp-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-inp" id="searchInp" placeholder="일정, 할일, 협찬, 발주서, 지출결의서 검색…"
+          oninput="runSearch(this.value)" autocomplete="off">
+        <button class="search-close" onclick="closeSearch()">✕</button>
+      </div>
+    </div>
+    <div class="search-body" id="searchBody">
+      <div class="search-empty">검색어를 입력하세요</div>
+    </div>
+  </div>
+</div>
+
 <!-- SIDEBAR OVERLAY (mobile) -->
 <div class="sidebar-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
 
@@ -597,6 +638,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="tbtn" onclick="openModal()">+ 일정</button>
     <button class="tbtn" onclick="syncFromSheet()">↻</button>
     <button class="tbtn" onclick="resetUrl()">🔗</button>
+    <button class="tbtn" onclick="openSearch()">🔍</button>
     <button class="tbtn" onclick="openHelp()">?</button>
   </div>
 </header>
@@ -3023,7 +3065,20 @@ function oSave(){
   if(idx>=0)list[idx]=doc;else list.unshift(doc);
   if(list.length>50)list.length=50;oStore(list);
   document.getElementById('o-editId').value=doc.id;
-  alert('저장 완료!');
+  // 마감기한 → 일정 자동등록
+  if(doc.deadline){
+    const evTitle=`[발주서] ${doc.org||doc.product} 마감`;
+    const already=events.find(e=>e.title===evTitle&&e.date===doc.deadline);
+    if(!already){
+      events.push({id:Date.now(),title:evTitle,date:doc.deadline,start:'',end:'',loc:'',memo:'발주서 자동등록'});
+      save();renderSched();renderBrief();
+      alert('저장 완료! 마감일이 일정에 자동 등록되었습니다.');
+    } else {
+      alert('저장 완료!');
+    }
+  } else {
+    alert('저장 완료!');
+  }
 }
 function oPreview(){oRenderPreview(oCollect());docTab('order','preview');}
 function oRenderList(){
@@ -3088,7 +3143,10 @@ function initExpense(){
 function eAddRow(cat='',desc='',amt='',bank='',acct='',own=''){
   const id=eRowCount++;const d=document.createElement('div');
   d.className='e-detail-row';d.dataset.id=id;
-  d.innerHTML=`<input class="e-dinp" placeholder="계정과목" data-ef="cat" value="${docEsc(cat)}">
+  const catOpts=['광고선전비','여비교통비','소모품비','운반비','지급수수료','기타(직접입력)'];
+  const catSel=catOpts.map(o=>`<option value="${o}" ${cat===o?'selected':''}>${o}</option>`).join('');
+  d.innerHTML=`<select class="e-dinp" data-ef="cat" onchange="eHandleCat(this)"
+    style="cursor:pointer"><option value="">계정과목</option>${catSel}</select>
     <input class="e-dinp" placeholder="적요" data-ef="desc" value="${docEsc(desc)}">
     <input class="e-dinp r" placeholder="0" data-ef="amt" value="${docEsc(amt)}" oninput="eCalc()">
     <input class="e-dinp" placeholder="은행명" data-ef="bank" value="${docEsc(bank)}">
@@ -3098,6 +3156,15 @@ function eAddRow(cat='',desc='',amt='',bank='',acct='',own=''){
   document.getElementById('eDetailRows').appendChild(d);eCalc();
 }
 function eDelRow(id){document.querySelector(`.e-detail-row[data-id="${id}"]`)?.remove();eCalc();}
+function eHandleCat(sel){
+  if(sel.value==='기타(직접입력)'){
+    const inp=document.createElement('input');
+    inp.className='e-dinp';inp.placeholder='직접 입력';
+    inp.setAttribute('data-ef','cat');
+    sel.parentNode.replaceChild(inp,sel);
+    inp.focus();
+  }
+}
 function eCalc(){
   const t=[...document.querySelectorAll('[data-ef="amt"]')].reduce((s,el)=>s+docParseW(el.value),0);
   document.getElementById('eTotalDisp').textContent=docFmtW(t)+'원';
@@ -3200,6 +3267,165 @@ function toggleDgMore(btn){
   rows.forEach(r=>r.style.display=isHidden?'flex':'none');
   btn.textContent=isHidden?'▲ 접기':'+ '+rows.length+'건 더 보기';
 }
+
+// ══════════════════════════════════════════════
+//  전체 검색
+// ══════════════════════════════════════════════
+function openSearch(){
+  document.getElementById('searchOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('searchInp').focus(),100);
+}
+function closeSearch(){
+  document.getElementById('searchOverlay').classList.remove('show');
+  document.getElementById('searchInp').value='';
+  document.getElementById('searchBody').innerHTML='<div class="search-empty">검색어를 입력하세요</div>';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
+
+function hl(text, q){
+  if(!q||!text)return esc(text||'');
+  const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(re,'<mark>$1</mark>');
+}
+
+function runSearch(q){
+  const body=document.getElementById('searchBody');
+  q=q.trim();
+  if(!q){body.innerHTML='<div class="search-empty">검색어를 입력하세요</div>';return;}
+  const ql=q.toLowerCase();
+  let html='';
+
+  // 일정
+  const evRes=events.filter(e=>(e.title||'').toLowerCase().includes(ql)||(e.loc||'').toLowerCase().includes(ql));
+  if(evRes.length){
+    html+=`<div class="search-section-title">📅 일정 (${evRes.length})</div>`;
+    evRes.slice(0,5).forEach(e=>{
+      html+=`<div class="search-item" onclick="closeSearch();nav('schedule',document.querySelector('[onclick*=\\'schedule\\']'))">
+        <div class="search-item-icon">📅</div>
+        <div class="search-item-body">
+          <div class="search-item-title">${hl(e.title,q)}</div>
+          <div class="search-item-meta">${e.date}${e.start?' · '+e.start:''}${e.loc?' · 📍'+esc(e.loc):''}</div>
+        </div></div>`;
+    });
+    html+='<div class="search-divider"></div>';
+  }
+
+  // 할일
+  const tdRes=todos.filter(t=>(t.text||'').toLowerCase().includes(ql));
+  if(tdRes.length){
+    html+=`<div class="search-section-title">✅ 할일 (${tdRes.length})</div>`;
+    const pl={high:'🔴',mid:'🟡',low:'🔵'};
+    tdRes.slice(0,5).forEach(t=>{
+      html+=`<div class="search-item" onclick="closeSearch();nav('todo',document.querySelector('[onclick*=\\'todo\\']'))">
+        <div class="search-item-icon">${pl[t.p]||'⚪'}</div>
+        <div class="search-item-body">
+          <div class="search-item-title">${hl(t.text,q)}</div>
+          <div class="search-item-meta">${t.done?'완료':'미완료'}</div>
+        </div></div>`;
+    });
+    html+='<div class="search-divider"></div>';
+  }
+
+  // 협찬
+  const spRes=sponsors.filter(s=>((s.brand||'')+(s.content||'')).toLowerCase().includes(ql));
+  if(spRes.length){
+    html+=`<div class="search-section-title">🤝 협찬 (${spRes.length})</div>`;
+    spRes.slice(0,5).forEach(s=>{
+      html+=`<div class="search-item" onclick="closeSearch();nav('sponsor',document.querySelector('[onclick*=\\'sponsor\\']'))">
+        <div class="search-item-icon">🤝</div>
+        <div class="search-item-body">
+          <div class="search-item-title">${hl((s.brand?s.brand+' · ':'')+s.content,q)}</div>
+          <div class="search-item-meta">${s.done?'발행완료':'진행중'}${s.deadline?' · '+new Date(s.deadline).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})+' 마감':''}</div>
+        </div></div>`;
+    });
+    html+='<div class="search-divider"></div>';
+  }
+
+  // 발주서
+  const orRes=oLoad().filter(d=>((d.org||'')+(d.product||'')+(d.manager||'')).toLowerCase().includes(ql));
+  if(orRes.length){
+    html+=`<div class="search-section-title">📋 발주서 (${orRes.length})</div>`;
+    orRes.slice(0,5).forEach(d=>{
+      html+=`<div class="search-item" onclick="closeSearch();oEdit('${d.id}');nav('order',document.querySelector('[onclick*=\\'order\\']'))">
+        <div class="search-item-icon">📋</div>
+        <div class="search-item-body">
+          <div class="search-item-title">${hl((d.org||'')+(d.product?' · '+d.product:''),q)}</div>
+          <div class="search-item-meta">${d.reqdate||''}${d.manager?' · '+esc(d.manager):''}</div>
+        </div></div>`;
+    });
+    html+='<div class="search-divider"></div>';
+  }
+
+  // 지출결의서
+  const exRes=eLoad().filter(d=>{
+    const rows=(d.rows||[]).map(r=>(r.cat||'')+(r.desc||'')).join('');
+    return ((d.drafter||'')+rows+(d.memo||'')).toLowerCase().includes(ql);
+  });
+  if(exRes.length){
+    html+=`<div class="search-section-title">💰 지출결의서 (${exRes.length})</div>`;
+    exRes.slice(0,5).forEach(d=>{
+      html+=`<div class="search-item" onclick="closeSearch();eEdit('${d.id}');nav('expense',document.querySelector('[onclick*=\\'expense\\']'))">
+        <div class="search-item-icon">💰</div>
+        <div class="search-item-body">
+          <div class="search-item-title">${hl(d.drafter||'(기안자 없음)',q)} · ${docFmtW(d.total)}원</div>
+          <div class="search-item-meta">${docFmtDateShort(d.date)}</div>
+        </div></div>`;
+    });
+  }
+
+  if(!html)html='<div class="search-empty">검색 결과가 없습니다</div>';
+  html+=renderDaigeoChart(allItems);
+  body.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════
+//  다이겨 월별 매출 차트
+// ══════════════════════════════════════════════
+function renderDaigeoChart(allItems){
+  // 계약일 없는 탭 제외, 현재는 allItems의 tab 기준 집계
+  // contractDate가 없으므로 탭별 합산을 월로 표현 불가 → items를 탭 단위로 구성
+  // 대신 입금된 금액(paid) 기준으로 탭별 막대 차트 구성
+  const tabNames=['홍보물제작','투표독려','모바일명함','보이는컬러링','여론조사','사진촬영','선거공보','소식지','연하장'];
+  const tabColors=['#c9a96e','#5b9bd5','#5fcf85','#e05555','#a78bfa','#fb923c','#34d399','#f472b6','#60a5fa'];
+
+  const byTab={};
+  allItems.forEach(i=>{
+    if(!byTab[i.tab])byTab[i.tab]={contract:0,paid:0,remain:0};
+    byTab[i.tab].contract+=i.contract;
+    byTab[i.tab].paid+=i.paid;
+    byTab[i.tab].remain+=i.remain;
+  });
+
+  const maxVal=Math.max(...tabNames.map(t=>byTab[t]?.contract||0),1);
+  const bars=tabNames.map((t,i)=>{
+    const v=byTab[t]||{contract:0,paid:0,remain:0};
+    if(!v.contract)return '';
+    const barH=Math.round((v.contract/maxVal)*120);
+    const paidH=Math.round((v.paid/maxVal)*120);
+    const pct=Math.round(v.paid/v.contract*100);
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0">
+      <div style="font-size:10px;color:var(--gold);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;padding:0 2px">${fmtKRW(v.contract)}</div>
+      <div style="position:relative;width:100%;height:120px;display:flex;align-items:flex-end;justify-content:center;gap:2px">
+        <div style="width:45%;height:${barH}px;background:rgba(201,169,110,.25);border-radius:3px 3px 0 0;border:1px solid rgba(201,169,110,.4)" title="계약: ${fmtKRW(v.contract)}"></div>
+        <div style="width:45%;height:${paidH}px;background:${tabColors[i]};border-radius:3px 3px 0 0;opacity:.85" title="입금: ${fmtKRW(v.paid)}"></div>
+      </div>
+      <div style="font-size:10px;color:var(--dim);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%">${t.replace('홍보물제작','홍보물').replace('보이는컬러링','컬러링').replace('여론조사','여론').replace('사진촬영','사진').replace('선거공보','공보')}</div>
+      <div style="font-size:10px;font-weight:700;color:${pct>=100?'var(--green)':pct>=50?'var(--gold)':'var(--red)'}">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="bcard">
+    <div class="bcardtitle">📊 상품별 매출 차트 <span style="font-size:11px;color:var(--dim);font-weight:400;margin-left:6px">□ 계약  ■ 입금</span></div>
+    <div style="display:flex;align-items:flex-end;gap:4px;padding:8px 4px 0;overflow-x:auto">${bars}</div>
+    <div style="display:flex;gap:12px;padding:10px 4px 2px;font-size:11px;color:var(--dim)">
+      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(201,169,110,.25);border:1px solid rgba(201,169,110,.4);border-radius:2px;margin-right:4px"></span>계약금</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:var(--gold);border-radius:2px;opacity:.85;margin-right:4px"></span>입금액</span>
+      <span style="margin-left:auto">% = 입금 달성률</span>
+    </div>
+  </div>`;
+}
+
 
 function openHelp(){document.getElementById('helpOverlay').classList.add('show');}
 function closeHelp(){document.getElementById('helpOverlay').classList.remove('show');}
