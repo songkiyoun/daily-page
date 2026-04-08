@@ -495,6 +495,16 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .search-item-title mark{background:rgba(201,169,110,.35);color:var(--gold);border-radius:3px;padding:0 2px}
 .search-item-meta{font-size:11.5px;color:var(--dim);margin-top:2px}
 .search-divider{height:1px;background:var(--b);margin:6px 0}
+
+/* ── 공지사항 배너 ── */
+.notice-banner{background:linear-gradient(135deg,rgba(201,169,110,.18),rgba(201,169,110,.08));border:1px solid var(--gb);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start;animation:up .3s ease}
+.notice-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.notice-body{flex:1;min-width:0}
+.notice-title{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:3px}
+.notice-text{font-size:13px;color:var(--mid);line-height:1.6;white-space:pre-wrap}
+.notice-date{font-size:11px;color:var(--dim);margin-top:5px}
+.notice-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:0;flex-shrink:0;line-height:1}
+.notice-close:hover{color:#fff}
 </style>
 </head>
 <body>
@@ -3425,6 +3435,146 @@ function renderDaigeoChart(allItems){
   </div>`;
 }
 
+
+// ══════════════════════════════════════════════
+//  공지사항
+// ══════════════════════════════════════════════
+const SH_NOTICE = '1atWDHWjyATL-NeqpFtLt0plAkeUn0bdA6q2L24mDAsk';
+const NOTICE_CSV_URL = `https://docs.google.com/spreadsheets/d/${SH_NOTICE}/export?format=csv&gid=0`;
+
+async function loadNotice(){
+  try{
+    const csv = await proxyFetch(NOTICE_CSV_URL);
+    const rows = csvParse(csv);
+    if(!rows||!rows.length)return;
+    const r = rows[0];
+    const title=(r[0]||'').trim();
+    const body=(r[1]||'').trim();
+    const date=(r[2]||'').trim();
+    if(!title&&!body)return;
+
+    // 읽음 처리 — 공지 날짜+제목 기준
+    const noticeKey='sv-notice-read-'+(date+title).replace(/\s/g,'');
+    if(localStorage.getItem(noticeKey))return;
+
+    renderNotice({title,body,date,noticeKey});
+  }catch(_){}
+}
+
+function renderNotice({title,body,date,noticeKey}){
+  // 브리핑 최상단에 삽입
+  const brief=document.getElementById('briefBody');
+  if(!brief)return;
+  const div=document.createElement('div');
+  div.className='notice-banner';
+  div.id='noticeBanner';
+  div.innerHTML=`
+    <div class="notice-icon">📢</div>
+    <div class="notice-body">
+      ${title?`<div class="notice-title">${esc(title)}</div>`:''}
+      ${body?`<div class="notice-text">${esc(body)}</div>`:''}
+      ${date?`<div class="notice-date">${esc(date)}</div>`:''}
+    </div>
+    <button class="notice-close" onclick="dismissNotice('${noticeKey}')">✕</button>`;
+  brief.prepend(div);
+}
+
+function dismissNotice(key){
+  localStorage.setItem(key,'1');
+  document.getElementById('noticeBanner')?.remove();
+}
+
+// 공지 작성 (개인형 전용)
+let noticeScriptUrl = localStorage.getItem('sv-notice-url') || 'https://script.google.com/macros/s/AKfycbwJn8ZSbXxB7XvF6_rlRFFdWLhwn7rGr83D7Ww3YJp7f7OvNRvP3pbbwLUq7xW3fCpE/exec';
+
+function openNoticeEditor(){
+  const overlay = document.getElementById('noticeEditorOverlay');
+  if(overlay){ overlay.classList.add('show'); return; }
+  // 동적 생성
+  const el = document.createElement('div');
+  el.id = 'noticeEditorOverlay';
+  el.className = 'help-overlay';
+  el.innerHTML = `
+    <div class="help-modal" style="max-width:500px">
+      <div class="help-hdr">
+        <div class="help-ttl">📢 공지 <em>작성</em></div>
+        <button class="help-close" onclick="document.getElementById('noticeEditorOverlay').classList.remove('show')">✕</button>
+      </div>
+      <div style="padding:20px 22px;display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 제목</div>
+          <input id="noticeTitle" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none" placeholder="공지 제목 입력">
+        </div>
+        <div>
+          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 내용</div>
+          <textarea id="noticeBody" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;min-height:100px;resize:vertical" placeholder="공지 내용 입력"></textarea>
+        </div>
+        <div>
+          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 Apps Script URL</div>
+          <input id="noticeUrl" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none" placeholder="https://script.google.com/…" value="https://script.google.com/macros/s/AKfycbwJn8ZSbXxB7XvF6_rlRFFdWLhwn7rGr83D7Ww3YJp7f7OvNRvP3pbbwLUq7xW3fCpE/exec">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="clearNotice()" style="background:rgba(224,85,85,.15);border:1px solid rgba(224,85,85,.3);color:var(--red);border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer">🗑 공지 삭제</button>
+          <button onclick="saveNotice()" style="background:var(--gold);color:#0c0c11;border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">📢 공지 등록</button>
+        </div>
+        <div id="noticeStatus" style="font-size:12px;color:var(--dim);text-align:center;min-height:16px"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  el.classList.add('show');
+}
+
+async function saveNotice(){
+  const url = document.getElementById('noticeUrl').value.trim();
+  const title = document.getElementById('noticeTitle').value.trim();
+  const body = document.getElementById('noticeBody').value.trim();
+  const status = document.getElementById('noticeStatus');
+  if(!url){status.textContent='Apps Script URL을 입력해주세요.';return;}
+  if(!title&&!body){status.textContent='제목 또는 내용을 입력해주세요.';return;}
+  noticeScriptUrl = url;
+  localStorage.setItem('sv-notice-url', url);
+  status.textContent = '등록 중…';
+  try{
+    const pu = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const res = await fetch(pu,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title,body})});
+    const json = JSON.parse(await res.text());
+    if(json.ok){
+      status.style.color='var(--green)';
+      status.textContent='✓ 공지가 등록됐습니다. 배포형에서 동기화 시 표시됩니다.';
+    } else throw new Error();
+  }catch(e){
+    try{
+      await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title,body}),mode:'no-cors'});
+      status.style.color='var(--green)';
+      status.textContent='✓ 전송됨 (결과 확인 불가)';
+    }catch(e2){
+      status.style.color='var(--red)';
+      status.textContent='✗ 전송 실패. URL을 확인해주세요.';
+    }
+  }
+}
+
+async function clearNotice(){
+  const url = document.getElementById('noticeUrl').value.trim() || noticeScriptUrl;
+  const status = document.getElementById('noticeStatus');
+  if(!url){status.textContent='Apps Script URL을 입력해주세요.';return;}
+  status.textContent = '삭제 중…';
+  try{
+    const pu = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    await fetch(pu,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title:'',body:''})});
+    status.style.color='var(--green)';
+    status.textContent='✓ 공지가 삭제됐습니다.';
+  }catch(e){
+    try{
+      await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title:'',body:''}),mode:'no-cors'});
+      status.style.color='var(--green)';
+      status.textContent='✓ 전송됨';
+    }catch(e2){
+      status.style.color='var(--red)';
+      status.textContent='✗ 실패';
+    }
+  }
+}
 
 function openHelp(){document.getElementById('helpOverlay').classList.add('show');}
 function closeHelp(){document.getElementById('helpOverlay').classList.remove('show');}
