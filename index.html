@@ -449,31 +449,27 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .de-memo .memo-lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;letter-spacing:2px;padding:8px 4px;white-space:nowrap;width:10%;vertical-align:middle}
 .de-memo .memo-val{padding:8px 10px;font-size:11px}
 
+@page{size:A4 portrait;margin:0}
 @media print{
-  /* print-area가 있을 때: 앱 전체 숨기고 문서만 출력 */
+  /* print-area만 출력, 앱 UI 전체 숨김 */
   body *{visibility:hidden !important}
   #print-area,#print-area *{visibility:visible !important}
   #print-area{
     position:fixed !important;
     top:0 !important;left:0 !important;
-    margin:0 !important;padding:15mm 15mm 10mm 15mm !important;
+    margin:0 !important;
+    padding:15mm 15mm 10mm 15mm !important;
     border:none !important;
     z-index:9999;
   }
-  .doc-order#print-area{
-    @page{size:A4 portrait;margin:0}
-    width:210mm !important;height:297mm !important;
-  }
-  .doc-report#print-area{
-    width:297mm !important;height:210mm !important;
-  }
+  .doc-order#print-area,
   .doc-expense#print-area{
     width:210mm !important;height:297mm !important;
     overflow:visible !important;
   }
-}
-@media print{
-  @page{size:A4 portrait;margin:0}
+  .doc-report#print-area{
+    width:297mm !important;height:210mm !important;
+  }
 }
 </style>
 </head>
