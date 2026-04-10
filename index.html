@@ -418,8 +418,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .doc-order{background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',sans-serif;width:700px;height:990px;margin:0 auto;padding:15mm 15mm 10mm 15mm;border:1px solid #bbb;box-sizing:border-box}
 .doc-order table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
 .doc-order td{border:1.5px solid #444;vertical-align:middle;padding:0}
-.doc-order .td-title{text-align:center;vertical-align:middle;padding:8px;font-size:26px;font-weight:900;letter-spacing:14px;color:#111}
-.doc-order .td-lbl{background:#f0f0f0;font-weight:700;text-align:center;color:#111;font-size:12px;letter-spacing:1px;padding:8px 4px;white-space:nowrap}
+.doc-order .td-title{text-align:center;vertical-align:middle;padding:8px;font-size:32px;font-weight:900;letter-spacing:8px;color:#111}
+.doc-order .td-lbl{background:#f0f0f0;font-weight:700;text-align:center;color:#111;font-size:13px;letter-spacing:1px;padding:8px 4px;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-order .td-val{padding:8px 10px;font-size:13px;color:#111;text-align:center;vertical-align:middle}
 .doc-order .td-note{padding:14px 12px;font-size:13px;color:#444;line-height:2;white-space:pre-wrap;vertical-align:top}
 .doc-order .note-ph{color:#999;font-size:13px}
@@ -428,27 +428,27 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .doc-expense table{width:100%;border-collapse:collapse;table-layout:fixed}
 .doc-expense td,.doc-expense th{border:1px solid #555;vertical-align:middle;padding:0}
 .de-title-area{width:100%;border-collapse:collapse}
-.de-title{font-size:19px;font-weight:900;letter-spacing:4px;color:#111;padding:14px 0 14px 6px;white-space:nowrap;vertical-align:middle}
-.de-approval-head{background:#f0f0f0;font-weight:700;font-size:11px;text-align:center;vertical-align:middle;border:1px solid #555;padding:4px 0;width:14%}
-.de-approval-sign{height:44px;width:14%;border:1px solid #555;text-align:center;vertical-align:middle}
+.de-title{font-size:32px;font-weight:900;letter-spacing:0px;color:#111;padding:10px 0 10px 6px;white-space:nowrap;vertical-align:middle}
+.de-approval-head{background:#f0f0f0;font-weight:700;font-size:13px;text-align:center;vertical-align:middle;border:1px solid #555;padding:5px 0;width:12%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-approval-sign{height:48px;width:12%;border:1px solid #555;text-align:center;vertical-align:middle}
 .de-info{margin-top:16px;border-collapse:collapse;width:34%}
 .de-info td{border:1px solid #555;padding:0;vertical-align:middle}
-.de-info .lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;letter-spacing:2px;padding:6px 4px;white-space:nowrap;width:40%}
-.de-info .val{padding:6px 10px;font-size:11.5px;text-align:center;height:26px}
+.de-info .lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:7px 4px;white-space:nowrap;width:40%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-info .val{padding:7px 10px;font-size:13px;text-align:center;height:30px}
 .de-detail{margin-top:16px;border-collapse:collapse;width:100%;table-layout:fixed}
-.de-detail .th{background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;letter-spacing:1px;padding:6px 2px;height:28px}
-.de-detail .td-cat{font-size:11px;text-align:center;padding:4px;height:26px}
-.de-detail .td-desc{font-size:11px;padding:4px 6px;height:26px}
-.de-detail .td-amt{font-size:11px;text-align:right;padding:4px 6px;height:26px}
-.de-detail .td-bank{font-size:11px;text-align:center;padding:4px;height:26px}
-.de-detail .td-acct{font-size:11px;text-align:center;padding:4px;height:26px}
-.de-detail .td-own{font-size:11px;text-align:center;padding:4px;height:26px}
-.de-detail .td-sum-lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;letter-spacing:2px;padding:6px 4px;height:25px}
-.de-detail .td-sum-val{font-weight:700;font-size:12px;text-align:right;padding:6px 10px}
+.de-detail .th{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:7px 2px;height:30px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-detail .td-cat{font-size:13px;text-align:center;padding:5px 4px;height:28px}
+.de-detail .td-desc{font-size:13px;padding:5px 6px;height:28px;text-align:center}
+.de-detail .td-amt{font-size:13px;text-align:right;padding:5px 6px;height:28px}
+.de-detail .td-bank{font-size:13px;text-align:center;padding:5px 4px;height:28px}
+.de-detail .td-acct{font-size:13px;text-align:center;padding:5px 4px;height:28px}
+.de-detail .td-own{font-size:13px;text-align:center;padding:5px 4px;height:28px}
+.de-detail .td-sum-lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:2px;padding:7px 4px;height:27px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-detail .td-sum-val{font-weight:700;font-size:13px;text-align:right;padding:7px 10px}
 .de-memo{border-collapse:collapse;width:100%}
 .de-memo td{border:1px solid #555;padding:0;vertical-align:top}
-.de-memo .memo-lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;letter-spacing:2px;padding:8px 4px;white-space:nowrap;width:10%;vertical-align:middle}
-.de-memo .memo-val{padding:8px 10px;font-size:11px}
+.de-memo .memo-lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:2px;padding:8px 4px;white-space:nowrap;width:10%;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-memo .memo-val{padding:8px 10px;font-size:13px;height:64px}
 
 @page{size:A4 portrait;margin:0}
 @media print{
@@ -635,7 +635,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v3.0</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v3.2</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -1040,6 +1040,13 @@ try{todos=JSON.parse(localStorage.getItem('sv-todos')||'[]')}catch(_){}
   // 블로그 타임라인·절기문자 백그라운드 로드 (동기화와 병렬 실행)
   loadBlogBg();
   loadJolgimuBg();
+  loadNotice();
+  // 5초 후 자동 재시도 (프록시 초기 실패 대비)
+  setTimeout(()=>{
+    if(!blogLoaded) loadBlogBg();
+    if(!jolgiDatesGlobal.length) loadJolgimuBg();
+    loadNotice();
+  }, 5000);
 })();
 
 function tick(){
@@ -3239,22 +3246,22 @@ function eViewPreview(id){const doc=eLoad().find(d=>d.id===id);if(doc){eRenderPr
 function eDel(id){if(!confirm('삭제하시겠습니까?'))return;eStore(eLoad().filter(d=>d.id!==id));eRenderList();}
 function eRenderPreview(doc){
   const rows=[...(doc.rows||[])];while(rows.length<20)rows.push({cat:'',desc:'',amt:0,bank:'',acct:'',own:''});
-  const rowsHTML=rows.map(r=>`<tr><td class="td-cat">${docEsc(r.cat)}</td><td class="td-desc">${docEsc(r.desc)}</td><td class="td-amt">${r.amt?'₩ '+r.amt.toLocaleString():''}</td><td class="td-bank">${docEsc(r.bank)}</td><td class="td-acct">${docEsc(r.acct)}</td><td class="td-own">${docEsc(r.own)}</td></tr>`).join('');
+  const rowsHTML=rows.map(r=>`<tr><td class="td-cat">${docEsc(r.cat)}</td><td class="td-desc">${docEsc(r.desc)}</td><td class="td-amt">${r.amt?r.amt.toLocaleString():''}</td><td class="td-bank">${docEsc(r.bank)}</td><td class="td-acct">${docEsc(r.acct)}</td><td class="td-own">${docEsc(r.own)}</td></tr>`).join('');
   document.getElementById('ePreviewDoc').innerHTML=`<div class="doc-expense" id="print-area">
     <table class="de-title-area">
-      <colgroup><col style="width:44%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>
+      <colgroup><col style="width:52%"><col style="width:12%"><col style="width:12%"><col style="width:12%"><col style="width:12%"></colgroup>
       <tr><td class="de-title" rowspan="2" style="border:none">지&nbsp;&nbsp;출&nbsp;&nbsp;결&nbsp;&nbsp;의&nbsp;&nbsp;서</td>
         <td class="de-approval-head">기안자</td><td class="de-approval-head">대리</td><td class="de-approval-head">이사</td><td class="de-approval-head">대표</td></tr>
       <tr><td class="de-approval-sign"></td><td class="de-approval-sign"></td><td class="de-approval-sign"></td><td class="de-approval-sign"></td></tr>
     </table>
     <table class="de-info"><tr><td class="lbl">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td><td class="val">${docEsc(doc.drafter)}</td></tr>
       <tr><td class="lbl">기&nbsp;안&nbsp;일&nbsp;자</td><td class="val">${docFmtDateShort(doc.date)}</td></tr>
-      <tr><td class="lbl">기&nbsp;안&nbsp;금&nbsp;액</td><td class="val">₩ ${docFmtW(doc.total)}</td></tr></table>
+      <tr><td class="lbl">기&nbsp;안&nbsp;금&nbsp;액</td><td class="val">${docFmtW(doc.total)}</td></tr></table>
     <table class="de-detail">
-      <colgroup><col style="width:18%"><col style="width:18%"><col style="width:12%"><col style="width:10%"><col style="width:29%"><col style="width:13%"></colgroup>
+      <colgroup><col style="width:18%"><col style="width:18%"><col style="width:12%"><col style="width:14%"><col style="width:25%"><col style="width:13%"></colgroup>
       <tr><th class="th">계&nbsp;정&nbsp;과&nbsp;목</th><th class="th">적&nbsp;&nbsp;&nbsp;&nbsp;요</th><th class="th">금&nbsp;&nbsp;&nbsp;&nbsp;액</th><th class="th">은행명</th><th class="th">계&nbsp;&nbsp;좌&nbsp;&nbsp;번&nbsp;&nbsp;호</th><th class="th">예&nbsp;금&nbsp;주</th></tr>
       ${rowsHTML}
-      <tr><td class="td-sum-lbl" colspan="2">합&nbsp;&nbsp;계&nbsp;&nbsp;금&nbsp;&nbsp;액</td><td class="td-sum-val" colspan="4">₩ ${docFmtW(doc.total)}</td></tr>
+      <tr><td class="td-sum-lbl" colspan="2">합&nbsp;&nbsp;계&nbsp;&nbsp;금&nbsp;&nbsp;액</td><td class="td-sum-val" colspan="4">${docFmtW(doc.total)}</td></tr>
     </table>
     <table class="de-memo"><tr><td class="memo-lbl">메&nbsp;&nbsp;모</td><td class="memo-val">${docEsc(doc.memo)}</td></tr></table>
   </div>`;
