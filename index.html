@@ -3400,11 +3400,12 @@ function eRenderPreview(doc){
 const RF_KEY = 'sv-docs-refund';
 const rfLoad = () => { try { return JSON.parse(localStorage.getItem(RF_KEY)||'[]'); } catch(_){ return []; } };
 const rfStore = l => localStorage.setItem(RF_KEY, JSON.stringify(l));
-const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const fmtN = n => Number(n||0).toLocaleString();
-const parseN = s => parseInt((s||'').replace(/[^\d]/g,''))||0;
-const todayISO = () => new Date().toISOString().slice(0,10);
-const fmtDate = iso => { if(!iso) return ''; const d = new Date(iso+'T12:00'); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`; };
+// 반환금처리대장용 alias
+const rfEsc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const rfFmtN=n=>Number(n||0).toLocaleString();
+const rfParseN=s=>parseInt((s||'').replace(/[^\d]/g,''))||0;
+const rfTodayISO=()=>new Date().toISOString().slice(0,10);
+const rfFmtDate=iso=>{if(!iso)return '';const d=new Date(iso+'T12:00');return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;};
 
 function showTab(n) {
   ['write','list','preview'].forEach((t,i) => {
@@ -3425,20 +3426,20 @@ function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note='') {
   const idx = document.querySelectorAll('.rf-detail-row').length + 1;
   d.innerHTML = `
     <button class="del-btn" onclick="rfDelRow(${id})" class="rf-del-btn">✕</button>
-    <input class="di" placeholder="성함" data-f="name" value="${esc(name)}">
-    <input class="di" placeholder="000000-0000000" data-f="ssn" value="${esc(ssn)}">
-    <input class="di" placeholder="은행명" data-f="bank" value="${esc(bank)}">
-    <input class="di" placeholder="계좌번호" data-f="acct" value="${esc(acct)}">
-    <input class="di" placeholder="예금주" data-f="owner" value="${esc(owner)}">
-    <input class="di r" placeholder="0" data-f="amt" value="${esc(amt)}" oninput="rfCalcTotal()">
-    <input class="di" placeholder="비고" data-f="note" value="${esc(note)}">`;
+    <input class="di" placeholder="성함" data-f="name" value="${rfEsc(name)}">
+    <input class="di" placeholder="000000-0000000" data-f="ssn" value="${rfEsc(ssn)}">
+    <input class="di" placeholder="은행명" data-f="bank" value="${rfEsc(bank)}">
+    <input class="di" placeholder="계좌번호" data-f="acct" value="${rfEsc(acct)}">
+    <input class="di" placeholder="예금주" data-f="owner" value="${rfEsc(owner)}">
+    <input class="di r" placeholder="0" data-f="amt" value="${rfEsc(amt)}" oninput="rfCalcTotal()">
+    <input class="di" placeholder="비고" data-f="note" value="${rfEsc(note)}">`;
   document.getElementById('rfRows').appendChild(d);
   rfCalcTotal();
 }
 function rfDelRow(id) { document.getElementById('rfRows')?.querySelector(`.rf-detail-row[data-id="${id}"]`)?.remove(); rfCalcTotal(); }
 function rfCalcTotal() {
   const rfRowsEl=document.getElementById('rfRows');
-  const t = rfRowsEl?[...rfRowsEl.querySelectorAll('[data-f="amt"]')].reduce((s,e)=>s+parseN(e.value),0):0;
+  const t = rfRowsEl?[...rfRowsEl.querySelectorAll('[data-f="amt"]')].reduce((s,e)=>s+rfParseN(e.value),0):0;
   document.getElementById('rfTotal').textContent = fmtN(t) + '원';
 }
 rfAddRow(); rfAddRow(); rfAddRow();
@@ -3451,7 +3452,7 @@ function rfCollect() {
     bank: r.querySelector('[data-f="bank"]').value.trim(),
     acct: r.querySelector('[data-f="acct"]').value.trim(),
     owner: r.querySelector('[data-f="owner"]').value.trim(),
-    amt: parseN(r.querySelector('[data-f="amt"]').value),
+    amt: rfParseN(r.querySelector('[data-f="amt"]').value),
     note: r.querySelector('[data-f="note"]').value.trim(),
   }));
   const total = rows.reduce((s,r) => s + r.amt, 0);
@@ -3467,7 +3468,7 @@ function rfCollect() {
 function rfFill(doc) {
   document.getElementById('rf-editId').value = doc.id;
   document.getElementById('rf-manager').value = doc.manager || '';
-  document.getElementById('rf-date').value = doc.date || todayISO();
+  document.getElementById('rf-date').value = doc.date || rfTodayISO();
   document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
   (doc.rows||[]).forEach(r => rfAddRow(r.ssn,r.name,r.bank,r.acct,r.owner,r.amt||'',r.note));
   if(!(doc.rows?.length)) { rfAddRow(); rfAddRow(); rfAddRow(); }
@@ -3484,7 +3485,7 @@ function initRefund(){
 function rfReset() {
   document.getElementById('rf-editId').value = '';
   document.getElementById('rf-manager').value = '';
-  document.getElementById('rf-date').value = todayISO();
+  document.getElementById('rf-date').value = rfTodayISO();
   document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
   rfAddRow(); rfAddRow(); rfAddRow(); rfCalcTotal();
 }
@@ -3505,7 +3506,7 @@ function rfRenderList() {
   if(!list.length) { body.innerHTML = '<div class="empty">저장된 처리대장이 없습니다.</div>'; return; }
   body.innerHTML = list.map((doc,i) => `
     <div class="list-item" style="animation-delay:${i*.05}s">
-      <div class="list-title">${fmtDate(doc.date)} — ${esc(doc.manager)||'(담당자 없음)'} &nbsp;<span style="color:var(--gold)">${fmtN(doc.total)}원</span></div>
+      <div class="list-title">${fmtDate(doc.date)} — ${esc(doc.manager)||'(담당자 없음)'} &nbsp;<span style="color:var(--gold)">${rfFmtN(doc.total)}원</span></div>
       <div class="list-meta"><span>${doc.rows?.filter(r=>r.name).length||0}건</span></div>
       <div class="list-acts">
         <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px" onclick="rfEdit('${doc.id}')">✏️ 수정</button>
