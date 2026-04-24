@@ -404,6 +404,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .e-dinp option{background:#1a1a2e;color:#fff}
 .e-dinp:focus{border-color:var(--gb)}.e-dinp::placeholder{color:rgba(255,255,255,.2)}
 .e-dinp.r{text-align:right}
+.rf-dh{display:grid;gap:0;margin-bottom:4px}
+.rf-dh>.e-dhc{background:rgba(255,255,255,.07);border:1px solid var(--b);padding:6px 4px;font-size:10.5px;color:var(--dim);text-align:center;font-weight:700}
 .e-del{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:var(--red);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px}
 @media(max-width:600px){
   .doc-grid2,.doc-grid3{grid-template-columns:1fr}
@@ -535,7 +537,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     z-index:9999;
   }
   .doc-order#print-area,
-  .doc-expense#print-area{
+  .doc-expense#print-area,
+  .doc-refund#print-area{
     width:210mm !important;height:297mm !important;
     overflow:visible !important;
   }
@@ -1077,10 +1080,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
                 <div class="doc-field"><div class="doc-lbl">기안일자</div><input class="doc-inp" id="rf-date" type="date"></div>
               </div>
               <div class="doc-total-bar"><span class="doc-total-lbl">💰 반환금 합계</span><span class="doc-total-val" id="rfTotal">0원</span></div>
-              <div class="e-dh" style="grid-template-columns:9% 18% 11% 26% 9% 14% 13%">
+              <div class="e-dh" style="display:grid;grid-template-columns:9% 18% 11% 26% 9% 14% 1fr 28px;gap:0;margin-bottom:4px">
                 <div class="e-dhc">성함</div><div class="e-dhc">주민번호</div><div class="e-dhc">은행명</div>
                 <div class="e-dhc">입금계좌</div><div class="e-dhc">예금주</div><div class="e-dhc">금액</div>
-                <div class="e-dhc">비고</div>
+                <div class="e-dhc">비고</div><div class="e-dhc"></div>
               </div>
               <div id="rfRows"></div>
               <button class="doc-add-btn" onclick="rfAddRow()">+ 행 추가</button>
@@ -3139,20 +3142,25 @@ function renderAimoving(csv){
 //  회사문서 공통
 // ══════════════════════════════════════════════
 function docTab(doc,pane){
-  const pfx={order:'o',expense:'e',refund:'rf'}[doc];
-  const tabs={order:['write','list','preview'],expense:['write','list','preview'],refund:['write','list','preview']};
-  tabs[doc].forEach(t=>{
-    const tabEl=document.getElementById(`${pfx[0]}t-${t}`)||document.getElementById(`${pfx}t-${t}`);
-    const paneEl=document.getElementById(`${pfx[0]}p-${t}`)||document.getElementById(`${pfx}p-${t}`);
+  // 탭/패널 ID 직접 매핑
+  const idMap={
+    order:  {tabs:{write:'ot-write',list:'ot-list',preview:'ot-preview'}, panes:{write:'op-write',list:'op-list',preview:'op-preview'}},
+    expense:{tabs:{write:'et-write',list:'et-list',preview:'et-preview'}, panes:{write:'ep-write',list:'ep-list',preview:'ep-preview'}},
+    refund: {tabs:{write:'rft-write',list:'rft-list',preview:'rft-preview'}, panes:{write:'rfp-write',list:'rfp-list',preview:'rfp-preview'}},
+  };
+  const m=idMap[doc]; if(!m)return;
+  ['write','list','preview'].forEach(t=>{
+    const tabEl=document.getElementById(m.tabs[t]);
+    const paneEl=document.getElementById(m.panes[t]);
     if(tabEl)tabEl.classList.toggle('on',t===pane);
     if(paneEl)paneEl.classList.toggle('on',t===pane);
   });
   if(doc==='order'&&pane==='list')oRenderList();
   if(doc==='order'&&pane==='preview')oRenderPreview(oCollect());
   if(doc==='expense'&&pane==='list')eRenderList();
+  if(doc==='expense'&&pane==='preview')eRenderPreview(eCollect());
   if(doc==='refund'&&pane==='list')rfRenderList();
   if(doc==='refund'&&pane==='preview')rfRenderPreview(rfCollect());
-  if(doc==='expense'&&pane==='preview')eRenderPreview(eCollect());
 }
 const docFmtDate=iso=>{if(!iso)return'—';const d=new Date(iso+'T12:00');const dy=['일','월','화','수','목','금','토'];return`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${dy[d.getDay()]})`;};
 const docFmtDateShort=iso=>{if(!iso)return'—';const d=new Date(iso+'T12:00');return`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;};
@@ -3407,32 +3415,24 @@ const rfParseN=s=>parseInt((s||'').replace(/[^\d]/g,''))||0;
 const rfTodayISO=()=>new Date().toISOString().slice(0,10);
 const rfFmtDate=iso=>{if(!iso)return '';const d=new Date(iso+'T12:00');return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;};
 
-function showTab(n) {
-  ['write','list','preview'].forEach((t,i) => {
-    document.querySelectorAll('.tab')[i].classList.toggle('on', t===n);
-    document.querySelectorAll('.pane')[i].classList.toggle('on', t===n);
-  });
-  if(n==='list') rfRenderList();
-  if(n==='preview') rfRenderPreview(rfCollect());
-}
-
-document.getElementById('rf-date').value = todayISO();
+// rf-date 초기값
+document.getElementById('rf-date').value = rfTodayISO();
 
 let rfRowCount = 0;
 function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note='') {
   const id = rfRowCount++;
   const d = document.createElement('div');
   d.className = 'rf-detail-row'; d.dataset.id = id;
-  const idx = document.querySelectorAll('.rf-detail-row').length + 1;
+  d.style.cssText = 'display:grid;grid-template-columns:9% 18% 11% 26% 9% 14% 1fr 28px;gap:3px;margin-bottom:4px;align-items:center';
   d.innerHTML = `
-    <button class="del-btn" onclick="rfDelRow(${id})" class="rf-del-btn">✕</button>
-    <input class="di" placeholder="성함" data-f="name" value="${rfEsc(name)}">
-    <input class="di" placeholder="000000-0000000" data-f="ssn" value="${rfEsc(ssn)}">
-    <input class="di" placeholder="은행명" data-f="bank" value="${rfEsc(bank)}">
-    <input class="di" placeholder="계좌번호" data-f="acct" value="${rfEsc(acct)}">
-    <input class="di" placeholder="예금주" data-f="owner" value="${rfEsc(owner)}">
-    <input class="di r" placeholder="0" data-f="amt" value="${rfEsc(amt)}" oninput="rfCalcTotal()">
-    <input class="di" placeholder="비고" data-f="note" value="${rfEsc(note)}">`;
+    <input class="e-dinp" placeholder="성함" data-f="name" value="${rfEsc(name)}">
+    <input class="e-dinp" placeholder="000000-0000000" data-f="ssn" value="${rfEsc(ssn)}">
+    <input class="e-dinp" placeholder="은행명" data-f="bank" value="${rfEsc(bank)}">
+    <input class="e-dinp" placeholder="계좌번호" data-f="acct" value="${rfEsc(acct)}">
+    <input class="e-dinp" placeholder="예금주" data-f="owner" value="${rfEsc(owner)}">
+    <input class="e-dinp r" placeholder="0" data-f="amt" value="${rfEsc(amt)}" oninput="rfCalcTotal()">
+    <input class="e-dinp" placeholder="비고" data-f="note" value="${rfEsc(note)}">
+    <button class="e-del" onclick="rfDelRow(${id})">✕</button>`;
   document.getElementById('rfRows').appendChild(d);
   rfCalcTotal();
 }
@@ -3499,46 +3499,43 @@ function rfSave() {
   document.getElementById('rf-editId').value = doc.id;
   alert('저장 완료!');
 }
-function rfPreviewDo() { rfRenderPreview(rfCollect()); showTab('preview'); }
+function rfPreviewDo() { rfRenderPreview(rfCollect()); docTab('refund','preview'); }
 
 function rfRenderList() {
   const body = document.getElementById('rfListBody'); const list = rfLoad();
   if(!list.length) { body.innerHTML = '<div class="empty">저장된 처리대장이 없습니다.</div>'; return; }
   body.innerHTML = list.map((doc,i) => `
-    <div class="list-item" style="animation-delay:${i*.05}s">
-      <div class="list-title">${fmtDate(doc.date)} — ${esc(doc.manager)||'(담당자 없음)'} &nbsp;<span style="color:var(--gold)">${rfFmtN(doc.total)}원</span></div>
-      <div class="list-meta"><span>${doc.rows?.filter(r=>r.name).length||0}건</span></div>
-      <div class="list-acts">
-        <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px" onclick="rfEdit('${doc.id}')">✏️ 수정</button>
-        <button class="btn btn-blue" style="font-size:12px;padding:5px 11px" onclick="rfViewPreview('${doc.id}')">👁 출력</button>
-        <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px;color:var(--red);border-color:rgba(224,85,85,.3)" onclick="rfDel('${doc.id}')">🗑 삭제</button>
+    <div class="doc-list-item" style="animation-delay:${i*.05}s">
+      <div class="doc-list-title">${rfFmtDate(doc.date)} — ${rfEsc(doc.manager)||'(담당자 없음)'} &nbsp;<span style="color:var(--gold);font-size:14px">${rfFmtN(doc.total)}원</span></div>
+      <div class="doc-list-meta"><span>명세 ${doc.rows?.filter(r=>r.name).length||0}건</span></div>
+      <div class="doc-list-actions">
+        <button class="doc-btn ghost" style="font-size:12px;padding:5px 11px" onclick="rfEdit('${doc.id}')">✏️ 수정</button>
+        <button class="doc-btn blue" style="font-size:12px;padding:5px 11px" onclick="rfViewPreview('${doc.id}')">👁 출력</button>
+        <button class="doc-btn ghost" style="font-size:12px;padding:5px 11px;color:var(--red);border-color:rgba(224,85,85,.3)" onclick="rfDel('${doc.id}')">🗑 삭제</button>
       </div>
     </div>`).join('');
 }
-function rfEdit(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfFill(doc);showTab('write');} }
-function rfViewPreview(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfRenderPreview(doc);showTab('preview');} }
+function rfEdit(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfFill(doc);docTab('refund','write');} }
+function rfViewPreview(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfRenderPreview(doc);docTab('refund','preview');} }
 function rfDel(id) { if(!confirm('삭제하시겠습니까?')) return; rfStore(rfLoad().filter(d=>d.id!==id)); rfRenderList(); }
 
 function rfRenderPreview(doc) {
   const rows = [...(doc.rows||[])];
-  while(rows.length < 20) rows.push({no:'',ssn:'',name:'',bank:'',acct:'',owner:'',amt:0,req:'',note:''});
-  let idx = 0;
-  const rowsHTML = rows.map((r,i) => {
-    if(r.name||r.ssn||r.amt) idx++;
-    return `<tr>
-      <td class="td-name">${esc(r.name)}</td>
-      <td class="td-ssn">${esc(r.ssn)}</td>
-      <td class="td-bank">${esc(r.bank)}</td>
-      <td class="td-acct">${esc(r.acct)}</td>
-      <td class="td-owner">${esc(r.owner)}</td>
-      <td class="td-amt">${r.amt ? fmtN(r.amt) : ''}</td>
-      <td class="td-note">${esc(r.note)}</td>
-    </tr>`;
-  }).join('');
+  while(rows.length < 20) rows.push({ssn:'',name:'',bank:'',acct:'',owner:'',amt:0,note:''});
+  const rowsHTML = rows.map(r => `<tr>
+      <td class="td-name">${rfEsc(r.name)}</td>
+      <td class="td-ssn">${rfEsc(r.ssn)}</td>
+      <td class="td-bank">${rfEsc(r.bank)}</td>
+      <td class="td-acct">${rfEsc(r.acct)}</td>
+      <td class="td-owner">${rfEsc(r.owner)}</td>
+      <td class="td-amt">${r.amt ? rfFmtN(r.amt) : ''}</td>
+      <td class="td-note">${rfEsc(r.note)}</td>
+    </tr>`).join('');
 
-  document.getElementById('rfPreviewDoc').innerHTML = `<div class="doc-refund" id="print-area">
+  const el = document.getElementById('rfPreviewDoc');
+  if(!el) return;
+  el.innerHTML = `<div class="doc-refund" id="print-area">
 
-    <!-- 제목 + 결재란 -->
     <table class="dr-top">
       <colgroup>
         <col style="width:52%">
@@ -3547,59 +3544,34 @@ function rfRenderPreview(doc) {
       </colgroup>
       <tr>
         <td class="dr-title" rowspan="2" style="border:none">반&nbsp;&nbsp;환&nbsp;&nbsp;금&nbsp;&nbsp;처&nbsp;&nbsp;리&nbsp;&nbsp;대&nbsp;&nbsp;장</td>
-        <td class="dr-ap-head">담당</td>
-        <td class="dr-ap-head">대리</td>
-        <td class="dr-ap-head">이사</td>
-        <td class="dr-ap-head">대표</td>
+        <td class="dr-ap-head">담당</td><td class="dr-ap-head">대리</td>
+        <td class="dr-ap-head">이사</td><td class="dr-ap-head">대표</td>
       </tr>
       <tr>
-        <td class="dr-ap-sign"></td>
-        <td class="dr-ap-sign"></td>
-        <td class="dr-ap-sign"></td>
-        <td class="dr-ap-sign"></td>
+        <td class="dr-ap-sign"></td><td class="dr-ap-sign"></td>
+        <td class="dr-ap-sign"></td><td class="dr-ap-sign"></td>
       </tr>
     </table>
 
-    <!-- 기안 정보 -->
     <table class="dr-info">
-      <tr>
-        <td class="lbl">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td>
-        <td class="val">${esc(doc.manager)}</td>
-      </tr>
-      <tr>
-        <td class="lbl">기&nbsp;안&nbsp;일&nbsp;자</td>
-        <td class="val">${fmtDate(doc.date)}</td>
-      </tr>
-      <tr>
-        <td class="lbl">반&nbsp;환&nbsp;금&nbsp;액</td>
-        <td class="val bold">${fmtN(doc.total)}원</td>
-      </tr>
+      <tr><td class="lbl">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td><td class="val">${rfEsc(doc.manager)}</td></tr>
+      <tr><td class="lbl">기&nbsp;안&nbsp;일&nbsp;자</td><td class="val">${rfFmtDate(doc.date)}</td></tr>
+      <tr><td class="lbl">반&nbsp;환&nbsp;금&nbsp;액</td><td class="val bold">${rfFmtN(doc.total)}원</td></tr>
     </table>
 
-    <!-- 명세 -->
     <table class="dr-tbl">
       <colgroup>
-        <col style="width:9%">
-        <col style="width:18%">
-        <col style="width:11%">
-        <col style="width:26%">
-        <col style="width:9%">
-        <col style="width:14%">
-        <col style="width:13%">
+        <col style="width:9%"><col style="width:18%"><col style="width:11%">
+        <col style="width:26%"><col style="width:9%"><col style="width:14%"><col style="width:13%">
       </colgroup>
       <tr>
-        <th class="th">성함</th>
-        <th class="th">주민번호</th>
-        <th class="th">은행명</th>
-        <th class="th">입금계좌</th>
-        <th class="th">예금주</th>
-        <th class="th">금액</th>
-        <th class="th">비고</th>
+        <th class="th">성함</th><th class="th">주민번호</th><th class="th">은행명</th>
+        <th class="th">입금계좌</th><th class="th">예금주</th><th class="th">금액</th><th class="th">비고</th>
       </tr>
       ${rowsHTML}
       <tr>
         <td class="td-sum-lbl" colspan="5">합&nbsp;&nbsp;&nbsp;&nbsp;계</td>
-        <td class="td-sum-val" colspan="2">${fmtN(doc.total)}</td>
+        <td class="td-sum-val" colspan="2">${rfFmtN(doc.total)}</td>
       </tr>
     </table>
 
