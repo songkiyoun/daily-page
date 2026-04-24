@@ -3421,10 +3421,10 @@ let rfRowCount = 0;
 function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note='') {
   const id = rfRowCount++;
   const d = document.createElement('div');
-  d.className = 'detail-row'; d.dataset.id = id;
-  const idx = document.querySelectorAll('.detail-row').length + 1;
+  d.className = 'rf-detail-row'; d.dataset.id = id;
+  const idx = document.querySelectorAll('.rf-detail-row').length + 1;
   d.innerHTML = `
-    <button class="del-btn" onclick="rfDelRow(${id})" style="padding:4px 7px;font-size:11px;height:100%">✕</button>
+    <button class="del-btn" onclick="rfDelRow(${id})" class="rf-del-btn">✕</button>
     <input class="di" placeholder="성함" data-f="name" value="${esc(name)}">
     <input class="di" placeholder="000000-0000000" data-f="ssn" value="${esc(ssn)}">
     <input class="di" placeholder="은행명" data-f="bank" value="${esc(bank)}">
@@ -3435,15 +3435,17 @@ function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note='') {
   document.getElementById('rfRows').appendChild(d);
   rfCalcTotal();
 }
-function rfDelRow(id) { document.querySelector(`.detail-row[data-id="${id}"]`)?.remove(); rfCalcTotal(); }
+function rfDelRow(id) { document.getElementById('rfRows')?.querySelector(`.rf-detail-row[data-id="${id}"]`)?.remove(); rfCalcTotal(); }
 function rfCalcTotal() {
-  const t = [...document.querySelectorAll('[data-f="amt"]')].reduce((s,e) => s + parseN(e.value), 0);
+  const rfRowsEl=document.getElementById('rfRows');
+  const t = rfRowsEl?[...rfRowsEl.querySelectorAll('[data-f="amt"]')].reduce((s,e)=>s+parseN(e.value),0):0;
   document.getElementById('rfTotal').textContent = fmtN(t) + '원';
 }
 rfAddRow(); rfAddRow(); rfAddRow();
 
 function rfCollect() {
-  const rows = [...document.querySelectorAll('.detail-row')].map(r => ({
+  const rfRowsEl2=document.getElementById('rfRows');
+  const rows = [...(rfRowsEl2?rfRowsEl2.querySelectorAll('.rf-detail-row'):[])].map(r => ({
     ssn: r.querySelector('[data-f="ssn"]').value.trim(),
     name: r.querySelector('[data-f="name"]').value.trim(),
     bank: r.querySelector('[data-f="bank"]').value.trim(),
