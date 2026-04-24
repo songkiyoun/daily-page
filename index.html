@@ -450,6 +450,77 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .de-memo .memo-lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:2px;padding:8px 4px;white-space:nowrap;width:10%;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .de-memo .memo-val{padding:8px 10px;font-size:13px;height:64px}
 
+
+/* ═══════════════════════════════════
+   📄 반환금 처리대장 문서 (A4 세로)
+═══════════════════════════════════ */
+.doc-refund{
+  background:#fff;color:#111;
+  font-family:'Malgun Gothic','맑은 고딕',sans-serif;
+  width:700px;height:990px;
+  margin:0 auto;
+  padding:15mm 15mm 10mm 15mm;
+  border:1px solid #bbb;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.doc-refund table{width:100%;border-collapse:collapse;table-layout:fixed}
+.doc-refund td,.doc-refund th{border:1px solid #555;vertical-align:middle;padding:0}
+
+/* 상단: 제목 + 결재란 */
+.dr-top{width:100%;border-collapse:collapse}
+.dr-title{
+  font-size:21px;font-weight:900;letter-spacing:1px;
+  color:#111;padding:12px 0 12px 4px;
+  white-space:nowrap;vertical-align:middle;
+}
+.dr-ap-head{
+  background:#f0f0f0;font-weight:700;font-size:13px;
+  text-align:center;vertical-align:middle;
+  border:1px solid #555;padding:5px 0;width:13%;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.dr-ap-sign{height:44px;width:13%;border:1px solid #555}
+
+/* 날짜 */
+
+
+/* 명세 테이블 */
+.dr-tbl{margin-top:8px;border-collapse:collapse;width:100%;table-layout:fixed}
+.dr-tbl .th{
+  background:#f0f0f0;font-weight:700;text-align:center;
+  font-size:12px;letter-spacing:1px;padding:6px 2px;height:26px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.dr-tbl .th2{
+  background:#f0f0f0;font-weight:700;text-align:center;
+  font-size:12px;padding:4px 2px;height:22px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+
+/* 기안 정보 테이블 */
+.dr-info{margin-top:8px;border-collapse:collapse;width:50%}
+.dr-info td{border:1px solid #555;padding:0;vertical-align:middle}
+.dr-info .lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.dr-info .val{padding:6px 10px;font-size:13px;text-align:center;height:28px;color:#111}
+.dr-info .val.bold{font-weight:700;color:#111}
+
+.dr-tbl .td-no{font-size:12px;text-align:center;padding:4px 2px;height:26px}
+.dr-tbl .td-ssn{font-size:11px;text-align:center;padding:4px 3px;height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-tbl .td-name{font-size:12px;text-align:center;padding:4px 3px;height:26px}
+.dr-tbl .td-bank{font-size:12px;text-align:center;padding:4px 3px;height:26px}
+.dr-tbl .td-acct{font-size:11px;text-align:center;padding:4px 3px;height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-tbl .td-owner{font-size:12px;text-align:center;padding:4px 3px;height:26px}
+.dr-tbl .td-amt{font-size:12px;text-align:right;padding:4px 6px;height:26px}
+.dr-tbl .td-req{font-size:12px;text-align:center;padding:4px 3px;height:26px}
+.dr-tbl .td-note{font-size:11px;padding:4px 4px;height:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.dr-tbl .td-sum-lbl{
+  background:#f0f0f0;font-weight:700;text-align:center;
+  font-size:12px;letter-spacing:2px;padding:6px 4px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.dr-tbl .td-sum-val{font-weight:700;font-size:13px;text-align:right;padding:6px 8px}
+
 @page{size:A4 portrait;margin:0}
 @media print{
   /* print-area만 출력, 앱 UI 전체 숨김 */
@@ -635,7 +706,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v3.2</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v3.3</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -724,6 +795,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
         </button>
         <button class="sb-item" onclick="nav('expense',this)">
           <span class="icon">💰</span><span class="label">지출결의서</span>
+        </button>
+        <button class="sb-item" onclick="nav('refund',this)">
+          <span class="icon">💸</span><span class="label">반환금 처리대장</span>
         </button>
       </div>
     </div>
@@ -983,6 +1057,55 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
       </div>
     </div>
 
+    <!-- 💸 반환금 처리대장 -->
+    <div class="page" id="page-refund">
+      <div class="page-header">
+        <div><div class="page-title">💸 반환금 처리대장</div><div class="page-sub">반환금 명세 · 결재 · 출력</div></div>
+      </div>
+      <div class="page-body" id="refundBody">
+        <div class="doc-ui-wrap">
+          <div class="doc-tabs">
+            <button class="doc-tab on" id="rft-write" onclick="docTab('refund','write')">✏️ 작성</button>
+            <button class="doc-tab" id="rft-list" onclick="docTab('refund','list')">📂 저장 목록</button>
+            <button class="doc-tab" id="rft-preview" onclick="docTab('refund','preview')">👁 미리보기·출력</button>
+          </div>
+          <div class="doc-pane on" id="rfp-write">
+            <div class="doc-form-card">
+              <input type="hidden" id="rf-editId">
+              <div class="doc-grid2">
+                <div class="doc-field"><div class="doc-lbl">기안자</div><input class="doc-inp" id="rf-manager" placeholder="이름"></div>
+                <div class="doc-field"><div class="doc-lbl">기안일자</div><input class="doc-inp" id="rf-date" type="date"></div>
+              </div>
+              <div class="doc-total-bar"><span class="doc-total-lbl">💰 반환금 합계</span><span class="doc-total-val" id="rfTotal">0원</span></div>
+              <div class="e-dh" style="grid-template-columns:9% 18% 11% 26% 9% 14% 13%">
+                <div class="e-dhc">성함</div><div class="e-dhc">주민번호</div><div class="e-dhc">은행명</div>
+                <div class="e-dhc">입금계좌</div><div class="e-dhc">예금주</div><div class="e-dhc">금액</div>
+                <div class="e-dhc">비고</div>
+              </div>
+              <div id="rfRows"></div>
+              <button class="doc-add-btn" onclick="rfAddRow()">+ 행 추가</button>
+              <div class="doc-actions">
+                <button class="doc-btn ghost" onclick="rfReset()">↺ 초기화</button>
+                <button class="doc-btn blue" onclick="rfPreviewDo()">👁 미리보기</button>
+                <button class="doc-btn gold" onclick="rfSave()">💾 저장</button>
+              </div>
+            </div>
+          </div>
+          <div class="doc-pane" id="rfp-list"><div id="rfListBody"></div></div>
+          <div class="doc-pane" id="rfp-preview">
+            <div class="doc-preview-bar">
+              <span style="font-size:12px;color:var(--dim)">📄 A4 세로 · 여백: <strong style="color:var(--gold)">없음</strong> · 배율: <strong style="color:var(--gold)">100%</strong></span>
+              <div style="display:flex;gap:8px">
+                <button class="doc-btn ghost" onclick="docTab('refund','write')">← 수정</button>
+                <button class="doc-btn blue" onclick="window.print()">🖨 인쇄·PDF</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto"><div id="rfPreviewDoc"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /main -->
 </div><!-- /app-body -->
 
@@ -1077,6 +1200,7 @@ function nav(page,el){
   if(page==='calendar') renderCalendar();
   if(page==='order')   initOrder();
   if(page==='expense') initExpense();
+  if(page==='refund')  initRefund();
   // close sidebar on mobile
   closeSidebar();
 }
@@ -3015,8 +3139,8 @@ function renderAimoving(csv){
 //  회사문서 공통
 // ══════════════════════════════════════════════
 function docTab(doc,pane){
-  const pfx={order:'o',expense:'e'}[doc];
-  const tabs={order:['write','list','preview'],expense:['write','list','preview']};
+  const pfx={order:'o',expense:'e',refund:'rf'}[doc];
+  const tabs={order:['write','list','preview'],expense:['write','list','preview'],refund:['write','list','preview']};
   tabs[doc].forEach(t=>{
     const tabEl=document.getElementById(`${pfx[0]}t-${t}`)||document.getElementById(`${pfx}t-${t}`);
     const paneEl=document.getElementById(`${pfx[0]}p-${t}`)||document.getElementById(`${pfx}p-${t}`);
@@ -3026,6 +3150,8 @@ function docTab(doc,pane){
   if(doc==='order'&&pane==='list')oRenderList();
   if(doc==='order'&&pane==='preview')oRenderPreview(oCollect());
   if(doc==='expense'&&pane==='list')eRenderList();
+  if(doc==='refund'&&pane==='list')rfRenderList();
+  if(doc==='refund'&&pane==='preview')rfRenderPreview(rfCollect());
   if(doc==='expense'&&pane==='preview')eRenderPreview(eCollect());
 }
 const docFmtDate=iso=>{if(!iso)return'—';const d=new Date(iso+'T12:00');const dy=['일','월','화','수','목','금','토'];return`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${dy[d.getDay()]})`;};
@@ -3267,6 +3393,215 @@ function eRenderPreview(doc){
   </div>`;
 }
 
+
+// ══════════════════════════════════════════════
+//  반환금 처리대장
+// ══════════════════════════════════════════════
+const RF_KEY = 'sv-docs-refund';
+const rfLoad = () => { try { return JSON.parse(localStorage.getItem(RF_KEY)||'[]'); } catch(_){ return []; } };
+const rfStore = l => localStorage.setItem(RF_KEY, JSON.stringify(l));
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmtN = n => Number(n||0).toLocaleString();
+const parseN = s => parseInt((s||'').replace(/[^\d]/g,''))||0;
+const todayISO = () => new Date().toISOString().slice(0,10);
+const fmtDate = iso => { if(!iso) return ''; const d = new Date(iso+'T12:00'); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`; };
+
+function showTab(n) {
+  ['write','list','preview'].forEach((t,i) => {
+    document.querySelectorAll('.tab')[i].classList.toggle('on', t===n);
+    document.querySelectorAll('.pane')[i].classList.toggle('on', t===n);
+  });
+  if(n==='list') rfRenderList();
+  if(n==='preview') rfRenderPreview(rfCollect());
+}
+
+document.getElementById('rf-date').value = todayISO();
+
+let rfRowCount = 0;
+function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note='') {
+  const id = rfRowCount++;
+  const d = document.createElement('div');
+  d.className = 'detail-row'; d.dataset.id = id;
+  const idx = document.querySelectorAll('.detail-row').length + 1;
+  d.innerHTML = `
+    <button class="del-btn" onclick="rfDelRow(${id})" style="padding:4px 7px;font-size:11px;height:100%">✕</button>
+    <input class="di" placeholder="성함" data-f="name" value="${esc(name)}">
+    <input class="di" placeholder="000000-0000000" data-f="ssn" value="${esc(ssn)}">
+    <input class="di" placeholder="은행명" data-f="bank" value="${esc(bank)}">
+    <input class="di" placeholder="계좌번호" data-f="acct" value="${esc(acct)}">
+    <input class="di" placeholder="예금주" data-f="owner" value="${esc(owner)}">
+    <input class="di r" placeholder="0" data-f="amt" value="${esc(amt)}" oninput="rfCalcTotal()">
+    <input class="di" placeholder="비고" data-f="note" value="${esc(note)}">`;
+  document.getElementById('rfRows').appendChild(d);
+  rfCalcTotal();
+}
+function rfDelRow(id) { document.querySelector(`.detail-row[data-id="${id}"]`)?.remove(); rfCalcTotal(); }
+function rfCalcTotal() {
+  const t = [...document.querySelectorAll('[data-f="amt"]')].reduce((s,e) => s + parseN(e.value), 0);
+  document.getElementById('rfTotal').textContent = fmtN(t) + '원';
+}
+rfAddRow(); rfAddRow(); rfAddRow();
+
+function rfCollect() {
+  const rows = [...document.querySelectorAll('.detail-row')].map(r => ({
+    ssn: r.querySelector('[data-f="ssn"]').value.trim(),
+    name: r.querySelector('[data-f="name"]').value.trim(),
+    bank: r.querySelector('[data-f="bank"]').value.trim(),
+    acct: r.querySelector('[data-f="acct"]').value.trim(),
+    owner: r.querySelector('[data-f="owner"]').value.trim(),
+    amt: parseN(r.querySelector('[data-f="amt"]').value),
+    note: r.querySelector('[data-f="note"]').value.trim(),
+  }));
+  const total = rows.reduce((s,r) => s + r.amt, 0);
+  return {
+    id: document.getElementById('rf-editId').value || (Date.now()+''),
+    createdAt: new Date().toISOString(),
+    manager: document.getElementById('rf-manager').value.trim(),
+    date: document.getElementById('rf-date').value,
+    total, rows
+  };
+}
+
+function rfFill(doc) {
+  document.getElementById('rf-editId').value = doc.id;
+  document.getElementById('rf-manager').value = doc.manager || '';
+  document.getElementById('rf-date').value = doc.date || todayISO();
+  document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
+  (doc.rows||[]).forEach(r => rfAddRow(r.ssn,r.name,r.bank,r.acct,r.owner,r.amt||'',r.note));
+  if(!(doc.rows?.length)) { rfAddRow(); rfAddRow(); rfAddRow(); }
+  rfCalcTotal();
+}
+
+function initRefund(){
+  if(!document.getElementById('rf-date').value)
+    document.getElementById('rf-date').value=docTodayISO();
+  if(!document.getElementById('rfRows').children.length){
+    rfRowCount=0; rfAddRow(); rfAddRow(); rfAddRow();
+  }
+}
+function rfReset() {
+  document.getElementById('rf-editId').value = '';
+  document.getElementById('rf-manager').value = '';
+  document.getElementById('rf-date').value = todayISO();
+  document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
+  rfAddRow(); rfAddRow(); rfAddRow(); rfCalcTotal();
+}
+function rfSave() {
+  const doc = rfCollect();
+  if(!doc.manager) { alert('담당자를 입력해주세요.'); return; }
+  const list = rfLoad(); const idx = list.findIndex(d => d.id === doc.id);
+  if(idx >= 0) list[idx] = doc; else list.unshift(doc);
+  if(list.length > 50) list.length = 50;
+  rfStore(list);
+  document.getElementById('rf-editId').value = doc.id;
+  alert('저장 완료!');
+}
+function rfPreviewDo() { rfRenderPreview(rfCollect()); showTab('preview'); }
+
+function rfRenderList() {
+  const body = document.getElementById('rfListBody'); const list = rfLoad();
+  if(!list.length) { body.innerHTML = '<div class="empty">저장된 처리대장이 없습니다.</div>'; return; }
+  body.innerHTML = list.map((doc,i) => `
+    <div class="list-item" style="animation-delay:${i*.05}s">
+      <div class="list-title">${fmtDate(doc.date)} — ${esc(doc.manager)||'(담당자 없음)'} &nbsp;<span style="color:var(--gold)">${fmtN(doc.total)}원</span></div>
+      <div class="list-meta"><span>${doc.rows?.filter(r=>r.name).length||0}건</span></div>
+      <div class="list-acts">
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px" onclick="rfEdit('${doc.id}')">✏️ 수정</button>
+        <button class="btn btn-blue" style="font-size:12px;padding:5px 11px" onclick="rfViewPreview('${doc.id}')">👁 출력</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px;color:var(--red);border-color:rgba(224,85,85,.3)" onclick="rfDel('${doc.id}')">🗑 삭제</button>
+      </div>
+    </div>`).join('');
+}
+function rfEdit(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfFill(doc);showTab('write');} }
+function rfViewPreview(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfRenderPreview(doc);showTab('preview');} }
+function rfDel(id) { if(!confirm('삭제하시겠습니까?')) return; rfStore(rfLoad().filter(d=>d.id!==id)); rfRenderList(); }
+
+function rfRenderPreview(doc) {
+  const rows = [...(doc.rows||[])];
+  while(rows.length < 20) rows.push({no:'',ssn:'',name:'',bank:'',acct:'',owner:'',amt:0,req:'',note:''});
+  let idx = 0;
+  const rowsHTML = rows.map((r,i) => {
+    if(r.name||r.ssn||r.amt) idx++;
+    return `<tr>
+      <td class="td-name">${esc(r.name)}</td>
+      <td class="td-ssn">${esc(r.ssn)}</td>
+      <td class="td-bank">${esc(r.bank)}</td>
+      <td class="td-acct">${esc(r.acct)}</td>
+      <td class="td-owner">${esc(r.owner)}</td>
+      <td class="td-amt">${r.amt ? fmtN(r.amt) : ''}</td>
+      <td class="td-note">${esc(r.note)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('rfPreviewDoc').innerHTML = `<div class="doc-refund" id="print-area">
+
+    <!-- 제목 + 결재란 -->
+    <table class="dr-top">
+      <colgroup>
+        <col style="width:52%">
+        <col style="width:12%"><col style="width:12%">
+        <col style="width:12%"><col style="width:12%">
+      </colgroup>
+      <tr>
+        <td class="dr-title" rowspan="2" style="border:none">반&nbsp;&nbsp;환&nbsp;&nbsp;금&nbsp;&nbsp;처&nbsp;&nbsp;리&nbsp;&nbsp;대&nbsp;&nbsp;장</td>
+        <td class="dr-ap-head">담당</td>
+        <td class="dr-ap-head">대리</td>
+        <td class="dr-ap-head">이사</td>
+        <td class="dr-ap-head">대표</td>
+      </tr>
+      <tr>
+        <td class="dr-ap-sign"></td>
+        <td class="dr-ap-sign"></td>
+        <td class="dr-ap-sign"></td>
+        <td class="dr-ap-sign"></td>
+      </tr>
+    </table>
+
+    <!-- 기안 정보 -->
+    <table class="dr-info">
+      <tr>
+        <td class="lbl">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td>
+        <td class="val">${esc(doc.manager)}</td>
+      </tr>
+      <tr>
+        <td class="lbl">기&nbsp;안&nbsp;일&nbsp;자</td>
+        <td class="val">${fmtDate(doc.date)}</td>
+      </tr>
+      <tr>
+        <td class="lbl">반&nbsp;환&nbsp;금&nbsp;액</td>
+        <td class="val bold">${fmtN(doc.total)}원</td>
+      </tr>
+    </table>
+
+    <!-- 명세 -->
+    <table class="dr-tbl">
+      <colgroup>
+        <col style="width:9%">
+        <col style="width:18%">
+        <col style="width:11%">
+        <col style="width:26%">
+        <col style="width:9%">
+        <col style="width:14%">
+        <col style="width:13%">
+      </colgroup>
+      <tr>
+        <th class="th">성함</th>
+        <th class="th">주민번호</th>
+        <th class="th">은행명</th>
+        <th class="th">입금계좌</th>
+        <th class="th">예금주</th>
+        <th class="th">금액</th>
+        <th class="th">비고</th>
+      </tr>
+      ${rowsHTML}
+      <tr>
+        <td class="td-sum-lbl" colspan="5">합&nbsp;&nbsp;&nbsp;&nbsp;계</td>
+        <td class="td-sum-val" colspan="2">${fmtN(doc.total)}</td>
+      </tr>
+    </table>
+
+  </div>`;
+}
 
 // ══════════════════════════════════════════════
 //  SAVE
