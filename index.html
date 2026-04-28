@@ -579,10 +579,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .notice-date{font-size:11px;color:var(--dim);margin-top:5px}
 .notice-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:0;flex-shrink:0;line-height:1}
 .notice-close:hover{color:#fff}
-<style id="mb-styles">
-@keyframes mbShake{0%,100%{transform:rotate(0)}15%{transform:rotate(-8deg) translateY(-4px)}30%{transform:rotate(8deg) translateY(-6px)}45%{transform:rotate(-6deg) translateY(-4px)}60%{transform:rotate(6deg) translateY(-8px)}75%{transform:rotate(-4deg)}90%{transform:rotate(4deg)}}
-@keyframes mbParticle{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-100px) scale(0)}}
-</style>
 </style>
 </head>
 <body>
@@ -758,14 +754,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
         <button class="sb-item" onclick="nav('todo',this)">
           <span class="icon">✅</span><span class="label">할 일</span>
         </button>
-        <button class="sb-item" onclick="nav('mb-admin',this)">
-          <span class="icon">📦</span><span class="label">박스 관리</span>
         </button>
-        <button class="sb-item" onclick="nav('mb-stats',this)">
-          <span class="icon">📊</span><span class="label">개봉 통계</span>
         </button>
-        <button class="sb-item" onclick="nav('mysterybox',this)">
-          <span class="icon">🎁</span><span class="label">미스테리 박스</span>
         </button>
       </div>
     </div>
@@ -1124,84 +1114,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 
 
 
-    <!-- 📦 미스테리 박스 관리 -->
-    <div class="page" id="page-mb-admin">
-      <div class="page-header">
-        <div><div class="page-title">📦 박스 관리</div><div class="page-sub">미스테리 박스 생성 및 관리</div></div>
-      </div>
-      <div class="page-body" style="padding:16px">
-        <!-- 프리셋 -->
-        <div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:6px;text-transform:uppercase">프리셋 템플릿</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px" id="mb-presets">
-          <button onclick="mbAdminPreset('coffee',this)" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 10px;font-size:11px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit">☕ 커피쿠폰</button>
-          <button onclick="mbAdminPreset('shopping',this)" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 10px;font-size:11px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit">🛍 쇼핑쿠폰</button>
-          <button onclick="mbAdminPreset('gift',this)" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 10px;font-size:11px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit">🎁 감사선물</button>
-          <button onclick="mbAdminPreset('game',this)" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 10px;font-size:11px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit">🎮 게임아이템</button>
-          <button onclick="mbAdminPreset('clear',this)" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 10px;font-size:11px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit">✏️ 직접입력</button>
-        </div>
-        <!-- 입력 폼 -->
-        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin-bottom:14px">
-          <div style="margin-bottom:10px"><div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:5px">박스 이름</div><input class="doc-inp" id="mba-name" placeholder="예: 다이겨 감사 박스" style="width:100%"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div><div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:5px">유효기간</div><input class="doc-inp" id="mba-expires" type="date" style="width:100%"></div>
-            <div><div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:5px">발급 수량(0=무제한)</div><input class="doc-inp" id="mba-limit" type="number" value="1" min="0" style="width:100%"></div>
-          </div>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px"><input type="checkbox" id="mba-show-items" style="accent-color:var(--gold)"><span style="font-size:12px;color:rgba(255,255,255,.65)">상품 목록 공개</span></label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px"><input type="checkbox" id="mba-allow-blank" onchange="mbAdminRenderItems()"><span style="font-size:12px;color:rgba(255,255,255,.65)">꽝 포함</span></label>
-          <!-- 애니메이션 -->
-          <div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:6px">개봉 애니메이션</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">
-            <div id="mbanim-box" onclick="mbAdminSelectAnim('box',this)" style="background:rgba(232,200,122,.08);border:2px solid var(--gold);border-radius:10px;padding:10px 6px;cursor:pointer;text-align:center">
-              <div style="font-size:22px;margin-bottom:3px">📦</div><div style="font-size:10px;color:var(--gold)">상자형</div>
-            </div>
-            <div id="mbanim-roulette" onclick="mbAdminSelectAnim('roulette',this)" style="background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 6px;cursor:pointer;text-align:center">
-              <div style="font-size:22px;margin-bottom:3px">🎡</div><div style="font-size:10px;color:rgba(255,255,255,.5)">룰렛형</div>
-            </div>
-            <div id="mbanim-capsule" onclick="mbAdminSelectAnim('capsule',this)" style="background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 6px;cursor:pointer;text-align:center">
-              <div style="font-size:22px;margin-bottom:3px">💊</div><div style="font-size:10px;color:rgba(255,255,255,.5)">캡슐형</div>
-            </div>
-          </div>
-          <!-- 상품 -->
-          <div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:6px">상품 목록</div>
-          <div id="mba-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-          <button onclick="mbAdminAddGrade()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 12px;font-size:12px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit;margin-bottom:12px">+ 등급 추가</button>
-          <div id="mba-status" style="display:none;font-size:12px;text-align:center;padding:8px;border-radius:8px;margin-bottom:8px"></div>
-          <button onclick="mbAdminCreate()" style="background:var(--gold);color:#0a0a0f;border:none;border-radius:10px;padding:11px;width:100%;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🎁 박스 생성하기</button>
-        </div>
-        <!-- 생성된 박스 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div style="font-size:13px;color:rgba(255,255,255,.65);font-weight:700">생성된 박스</div>
-          <button onclick="mbAdminLoadBoxes()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 10px;font-size:11px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit">↻</button>
-        </div>
-        <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap" id="mba-filters">
-          <button onclick="mbAdminSetFilter('all',this)" style="background:rgba(232,200,122,.08);border:1px solid var(--gold);border-radius:7px;padding:4px 10px;font-size:11px;color:var(--gold);cursor:pointer;font-family:inherit">전체</button>
-          <button onclick="mbAdminSetFilter('active',this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.5);cursor:pointer;font-family:inherit">활성화</button>
-          <button onclick="mbAdminSetFilter('inactive',this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.5);cursor:pointer;font-family:inherit">비활성화</button>
-          <button onclick="mbAdminSetFilter('expired',this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.5);cursor:pointer;font-family:inherit">기간만료</button>
-        </div>
-        <div id="mba-boxlist" style="display:flex;flex-direction:column;gap:8px"><div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">로딩 중...</div></div>
-      </div>
-    </div>
-
-    <!-- 📊 개봉 통계 -->
-    <div class="page" id="page-mb-stats">
-      <div class="page-header">
-        <div><div class="page-title">📊 개봉 통계</div><div class="page-sub">박스별 개봉 이력</div></div>
-      </div>
-      <div class="page-body" style="padding:16px">
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <select class="doc-inp" id="mbs-select" style="flex:1;color:#111;background:#fff" onchange="mbStatsLoad()"><option value="">전체 박스</option></select>
-          <button onclick="mbStatsLoad()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 12px;font-size:12px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit;white-space:nowrap">↻ 새로고침</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px" id="mbs-kpi">
-          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:900;color:var(--gold)">-</div><div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px">총 개봉</div></div>
-          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:900;color:#fff">-</div><div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px">SSS 당첨</div></div>
-          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:900;color:#ff6b6b">-</div><div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px">S 이상</div></div>
-        </div>
-        <div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:6px">개봉 이력</div>
-        <div id="mbs-log" style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto"><div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">새로고침을 눌러주세요</div></div>
-      </div>
-    </div>
+    
+    
     <!-- 🎁 미스테리 박스 -->
     <div class="page" id="page-mysterybox">
       <div class="page-header">
@@ -1292,9 +1206,6 @@ function nav(page,el){
   if(page==='order')   initOrder();
   if(page==='expense') initExpense();
   if(page==='refund')  initRefund();
-  if(page==='mysterybox') mbRenderVault();
-  if(page==='mb-admin'){mbAdminRenderItems();mbAdminLoadBoxes().catch(()=>{});}
-  if(page==='mb-stats') mbStatsLoad().catch(()=>{});
   // close sidebar on mobile
   closeSidebar();
 }
@@ -3562,7 +3473,7 @@ function rfFill(doc) {
   document.getElementById('rf-date').value = doc.date || rfTodayISO();
   document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
   (doc.rows||[]).forEach(r => rfAddRow(r.ssn,r.name,r.bank,r.acct,r.owner,r.amt||'',r.note));
-  if(!(doc.rows?.length)) { try{if(document.getElementById('rfRows')){rfAddRow();rfAddRow();rfAddRow();}}catch(_){} }
+  if(!(doc.rows?.length)) {  }
   rfCalcTotal();
 }
 
@@ -3570,7 +3481,7 @@ function initRefund(){
   if(!document.getElementById('rf-date').value)
     document.getElementById('rf-date').value=docTodayISO();
   if(!document.getElementById('rfRows').children.length){
-    rfRowCount=0; try{if(document.getElementById('rfRows')){rfAddRow();rfAddRow();rfAddRow();}}catch(_){}
+    rfRowCount=0; 
   }
 }
 function rfReset() {
@@ -3578,7 +3489,7 @@ function rfReset() {
   document.getElementById('rf-manager').value = '';
   try{const _rfd=document.getElementById('rf-date');if(_rfd)_rfd.value=rfTodayISO();}catch(_){}
   document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
-  try{if(document.getElementById('rfRows')){rfAddRow();rfAddRow();rfAddRow();}}catch(_){} rfCalcTotal();
+   rfCalcTotal();
 }
 function rfSave() {
   const doc = rfCollect();
@@ -3848,14 +3759,6 @@ function renderDaigeoChart(allItems){
 
 
 // ══════════════════════════════════════════════
-//  미스테리 박스 관리자
-// ══════════════════════════════════════════════
-
-// ══════════════════════════════════════════════
-//  미스테리 박스 수령자
-// ══════════════════════════════════════════════
-
-// ══════════════════════════════════════════════
 //  공지사항
 // ══════════════════════════════════════════════
 const SH_NOTICE = '1atWDHWjyATL-NeqpFtLt0plAkeUn0bdA6q2L24mDAsk';
@@ -3874,582 +3777,25 @@ async function loadNotice(){
     if(!title&&!body)return;
     const noticeKey='sv-notice-read-'+(date+title).replace(/\s/g,'');
     if(localStorage.getItem(noticeKey))return;
-    renderNotice({title,body,date,noticeKey});
+    const brief=document.getElementById('briefBody');
+    if(!brief)return;
+    const div=document.createElement('div');
+    div.id='noticeBanner';
+    div.style.cssText='background:var(--gs);border:1px solid var(--gb);border-radius:var(--r);padding:11px 14px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px';
+    div.innerHTML=`<span style="font-size:18px">📢</span>
+      <div style="flex:1;min-width:0">
+        ${title?`<div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:3px">${title}</div>`:''}
+        ${body?`<div style="font-size:12px;color:var(--mid);line-height:1.6">${body}</div>`:''}
+        ${date?`<div style="font-size:10px;color:var(--dim);margin-top:4px">${date}</div>`:''}
+      </div>
+      <button onclick="dismissNotice('${noticeKey}')" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;flex-shrink:0">✕</button>`;
+    brief.prepend(div);
   }catch(_){}
-}
-
-function renderNotice({title,body,date,noticeKey}){
-  const brief=document.getElementById('briefBody');
-  if(!brief)return;
-  const div=document.createElement('div');
-  div.className='notice-banner';
-  div.id='noticeBanner';
-  div.innerHTML=`
-    <div class="notice-icon">📢</div>
-    <div class="notice-body">
-      ${title?`<div class="notice-title">${title}</div>`:''}
-      ${body?`<div class="notice-text">${body}</div>`:''}
-      ${date?`<div class="notice-date">${date}</div>`:''}
-    </div>
-    <button class="notice-close" onclick="dismissNotice('${noticeKey}')">✕</button>`;
-  brief.prepend(div);
 }
 
 function dismissNotice(key){
   localStorage.setItem(key,'1');
   document.getElementById('noticeBanner')?.remove();
-}
-
-function openNoticeEditor(){
-  const overlay = document.getElementById('noticeEditorOverlay');
-  if(overlay){ overlay.classList.add('show'); return; }
-  const el = document.createElement('div');
-  el.id = 'noticeEditorOverlay';
-  el.className = 'help-overlay';
-  el.innerHTML = `
-    <div class="help-modal" style="max-width:500px">
-      <div class="help-hdr">
-        <div class="help-ttl">📢 공지 <em>작성</em></div>
-        <button class="help-close" onclick="document.getElementById('noticeEditorOverlay').classList.remove('show')">✕</button>
-      </div>
-      <div style="padding:20px 22px;display:flex;flex-direction:column;gap:12px">
-        <div>
-          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 제목</div>
-          <input id="noticeTitle" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none" placeholder="공지 제목 입력">
-        </div>
-        <div>
-          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 내용</div>
-          <textarea id="noticeBody" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;min-height:100px;resize:vertical" placeholder="공지 내용 입력"></textarea>
-        </div>
-        <div>
-          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 Apps Script URL</div>
-          <input id="noticeUrl" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none" placeholder="https://script.google.com/…" value="${noticeScriptUrl}">
-        </div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button onclick="clearNotice()" style="background:rgba(224,85,85,.15);border:1px solid rgba(224,85,85,.3);color:var(--red);border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer">🗑 공지 삭제</button>
-          <button onclick="saveNotice()" style="background:var(--gold);color:#0c0c11;border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">📢 공지 등록</button>
-        </div>
-        <div id="noticeStatus" style="font-size:12px;color:var(--dim);text-align:center;min-height:16px"></div>
-      </div>
-    </div>`;
-  document.body.appendChild(el);
-  el.classList.add('show');
-}
-
-async function saveNotice(){
-  const url=document.getElementById('noticeUrl').value.trim();
-  const title=document.getElementById('noticeTitle').value.trim();
-  const body=document.getElementById('noticeBody').value.trim();
-  const status=document.getElementById('noticeStatus');
-  if(!url){status.textContent='Apps Script URL을 입력해주세요.';return;}
-  noticeScriptUrl=url;localStorage.setItem('sv-notice-url',url);
-  status.textContent='등록 중…';
-  try{
-    const pu=`https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const res=await fetch(pu,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title,body})});
-    const json=JSON.parse(await res.text());
-    if(json.ok){status.style.color='var(--green)';status.textContent='✓ 공지가 등록됐습니다.';}
-    else throw new Error();
-  }catch(e){
-    try{
-      await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title,body}),mode:'no-cors'});
-      status.style.color='var(--green)';status.textContent='✓ 전송됨';
-    }catch(e2){status.style.color='var(--red)';status.textContent='✗ 전송 실패';}
-  }
-}
-
-async function clearNotice(){
-  const url=document.getElementById('noticeUrl').value.trim()||noticeScriptUrl;
-  const status=document.getElementById('noticeStatus');
-  if(!url){status.textContent='URL을 입력해주세요.';return;}
-  try{
-    const pu=`https://corsproxy.io/?${encodeURIComponent(url)}`;
-    await fetch(pu,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title:'',body:''})});
-    status.style.color='var(--green)';status.textContent='✓ 공지가 삭제됐습니다.';
-  }catch(e){status.style.color='var(--red)';status.textContent='✗ 실패';}
-}
-const MB_API = 'https://script.google.com/macros/s/AKfycbzFl9jYqi_KGTb3jtDqpXVV_yGGV-OnQA4574fXpKTy-znMr6E8cZWwxpy1V2ksUtfYhw/exec';
-const MB_GRADES = [
-  {grade:'SSS',pct:0.0001,color:'#fff'},{grade:'SS',pct:0.001,color:'#e8c87a'},
-  {grade:'S',pct:0.1,color:'#ff6b6b'},{grade:'A',pct:1,color:'#ff9f4a'},
-  {grade:'B',pct:5,color:'#b97aff'},{grade:'C',pct:15,color:'#6fd18a'},
-  {grade:'D',pct:25,color:'#7ecbe6'},{grade:'E',pct:30,color:'#aaa'},
-  {grade:'F',pct:23.8989,color:'#888'},
-];
-var mbVault=JSON.parse(localStorage.getItem('mb-vault')||'[]');
-var mbCurrentUUID='';
-var mbOpenPhase=0;
-
-async function mbApiFetch(url,opts){
-  const proxies=[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
-  for(const pu of proxies){try{const r=await fetch(pu,opts);if(r.ok)return r;}catch(_){}}
-  throw new Error('네트워크 오류');
-}
-
-async function mbClaim(){
-  const code=document.getElementById('mb-code').value.trim();
-  const name=document.getElementById('mb-name').value.trim();
-  const st=document.getElementById('mb-status');
-  if(!code){alert('코드를 입력해주세요.');return;}
-  if(!name){alert('수령인 이름을 입력해주세요.');return;}
-  if(mbVault.find(b=>b.uuid===code)){st.style.display='block';st.style.background='rgba(255,80,80,.1)';st.style.color='#ff6b6b';st.textContent='이미 보관함에 있는 박스입니다.';return;}
-  st.style.display='block';st.style.background='';st.style.color='rgba(255,255,255,.5)';st.textContent='확인 중...';
-  try{
-    const res=await mbApiFetch(MB_API+'?action=get&uuid='+code);
-    const data=await res.json();
-    if(!data.ok){st.style.color='#ff6b6b';st.textContent=data.error;return;}
-    const box=data.box;
-    if(box.isExpired){st.style.color='#ff6b6b';st.textContent='유효기간이 만료됐습니다.';return;}
-    if(box.status&&box.status!=='활성'){st.style.color='#ff6b6b';st.textContent='비활성화된 박스입니다.';return;}
-    if(box.isExhausted||box.isOpened){st.style.color='#ff6b6b';st.textContent='이미 모두 개봉된 박스입니다.';return;}
-    mbVault.unshift({uuid:box.uuid,name:box.name,items:box.items,expires:box.expires,opened:false,userName:name,showItems:box.showItems||false,allowBlank:box.allowBlank||false,animType:box.animType||'box'});
-    localStorage.setItem('mb-vault',JSON.stringify(mbVault));
-    st.style.color='#6fd18a';st.textContent='✓ 보관함에 추가됐습니다!';
-    document.getElementById('mb-code').value='';document.getElementById('mb-name').value='';
-    mbRenderVault();
-  }catch(e){st.style.color='#ff6b6b';st.textContent='네트워크 오류';}
-}
-
-function mbRenderVault(){
-  const el=document.getElementById('mb-vault');
-  if(!el)return;
-  if(!mbVault.length){el.innerHTML='<div style="color:rgba(255,255,255,.3);font-size:12px;text-align:center;padding:20px;grid-column:1/-1">수령한 박스가 없습니다</div>';return;}
-  el.innerHTML=mbVault.map(box=>`
-    <div onclick="${!box.opened?`mbOpenUI('${box.uuid}')`:''}" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 8px;text-align:center;cursor:${box.opened?'default':'pointer'};transition:all .2s;${!box.opened?'':'opacity:.7'}">
-      <div style="font-size:28px;margin-bottom:6px">${box.opened?'📭':'🎁'}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.65);font-weight:700;margin-bottom:3px">${box.name}</div>
-      ${!box.opened&&box.showItems?'<div style="font-size:9px;color:var(--gold);margin-top:2px">📋 목록 보기</div>':''}
-      ${box.opened&&box.result?`<div style="font-size:11px;font-weight:700;color:${box.result.color||'#aaa'}">${box.result.grade}</div><div style="font-size:10px;color:#fff;margin-top:2px;word-break:keep-all">${box.result.item}</div>`:''}</div>`).join('');
-}
-
-function mbShowItemsModal(box){
-  let m=document.getElementById('mb-items-modal');
-  if(!m){
-    m=document.createElement('div');m.id='mb-items-modal';
-    m.style.cssText='position:fixed;inset:0;z-index:1500;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center';
-    m.innerHTML=`<div style="background:#14141f;border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:24px;max-width:320px;width:90%;max-height:80vh;overflow-y:auto;position:relative">
-      <button onclick="document.getElementById('mb-items-modal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;cursor:pointer">✕</button>
-      <div id="mb-modal-title" style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:4px"></div>
-      <div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:14px">이 박스에 담긴 상품 목록</div>
-      <div id="mb-modal-list" style="display:flex;flex-direction:column;gap:7px"></div>
-      <button id="mb-modal-open-btn" style="background:var(--gold);color:#0a0a0f;border:none;border-radius:10px;padding:11px;width:100%;margin-top:16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🎁 지금 열기</button>
-    </div>`;
-    document.body.appendChild(m);
-  }
-  document.getElementById('mb-modal-title').textContent='🎁 '+box.name;
-  document.getElementById('mb-modal-list').innerHTML=(box.items||[]).map(item=>{
-    const names=item.names||[item.name||''];
-    return `<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:9px 12px;font-size:13px;color:#fff;font-weight:600">${names.join(' / ')}</div>`;
-  }).join('');
-  document.getElementById('mb-modal-open-btn').onclick=()=>{m.style.display='none';mbLaunchOpen(box);};
-  m.style.display='flex';
-}
-
-function mbOpenUI(uuid){
-  const box=mbVault.find(b=>b.uuid===uuid);
-  if(!box||box.opened)return;
-  if(box.showItems){mbShowItemsModal(box);return;}
-  mbLaunchOpen(box);
-}
-
-function mbLaunchOpen(box){
-  mbCurrentUUID=box.uuid;mbOpenPhase=0;
-  const anim=box?.animType||'box';
-  document.getElementById('mb-overlay').style.display='flex';
-  document.getElementById('mb-hint').style.display='block';
-  document.getElementById('mb-result').style.display='none';
-  document.getElementById('mb-spotlight').style.background='';
-  document.getElementById('mb-particles').innerHTML='';
-  document.getElementById('mb-box3d').style.display=anim==='box'?'block':'none';
-  document.getElementById('mb-roulette').style.display=anim==='roulette'?'block':'none';
-  document.getElementById('mb-capsule').style.display=anim==='capsule'?'block':'none';
-  if(anim==='box'){document.getElementById('mb-lid').style.transform='';document.getElementById('mb-bow').style.opacity='1';}
-  if(anim==='roulette') mbBuildRoulette(box?.items||[]);
-  if(anim==='capsule') document.getElementById('mb-capsule-top').style.transform='';
-}
-
-function mbBuildRoulette(items){
-  const disk=document.getElementById('mb-roulette-disk');
-  if(!disk)return;
-  const n=Math.max(items.length,3);
-  const colors=['#e07820','#c8661a','#a05018','#804010','#d97020','#f08830'];
-  disk.style.transform='rotate(0deg)';disk.style.transition='none';
-  disk.innerHTML=Array.from({length:n},(_,i)=>{
-    const item=items[i];const nm=item?.names?.[0]||item?.name||'?';
-    return `<div style="position:absolute;width:100%;height:100%;transform:rotate(${360/n*i}deg);transform-origin:50% 50%"><div style="position:absolute;top:10%;left:50%;transform:translateX(-50%);font-size:9px;color:#fff;font-weight:700;white-space:nowrap;background:rgba(0,0,0,.4);padding:2px 5px;border-radius:4px;max-width:65px;overflow:hidden;text-overflow:ellipsis">${nm}</div></div>`;
-  }).join('');
-  disk.style.background=`conic-gradient(${colors.map((cl,i)=>`${cl} ${360/n*i}deg ${360/n*(i+1)}deg`).join(',')})`;
-}
-
-function mbCloseOverlay(){
-  document.getElementById('mb-overlay').style.display='none';
-  document.getElementById('mb-sss').style.display='none';
-}
-
-async function mbStartOpen(){
-  if(mbOpenPhase!==0)return;
-  mbOpenPhase=1;
-  const box=mbVault.find(b=>b.uuid===mbCurrentUUID);
-  const anim=box?.animType||'box';
-  document.getElementById('mb-hint').textContent='두근두근...';
-  if(anim==='box'){
-    const bel=document.getElementById('mb-box3d');
-    bel.style.animation='none';void bel.offsetWidth;
-    bel.style.animation='mbShake .7s ease-in-out 3';
-    await new Promise(r=>setTimeout(r,2100));
-    bel.style.animation='none';
-  } else if(anim==='roulette'){
-    const disk=document.getElementById('mb-roulette-disk');
-    disk.style.transition='transform 3s cubic-bezier(.17,.67,.12,1)';
-    disk.style.transform=`rotate(${1800+Math.random()*360}deg)`;
-    await new Promise(r=>setTimeout(r,3100));
-  } else if(anim==='capsule'){
-    const cap=document.getElementById('mb-capsule');
-    cap.style.animation='none';void cap.offsetWidth;
-    cap.style.animation='mbShake .7s ease-in-out 3';
-    await new Promise(r=>setTimeout(r,2100));
-    cap.style.animation='none';
-  }
-  mbOpenPhase=2;
-  const result=mbRoll(box?.items||[],box?.allowBlank||false);
-  document.getElementById('mb-spotlight').style.background=`radial-gradient(ellipse,${result.gInfo?.color||'#fff'}44 0%,transparent 70%)`;
-  await new Promise(r=>setTimeout(r,400));
-  if(anim==='box'){document.getElementById('mb-bow').style.opacity='0';document.getElementById('mb-lid').style.transform='rotateX(-120deg) translateY(-30px)';}
-  else if(anim==='capsule'){document.getElementById('mb-capsule-top').style.transform='translateY(-70px) rotate(-15deg)';}
-  await new Promise(r=>setTimeout(r,700));
-  mbSpawnParticles(result.gInfo?.color||'#fff');
-  if(result.grade==='SSS'){
-    document.getElementById('mb-sss-item').textContent=result.item;
-    document.getElementById('mb-sss').style.display='flex';
-    await new Promise(r=>setTimeout(r,2500));
-    document.getElementById('mb-sss').style.display='none';
-  }
-  try{await mbApiFetch(MB_API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'open',uuid:mbCurrentUUID,grade:result.grade,item:result.item,memo:box?.userName||''})}); }catch(_){}
-  const vb=mbVault.find(b=>b.uuid===mbCurrentUUID);
-  if(vb){vb.opened=true;vb.result={grade:result.grade,item:result.item,color:result.gInfo?.color||'#aaa',userName:vb.userName||''};}
-  localStorage.setItem('mb-vault',JSON.stringify(mbVault));
-  mbRenderVault();
-  ['mb-box3d','mb-roulette','mb-capsule'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-  document.getElementById('mb-hint').style.display='none';
-  document.getElementById('mb-res-grade').textContent=result.grade;
-  document.getElementById('mb-res-grade').style.color=result.gInfo?.color||'#fff';
-  document.getElementById('mb-res-item').textContent=result.item;
-  document.getElementById('mb-res-label').textContent=result.grade+'등급';
-  document.getElementById('mb-result').style.display='block';
-  mbOpenPhase=3;
-}
-
-function mbRoll(items,allowBlank){
-  if(!items.length)return{grade:'F',item:'꽝',gInfo:MB_GRADES.find(g=>g.grade==='F')};
-  const pool=[];
-  items.forEach(item=>{const names=item.names||[item.name||'꽝'];names.forEach(n=>pool.push({grade:item.grade,item:n,gInfo:MB_GRADES.find(g=>g.grade===item.grade)}));});
-  if(allowBlank){
-    const rand=Math.random()*100;let cum=0;
-    for(const g of MB_GRADES){if(rand>=cum&&rand<cum+g.pct){const match=pool.filter(p=>p.grade===g.grade);return match.length?match[Math.floor(Math.random()*match.length)]:{grade:g.grade,item:'꽝',gInfo:g};}cum+=g.pct;}
-    const last=MB_GRADES[MB_GRADES.length-1];const match=pool.filter(p=>p.grade===last.grade);
-    return match.length?match[0]:{grade:last.grade,item:'꽝',gInfo:last};
-  }else{
-    const ag=[...new Set(pool.map(p=>p.grade))];const assigned=MB_GRADES.filter(g=>ag.includes(g.grade));
-    const tot=assigned.reduce((s,g)=>s+g.pct,0);const rand=Math.random()*tot;let cum=0;
-    for(const g of assigned){cum+=g.pct;const match=pool.filter(p=>p.grade===g.grade);if(rand<=cum&&match.length)return match[Math.floor(Math.random()*match.length)];}
-    return pool[pool.length-1];
-  }
-}
-
-function mbSpawnParticles(color){
-  const ct=document.getElementById('mb-particles');
-  for(let i=0;i<16;i++){const p=document.createElement('div');p.style.cssText=`position:absolute;width:6px;height:6px;border-radius:50%;background:${color};left:${20+Math.random()*60}%;top:${40+Math.random()*30}%;animation:mbParticle ${.8+Math.random()*.6}s ${Math.random()*.5}s ease-out both`;ct.appendChild(p);}
-  setTimeout(()=>ct.innerHTML='',2000);
-}
-const MBA_URL = 'https://script.google.com/macros/s/AKfycbzFl9jYqi_KGTb3jtDqpXVV_yGGV-OnQA4574fXpKTy-znMr6E8cZWwxpy1V2ksUtfYhw/exec';
-const MBA_GRADES = [
-  {grade:'SSS',pct:0.0001,color:'#fff'},{grade:'SS',pct:0.001,color:'#e8c87a'},
-  {grade:'S',pct:0.1,color:'#ff6b6b'},{grade:'A',pct:1,color:'#ff9f4a'},
-  {grade:'B',pct:5,color:'#b97aff'},{grade:'C',pct:15,color:'#6fd18a'},
-  {grade:'D',pct:25,color:'#7ecbe6'},{grade:'E',pct:30,color:'#aaa'},
-  {grade:'F',pct:23.8989,color:'#888'},
-];
-const MBA_GRADE_ORDER = ['SSS','SS','S','A','B','C','D','E','F'];
-const MBA_PRESETS = {
-  coffee:[{grade:'SSS',items:['자유롭게 음료 한 잔']},{grade:'SS',items:['스무디급 음료 한 잔']},{grade:'S',items:['라떼급 음료 한 잔']},{grade:'A',items:['아메리카노 + 사이즈업']},{grade:'B',items:['아메리카노']}],
-  shopping:[{grade:'SSS',items:['5만원 쿠폰']},{grade:'SS',items:['3만원 쿠폰']},{grade:'S',items:['1만원 쿠폰']},{grade:'A',items:['5천원 쿠폰']},{grade:'B',items:['무료 배송 쿠폰']}],
-  gift:[{grade:'SSS',items:['고급 선물세트']},{grade:'SS',items:['케이크']},{grade:'S',items:['과일 바구니']},{grade:'A',items:['음료 세트']},{grade:'B',items:['간식 세트']}],
-  game:[{grade:'SSS',items:['전설급 아이템']},{grade:'SS',items:['영웅급 아이템']},{grade:'S',items:['희귀급 아이템']},{grade:'A',items:['고급 아이템']},{grade:'B',items:['일반 아이템']}],
-};
-
-var mbaItems=[], mbaRowCount=0, mbaSelectedAnim='box', mbaBoxCache=[], mbaFilter='all';
-
-async function mbaApiFetch(url,opts){
-  const proxies=[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
-  for(const pu of proxies){try{const r=await fetch(pu,opts);if(r.ok)return r;}catch(_){}}
-  throw new Error('네트워크 오류');
-}
-async function mbaApiPost(body){return mbaApiFetch(MBA_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});}
-async function mbaApiGet(p){return mbaApiFetch(MBA_URL+'?'+new URLSearchParams(p).toString());}
-
-function mbAdminPreset(key,el){
-  document.querySelectorAll('#mb-presets button').forEach(b=>b.style.borderColor='rgba(255,255,255,.08)');
-  el.style.borderColor='var(--gold)';el.style.color='var(--gold)';
-  mbaItems=[];mbaRowCount=0;
-  if(key==='clear'){mbAdminRenderItems();return;}
-  (MBA_PRESETS[key]||[]).forEach(r=>mbaItems.push({id:mbaRowCount++,grade:r.grade,items:[...r.items]}));
-  mbAdminRenderItems();
-}
-
-function mbAdminSelectAnim(type,el){
-  mbaSelectedAnim=type;
-  ['box','roulette','capsule'].forEach(t=>{
-    const d=document.getElementById('mbanim-'+t);
-    if(!d)return;
-    const on=t===type;
-    d.style.borderColor=on?'var(--gold)':'rgba(255,255,255,.08)';
-    d.style.background=on?'rgba(232,200,122,.08)':'rgba(255,255,255,.04)';
-    d.querySelector('div:last-child').style.color=on?'var(--gold)':'rgba(255,255,255,.5)';
-  });
-}
-
-function mbAdminAddGrade(){
-  const used=mbaItems.map(i=>i.grade);
-  const next=MBA_GRADE_ORDER.find(g=>!used.includes(g))||'F';
-  mbaItems.push({id:mbaRowCount++,grade:next,items:['']});
-  mbAdminRenderItems();
-}
-function mbAdminRemoveGrade(id){mbaItems=mbaItems.filter(i=>i.id!==id);mbAdminRenderItems();}
-function mbAdminAddSub(id){const r=mbaItems.find(i=>i.id===id);if(r)r.items.push('');mbAdminRenderItems();}
-function mbAdminRemoveSub(id,idx){const r=mbaItems.find(i=>i.id===id);if(r&&r.items.length>1)r.items.splice(idx,1);mbAdminRenderItems();}
-
-function mbAdminCalcPct(){
-  const allowBlank=document.getElementById('mba-allow-blank')?.checked;
-  const assigned=mbaItems.map(i=>i.grade);
-  if(allowBlank) return Object.fromEntries(MBA_GRADES.map(g=>[g.grade,g.pct]));
-  const ag=MBA_GRADES.filter(g=>assigned.includes(g.grade));
-  const tot=ag.reduce((s,g)=>s+g.pct,0);
-  const map={};ag.forEach(g=>map[g.grade]=parseFloat((g.pct/tot*100).toFixed(4)));
-  return map;
-}
-
-function mbAdminRenderItems(){
-  const pctMap=mbAdminCalcPct();
-  const wrap=document.getElementById('mba-items');
-  if(!wrap)return;
-  if(!mbaItems.length){wrap.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.3);text-align:center;padding:8px">등급을 추가해주세요</div>';return;}
-  wrap.innerHTML=mbaItems.map(row=>{
-    const g=MBA_GRADES.find(x=>x.grade===row.grade);
-    const pct=pctMap[row.grade]!=null?pctMap[row.grade]+'%':'';
-    const subs=row.items.map((item,idx)=>`
-      <div style="display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;padding-left:50px;margin-top:4px">
-        <input class="doc-inp" placeholder="상품명" value="${item}" style="font-size:12px;padding:6px 9px"
-          oninput="(function(el,id,idx){const r=mbaItems.find(x=>x.id===id);if(r)r.items[idx]=el.value;})(this,${row.id},${idx})">
-        ${row.items.length>1?`<button onclick="mbAdminRemoveSub(${row.id},${idx})" style="background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.2);color:#ff6b6b;border-radius:7px;padding:5px 7px;cursor:pointer;font-size:11px">✕</button>`:''}
-      </div>`).join('');
-    return `<div>
-      <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center">
-        <div style="font-family:monospace;font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.07);min-width:52px;text-align:center;color:${g?.color||'#aaa'}">${row.grade}<br><span style="opacity:.5;font-size:9px">${pct}</span></div>
-        <div style="font-size:11px;color:rgba(255,255,255,.5)">${row.items.filter(Boolean).join(' / ')||'(상품명 입력)'}</div>
-        <button onclick="mbAdminAddSub(${row.id})" style="background:rgba(232,200,122,.1);border:1px solid rgba(232,200,122,.25);color:var(--gold);border-radius:7px;padding:4px 7px;cursor:pointer;font-size:10px">+상품</button>
-        <button onclick="mbAdminRemoveGrade(${row.id})" style="background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.2);color:#ff6b6b;border-radius:7px;padding:4px 7px;cursor:pointer;font-size:11px">✕</button>
-      </div>
-      ${subs}
-    </div>`;
-  }).join('');
-}
-
-async function mbAdminCreate(){
-  const name=document.getElementById('mba-name').value.trim();
-  const expires=document.getElementById('mba-expires').value;
-  const limit=parseInt(document.getElementById('mba-limit').value)||0;
-  const showItems=document.getElementById('mba-show-items').checked;
-  const allowBlank=document.getElementById('mba-allow-blank').checked;
-  const st=document.getElementById('mba-status');
-  if(!name){alert('박스 이름을 입력해주세요.');return;}
-  if(!mbaItems.length){alert('상품을 하나 이상 추가해주세요.');return;}
-  const items=mbaItems.map(row=>{
-    const names=row.items.filter(Boolean);
-    return {grade:row.grade,names:names.length?names:['(상품명 없음)']};
-  });
-  st.style.display='block';st.style.background='';st.style.color='rgba(255,255,255,.5)';st.textContent='생성 중...';
-  try{
-    const res=await mbaApiPost({action:'create',name,items,expires,limit,showItems,allowBlank,animType:mbaSelectedAnim});
-    const data=await res.json();
-    if(data.ok){
-      st.style.color='#6fd18a';st.textContent='✓ 생성 완료! UUID: '+data.uuid;
-      document.getElementById('mba-name').value='';mbaItems=[];mbAdminRenderItems();mbAdminLoadBoxes();
-    }else{st.style.color='#ff6b6b';st.textContent=data.error||'생성 실패';}
-  }catch(e){st.style.color='#ff6b6b';st.textContent='네트워크 오류';}
-}
-
-function mbAdminCopyLink(uuid){
-  const url=location.href.split('?')[0]+'?box='+uuid;
-  if(navigator.clipboard&&window.isSecureContext){
-    navigator.clipboard.writeText(url).then(()=>alert('✓ 링크 복사됨!')).catch(()=>prompt('직접 복사하세요:',url));
-  }else{
-    const t=document.createElement('textarea');t.value=url;t.style.cssText='position:fixed;top:0;left:0;opacity:0';
-    document.body.appendChild(t);t.focus();t.select();
-    document.execCommand('copy')?alert('✓ 링크 복사됨!'):prompt('직접 복사하세요:',url);
-    document.body.removeChild(t);
-  }
-}
-
-async function mbAdminDeactivate(uuid){
-  if(!confirm('비활성화하시겠습니까?'))return;
-  try{
-    const res=await mbaApiPost({action:'deactivate',uuid});
-    const data=await res.json();
-    if(data.ok){alert('비활성화 완료');mbAdminLoadBoxes();}
-    else alert(data.error||'실패');
-  }catch(e){alert('네트워크 오류');}
-}
-
-function mbAdminSetFilter(f,el){
-  mbaFilter=f;
-  document.querySelectorAll('#mba-filters button').forEach(b=>{
-    b.style.background='rgba(255,255,255,.04)';b.style.borderColor='rgba(255,255,255,.08)';b.style.color='rgba(255,255,255,.5)';
-  });
-  el.style.background='rgba(232,200,122,.08)';el.style.borderColor='var(--gold)';el.style.color='var(--gold)';
-  mbAdminRenderBoxList();
-}
-
-function mbAdminRenderBoxList(){
-  const list=document.getElementById('mba-boxlist');
-  if(!mbaBoxCache.length){list.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">생성된 박스가 없습니다</div>';return;}
-  const now=new Date();
-  const filtered=mbaBoxCache.filter(box=>{
-    const isExp=box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<now;
-    if(mbaFilter==='active') return box.status==='활성'&&!isExp;
-    if(mbaFilter==='inactive') return box.status!=='활성';
-    if(mbaFilter==='expired') return isExp;
-    return true;
-  });
-  if(!filtered.length){list.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">해당하는 박스가 없습니다</div>';return;}
-  list.innerHTML=filtered.map(box=>{
-    const isExp=box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<new Date();
-    const inactive=box.status!=='활성';
-    return `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:13px 15px;${inactive?'opacity:.5':''}">
-      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:3px">${box.name} ${inactive?'<span style="font-size:10px;color:#ff6b6b">비활성</span>':''}</div>
-      <div style="font-size:10px;color:rgba(255,255,255,.35);font-family:monospace;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:7px">
-        <span>상품 ${box.items?.length||0}종</span>
-        <span>개봉 ${box.openCount||0}${box.limit?'/'+box.limit:''}</span>
-        ${box.expires?(isExp?'<span style="color:#ff6b6b">~'+box.expires.split('T')[0]+' (만료)</span>':'<span>~'+box.expires.split('T')[0]+'</span>'):''}</div>
-      <input value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy')" style="font-family:monospace;font-size:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;padding:4px 8px;color:rgba(255,255,255,.5);width:100%;margin-bottom:7px;cursor:text">
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button onclick="mbAdminCopyLink('${box.uuid}')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 10px;font-size:11px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit">🔗 링크</button>
-        ${!inactive?`<button onclick="mbAdminDeactivate('${box.uuid}')" style="background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.25);color:#ff6b6b;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit">🔒 비활성화</button>`:''}</div>
-    </div>`;
-  }).join('');
-}
-
-async function mbAdminLoadBoxes(){
-  const list=document.getElementById('mba-boxlist');
-  if(!list)return;
-  list.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">불러오는 중...</div>';
-  try{
-    const res=await mbaApiGet({action:'list'});
-    const data=await res.json();
-    mbaBoxCache=[...(data.boxes||[])].reverse();
-    mbAdminRenderBoxList();
-  }catch(e){list.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">로드 실패</div>';}
-}
-
-// ── 통계
-async function mbStatsLoad(){
-  const log=document.getElementById('mbs-log');
-  const kpi=document.getElementById('mbs-kpi');
-  if(!log)return;
-  log.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">불러오는 중...</div>';
-  const SHEET_ID='1OCTcjJ8fZSTZIPeykpxSWKBk7LqPpWQ34QEry8zU1VA'; // 미스테리박스 시트ID
-  const BOXES_GID='1749323286';
-  const OPENS_GID='194175539';
-  try{
-    // boxes 시트 fetch (F열=발급수량)
-    const bCsv=await mbFetchCSV(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${BOXES_GID}`);
-    const bRows=bCsv.split('\n').slice(1).filter(r=>r.trim());
-    // F열(index 5) 합계
-    let totalIssued=0;
-    const boxMap={};
-    bRows.forEach(row=>{
-      const cols=mbParseCSVRow(row);
-      const uuid=(cols[0]||'').trim();
-      const name=(cols[1]||'').trim();
-      const limit=parseInt(cols[5])||0;
-      totalIssued+=limit;
-      if(uuid) boxMap[uuid]=name;
-    });
-
-    // opens 시트 fetch
-    const oCsv=await mbFetchCSV(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${OPENS_GID}`);
-    const oRows=oCsv.split('\n').slice(1).filter(r=>r.trim()); // D1 제외
-    let totalOpen=0,totalWin=0,totalBlank=0;
-    const logs=[];
-    oRows.forEach(row=>{
-      const cols=mbParseCSVRow(row);
-      const uuid=(cols[0]||'').trim();
-      const boxName=(cols[1]||'').trim()||boxMap[uuid]||'';
-      const openedAt=(cols[2]||'').trim();
-      const grade=(cols[3]||'').trim();
-      const item=(cols[4]||'').trim();
-      const userName=(cols[5]||'').trim();
-      if(!grade)return;
-      totalOpen++;
-      if(item==='꽝') totalBlank++;
-      else totalWin++;
-      logs.push({uuid,boxName,openedAt,grade,item,userName});
-    });
-
-    // 박스 선택박스
-    const sel=document.getElementById('mbs-select');
-    const cur=sel.value;
-    sel.innerHTML='<option value="" style="color:#111">전체 박스</option>';
-    Object.entries(boxMap).forEach(([uuid,name])=>{
-      sel.innerHTML+=`<option value="${uuid}" style="color:#111">${name}</option>`;
-    });
-    sel.value=cur;
-
-    // 필터
-    const filtered=cur?logs.filter(l=>l.uuid===cur):logs;
-    const fOpen=filtered.length;
-    const fWin=filtered.filter(l=>l.item!=='꽝').length;
-    const fBlank=filtered.filter(l=>l.item==='꽝').length;
-    const fSSS=filtered.filter(l=>l.grade==='SSS').length;
-
-    if(kpi)kpi.innerHTML=`
-      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold)">${totalIssued||'-'}</div><div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px">총 발급</div></div>
-      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center"><div style="font-size:18px;font-weight:900;color:#7ecbe6">${fOpen}</div><div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px">총 개봉</div></div>
-      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center"><div style="font-size:18px;font-weight:900;color:#6fd18a">${fWin}</div><div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px">당첨</div></div>
-      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center"><div style="font-size:18px;font-weight:900;color:#888">${fBlank}</div><div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px">꽝</div></div>
-      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center"><div style="font-size:18px;font-weight:900;color:#fff">${fSSS}</div><div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px">SSS 당첨</div></div>`;
-
-    // 개봉 이력
-    if(!filtered.length){log.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">개봉 이력이 없습니다</div>';return;}
-    log.innerHTML=[...filtered].reverse().map(l=>{
-      const g=MB_GRADES.find(x=>x.grade===l.grade);
-      return `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:10px">
-        <div style="font-family:monospace;font-size:11px;font-weight:700;min-width:30px;color:${g?.color||'#aaa'}">${l.grade}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.item}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.35);font-family:monospace">${l.userName?'👤 '+l.userName+' · ':''}${l.openedAt}</div>
-        </div>
-        <div style="font-size:9px;color:rgba(255,255,255,.25);text-align:right;max-width:80px;overflow:hidden;text-overflow:ellipsis">${l.boxName}</div>
-      </div>`;
-    }).join('');
-  }catch(e){log.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.3);font-size:12px;padding:20px">로드 실패: '+e.message+'</div>';}
-}
-
-async function mbFetchCSV(url){
-  const proxies=[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
-  for(const pu of proxies){try{const r=await fetch(pu);if(r.ok)return await r.text();}catch(_){}}
-  throw new Error('CSV 로드 실패');
-}
-
-function mbParseCSVRow(row){
-  const result=[];let cur='';let inQ=false;
-  for(let i=0;i<row.length;i++){
-    const ch=row[i];
-    if(ch==='"'){inQ=!inQ;}
-    else if(ch===','&&!inQ){result.push(cur.trim());cur='';}
-    else cur+=ch;
-  }
-  result.push(cur.trim());
-  return result;
 }
 
 // ── 초기화 (모든 함수 정의 후 실행)
