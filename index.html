@@ -713,7 +713,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v3.3</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span id="appVersionBadge" style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v3.3</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -1230,6 +1230,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 </div>
 
 <script>
+const APP_VERSION = 'v3.3';
+
 // ══════════════════════════════════════════════
 //  CONFIG & STATE
 // ══════════════════════════════════════════════
@@ -1272,6 +1274,7 @@ try{todos=JSON.parse(localStorage.getItem('sv-todos')||'[]')}catch(_){}
   }
   renderBrief();
   renderSched();
+  const _vb=document.getElementById('appVersionBadge');if(_vb)_vb.textContent=APP_VERSION;
   // 블로그 타임라인·절기문자 백그라운드 로드 (동기화와 병렬 실행)
   loadBlogBg();
   loadJolgimuBg();
