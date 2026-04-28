@@ -3531,7 +3531,7 @@ const rfTodayISO=()=>new Date().toISOString().slice(0,10);
 const rfFmtDate=iso=>{if(!iso)return '';const d=new Date(iso+'T12:00');return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;};
 
 // rf-date 초기값
-document.getElementById('rf-date').value = rfTodayISO();
+try{const _rfd=document.getElementById('rf-date');if(_rfd)_rfd.value=rfTodayISO();}catch(_){}
 
 let rfRowCount = 0;
 function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note='') {
@@ -3557,7 +3557,7 @@ function rfCalcTotal() {
   const t = rfRowsEl?[...rfRowsEl.querySelectorAll('[data-f="amt"]')].reduce((s,e)=>s+rfParseN(e.value),0):0;
   document.getElementById('rfTotal').textContent = rfFmtN(t) + '원';
 }
-rfAddRow(); rfAddRow(); rfAddRow();
+try{if(document.getElementById('rfRows')){rfAddRow();rfAddRow();rfAddRow();}}catch(_){}
 
 function rfCollect() {
   const rfRowsEl2=document.getElementById('rfRows');
@@ -3586,7 +3586,7 @@ function rfFill(doc) {
   document.getElementById('rf-date').value = doc.date || rfTodayISO();
   document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
   (doc.rows||[]).forEach(r => rfAddRow(r.ssn,r.name,r.bank,r.acct,r.owner,r.amt||'',r.note));
-  if(!(doc.rows?.length)) { rfAddRow(); rfAddRow(); rfAddRow(); }
+  if(!(doc.rows?.length)) { try{if(document.getElementById('rfRows')){rfAddRow();rfAddRow();rfAddRow();}}catch(_){} }
   rfCalcTotal();
 }
 
@@ -3594,15 +3594,15 @@ function initRefund(){
   if(!document.getElementById('rf-date').value)
     document.getElementById('rf-date').value=docTodayISO();
   if(!document.getElementById('rfRows').children.length){
-    rfRowCount=0; rfAddRow(); rfAddRow(); rfAddRow();
+    rfRowCount=0; try{if(document.getElementById('rfRows')){rfAddRow();rfAddRow();rfAddRow();}}catch(_){}
   }
 }
 function rfReset() {
   document.getElementById('rf-editId').value = '';
   document.getElementById('rf-manager').value = '';
-  document.getElementById('rf-date').value = rfTodayISO();
+  try{const _rfd=document.getElementById('rf-date');if(_rfd)_rfd.value=rfTodayISO();}catch(_){}
   document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
-  rfAddRow(); rfAddRow(); rfAddRow(); rfCalcTotal();
+  try{if(document.getElementById('rfRows')){rfAddRow();rfAddRow();rfAddRow();}}catch(_){} rfCalcTotal();
 }
 function rfSave() {
   const doc = rfCollect();
