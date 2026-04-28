@@ -3878,6 +3878,120 @@ function renderDaigeoChart(allItems){
 // ══════════════════════════════════════════════
 //  미스테리 박스 수령자
 // ══════════════════════════════════════════════
+
+// ══════════════════════════════════════════════
+//  공지사항
+// ══════════════════════════════════════════════
+const SH_NOTICE = '1atWDHWjyATL-NeqpFtLt0plAkeUn0bdA6q2L24mDAsk';
+const NOTICE_CSV_URL = `https://docs.google.com/spreadsheets/d/${SH_NOTICE}/export?format=csv&gid=0`;
+let noticeScriptUrl = localStorage.getItem('sv-notice-url') || 'https://script.google.com/macros/s/AKfycbwJn8ZSbXxB7XvF6_rlRFFdWLhwn7rGr83D7Ww3YJp7f7OvNRvP3pbbwLUq7xW3fCpE/exec';
+
+async function loadNotice(){
+  try{
+    const csv = await proxyFetch(NOTICE_CSV_URL);
+    const rows = csvParse(csv);
+    if(!rows||!rows.length)return;
+    const r = rows[0];
+    const title=(r[0]||'').trim();
+    const body=(r[1]||'').trim();
+    const date=(r[2]||'').trim();
+    if(!title&&!body)return;
+    const noticeKey='sv-notice-read-'+(date+title).replace(/\s/g,'');
+    if(localStorage.getItem(noticeKey))return;
+    renderNotice({title,body,date,noticeKey});
+  }catch(_){}
+}
+
+function renderNotice({title,body,date,noticeKey}){
+  const brief=document.getElementById('briefBody');
+  if(!brief)return;
+  const div=document.createElement('div');
+  div.className='notice-banner';
+  div.id='noticeBanner';
+  div.innerHTML=`
+    <div class="notice-icon">📢</div>
+    <div class="notice-body">
+      ${title?`<div class="notice-title">${title}</div>`:''}
+      ${body?`<div class="notice-text">${body}</div>`:''}
+      ${date?`<div class="notice-date">${date}</div>`:''}
+    </div>
+    <button class="notice-close" onclick="dismissNotice('${noticeKey}')">✕</button>`;
+  brief.prepend(div);
+}
+
+function dismissNotice(key){
+  localStorage.setItem(key,'1');
+  document.getElementById('noticeBanner')?.remove();
+}
+
+function openNoticeEditor(){
+  const overlay = document.getElementById('noticeEditorOverlay');
+  if(overlay){ overlay.classList.add('show'); return; }
+  const el = document.createElement('div');
+  el.id = 'noticeEditorOverlay';
+  el.className = 'help-overlay';
+  el.innerHTML = `
+    <div class="help-modal" style="max-width:500px">
+      <div class="help-hdr">
+        <div class="help-ttl">📢 공지 <em>작성</em></div>
+        <button class="help-close" onclick="document.getElementById('noticeEditorOverlay').classList.remove('show')">✕</button>
+      </div>
+      <div style="padding:20px 22px;display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 제목</div>
+          <input id="noticeTitle" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none" placeholder="공지 제목 입력">
+        </div>
+        <div>
+          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 내용</div>
+          <textarea id="noticeBody" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;min-height:100px;resize:vertical" placeholder="공지 내용 입력"></textarea>
+        </div>
+        <div>
+          <div class="field-lbl" style="font-size:10.5px;letter-spacing:.7px;color:var(--dim);margin-bottom:5px;font-weight:700">공지 Apps Script URL</div>
+          <input id="noticeUrl" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none" placeholder="https://script.google.com/…" value="${noticeScriptUrl}">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="clearNotice()" style="background:rgba(224,85,85,.15);border:1px solid rgba(224,85,85,.3);color:var(--red);border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer">🗑 공지 삭제</button>
+          <button onclick="saveNotice()" style="background:var(--gold);color:#0c0c11;border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">📢 공지 등록</button>
+        </div>
+        <div id="noticeStatus" style="font-size:12px;color:var(--dim);text-align:center;min-height:16px"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  el.classList.add('show');
+}
+
+async function saveNotice(){
+  const url=document.getElementById('noticeUrl').value.trim();
+  const title=document.getElementById('noticeTitle').value.trim();
+  const body=document.getElementById('noticeBody').value.trim();
+  const status=document.getElementById('noticeStatus');
+  if(!url){status.textContent='Apps Script URL을 입력해주세요.';return;}
+  noticeScriptUrl=url;localStorage.setItem('sv-notice-url',url);
+  status.textContent='등록 중…';
+  try{
+    const pu=`https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const res=await fetch(pu,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title,body})});
+    const json=JSON.parse(await res.text());
+    if(json.ok){status.style.color='var(--green)';status.textContent='✓ 공지가 등록됐습니다.';}
+    else throw new Error();
+  }catch(e){
+    try{
+      await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title,body}),mode:'no-cors'});
+      status.style.color='var(--green)';status.textContent='✓ 전송됨';
+    }catch(e2){status.style.color='var(--red)';status.textContent='✗ 전송 실패';}
+  }
+}
+
+async function clearNotice(){
+  const url=document.getElementById('noticeUrl').value.trim()||noticeScriptUrl;
+  const status=document.getElementById('noticeStatus');
+  if(!url){status.textContent='URL을 입력해주세요.';return;}
+  try{
+    const pu=`https://corsproxy.io/?${encodeURIComponent(url)}`;
+    await fetch(pu,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({title:'',body:''})});
+    status.style.color='var(--green)';status.textContent='✓ 공지가 삭제됐습니다.';
+  }catch(e){status.style.color='var(--red)';status.textContent='✗ 실패';}
+}
 const MB_API = 'https://script.google.com/macros/s/AKfycbzFl9jYqi_KGTb3jtDqpXVV_yGGV-OnQA4574fXpKTy-znMr6E8cZWwxpy1V2ksUtfYhw/exec';
 const MB_GRADES = [
   {grade:'SSS',pct:0.0001,color:'#fff'},{grade:'SS',pct:0.001,color:'#e8c87a'},
