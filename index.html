@@ -3145,31 +3145,24 @@ body.innerHTML=html;
 //  회사문서 공통
 // ══════════════════════════════════════════════
 function docTab(doc,pane){
-  const pfx={order:'o',expense:'e',refund:'rf'}[doc];
-  const tabs={order:['write','list','preview'],expense:['write','list','preview'],refund:['write','list','preview']};
-  tabs[doc].forEach(t=>{
-    const tabEl=document.getElementById(`${pfx[0]}t-${t}`)||document.getElementById(`${pfx}t-${t}`);
-    const paneEl=document.getElementById(`${pfx[0]}p-${t}`)||document.getElementById(`${pfx}p-${t}`);
-  // 탭/패널 ID 직접 매핑
   const idMap={
-    order:  {tabs:{write:'ot-write',list:'ot-list',preview:'ot-preview'}, panes:{write:'op-write',list:'op-list',preview:'op-preview'}},
-    expense:{tabs:{write:'et-write',list:'et-list',preview:'et-preview'}, panes:{write:'ep-write',list:'ep-list',preview:'ep-preview'}},
-    refund: {tabs:{write:'rft-write',list:'rft-list',preview:'rft-preview'}, panes:{write:'rfp-write',list:'rfp-list',preview:'rfp-preview'}},
+    order:  {tabs:{write:'ot-write',list:'ot-list',preview:'ot-preview'},panes:{write:'op-write',list:'op-list',preview:'op-preview'}},
+    expense:{tabs:{write:'et-write',list:'et-list',preview:'et-preview'},panes:{write:'ep-write',list:'ep-list',preview:'ep-preview'}},
+    refund: {tabs:{write:'rft-write',list:'rft-list',preview:'rft-preview'},panes:{write:'rfp-write',list:'rfp-list',preview:'rfp-preview'}},
   };
-  const m=idMap[doc]; if(!m)return;
+  const m=idMap[doc];if(!m)return;
   ['write','list','preview'].forEach(t=>{
     const tabEl=document.getElementById(m.tabs[t]);
     const paneEl=document.getElementById(m.panes[t]);
-if(tabEl)tabEl.classList.toggle('on',t===pane);
-if(paneEl)paneEl.classList.toggle('on',t===pane);
-});
-if(doc==='order'&&pane==='list')oRenderList();
-if(doc==='order'&&pane==='preview')oRenderPreview(oCollect());
-if(doc==='expense'&&pane==='list')eRenderList();
+    if(tabEl)tabEl.classList.toggle('on',t===pane);
+    if(paneEl)paneEl.classList.toggle('on',t===pane);
+  });
+  if(doc==='order'&&pane==='list')oRenderList();
+  if(doc==='order'&&pane==='preview')oRenderPreview(oCollect());
+  if(doc==='expense'&&pane==='list')eRenderList();
   if(doc==='expense'&&pane==='preview')eRenderPreview(eCollect());
-if(doc==='refund'&&pane==='list')rfRenderList();
-if(doc==='refund'&&pane==='preview')rfRenderPreview(rfCollect());
-  if(doc==='expense'&&pane==='preview')eRenderPreview(eCollect());
+  if(doc==='refund'&&pane==='list')rfRenderList();
+  if(doc==='refund'&&pane==='preview')rfRenderPreview(rfCollect());
 }
 const docFmtDate=iso=>{if(!iso)return'—';const d=new Date(iso+'T12:00');const dy=['일','월','화','수','목','금','토'];return`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${dy[d.getDay()]})`;};
 const docFmtDateShort=iso=>{if(!iso)return'—';const d=new Date(iso+'T12:00');return`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;};
@@ -3438,31 +3431,22 @@ document.getElementById('rf-date').value = todayISO();
 document.getElementById('rf-date').value = rfTodayISO();
 
 let rfRowCount = 0;
-function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note='') {
-const id = rfRowCount++;
-const d = document.createElement('div');
-d.className = 'rf-detail-row'; d.dataset.id = id;
-  const idx = document.querySelectorAll('.rf-detail-row').length + 1;
-  d.style.cssText = 'display:grid;grid-template-columns:9% 18% 11% 26% 9% 14% 1fr 28px;gap:3px;margin-bottom:4px;align-items:center';
-d.innerHTML = `
-    <button class="del-btn" onclick="rfDelRow(${id})" class="rf-del-btn">✕</button>
+function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note=''){
+  const id=rfRowCount++;
+  const d=document.createElement('div');
+  d.className='rf-detail-row';d.dataset.id=id;
+  d.style.cssText='display:grid;grid-template-columns:9% 18% 11% 26% 9% 14% 1fr 28px;gap:3px;margin-bottom:4px;align-items:center';
+  d.innerHTML=`
     <input class="di" placeholder="성함" data-f="name" value="${rfEsc(name)}">
     <input class="di" placeholder="000000-0000000" data-f="ssn" value="${rfEsc(ssn)}">
     <input class="di" placeholder="은행명" data-f="bank" value="${rfEsc(bank)}">
     <input class="di" placeholder="계좌번호" data-f="acct" value="${rfEsc(acct)}">
     <input class="di" placeholder="예금주" data-f="owner" value="${rfEsc(owner)}">
     <input class="di r" placeholder="0" data-f="amt" value="${rfEsc(amt)}" oninput="rfCalcTotal()">
-    <input class="di" placeholder="비고" data-f="note" value="${rfEsc(note)}">`;
-    <input class="e-dinp" placeholder="성함" data-f="name" value="${rfEsc(name)}">
-    <input class="e-dinp" placeholder="000000-0000000" data-f="ssn" value="${rfEsc(ssn)}">
-    <input class="e-dinp" placeholder="은행명" data-f="bank" value="${rfEsc(bank)}">
-    <input class="e-dinp" placeholder="계좌번호" data-f="acct" value="${rfEsc(acct)}">
-    <input class="e-dinp" placeholder="예금주" data-f="owner" value="${rfEsc(owner)}">
-    <input class="e-dinp r" placeholder="0" data-f="amt" value="${rfEsc(amt)}" oninput="rfCalcTotal()">
-    <input class="e-dinp" placeholder="비고" data-f="note" value="${rfEsc(note)}">
-    <button class="e-del" onclick="rfDelRow(${id})">✕</button>`;
-document.getElementById('rfRows').appendChild(d);
-rfCalcTotal();
+    <input class="di" placeholder="비고" data-f="note" value="${rfEsc(note)}">
+    <button class="rf-del-btn" onclick="rfDelRow(${id})">✕</button>`;
+  document.getElementById('rfRows').appendChild(d);
+  rfCalcTotal();
 }
 function rfDelRow(id) { document.getElementById('rfRows')?.querySelector(`.rf-detail-row[data-id="${id}"]`)?.remove(); rfCalcTotal(); }
 function rfCalcTotal() {
