@@ -3552,7 +3552,7 @@ function rfDelRow(id) { document.getElementById('rfRows')?.querySelector(`.rf-de
 function rfCalcTotal() {
   const rfRowsEl=document.getElementById('rfRows');
   const t = rfRowsEl?[...rfRowsEl.querySelectorAll('[data-f="amt"]')].reduce((s,e)=>s+rfParseN(e.value),0):0;
-  document.getElementById('rfTotal').textContent = fmtN(t) + '원';
+  document.getElementById('rfTotal').textContent = rfFmtN(t) + '원';
 }
 rfAddRow(); rfAddRow(); rfAddRow();
 
@@ -3887,7 +3887,7 @@ const MBA_PRESETS = {
   game:[{grade:'SSS',items:['전설급 아이템']},{grade:'SS',items:['영웅급 아이템']},{grade:'S',items:['희귀급 아이템']},{grade:'A',items:['고급 아이템']},{grade:'B',items:['일반 아이템']}],
 };
 
-let mbaItems=[], mbaRowCount=0, mbaSelectedAnim='box', mbaBoxCache=[], mbaFilter='all';
+var mbaItems=[], mbaRowCount=0, mbaSelectedAnim='box', mbaBoxCache=[], mbaFilter='all';
 
 async function mbaApiFetch(url,opts){
   const proxies=[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
@@ -4107,9 +4107,9 @@ const MB_GRADES = [
   {grade:'D',pct:25,color:'#7ecbe6'},{grade:'E',pct:30,color:'#aaa'},
   {grade:'F',pct:23.8989,color:'#888'},
 ];
-let mbVault=JSON.parse(localStorage.getItem('mb-vault')||'[]');
-let mbCurrentUUID='';
-let mbOpenPhase=0;
+var mbVault=JSON.parse(localStorage.getItem('mb-vault')||'[]');
+var mbCurrentUUID='';
+var mbOpenPhase=0;
 
 async function mbApiFetch(url,opts){
   const proxies=[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
