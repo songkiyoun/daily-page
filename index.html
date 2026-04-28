@@ -4133,6 +4133,7 @@ async function mbClaim(){
     if(!data.ok){st.style.color='#ff6b6b';st.textContent=data.error;return;}
     const box=data.box;
     if(box.isExpired){st.style.color='#ff6b6b';st.textContent='유효기간이 만료됐습니다.';return;}
+    if(box.status&&box.status!=='활성'){st.style.color='#ff6b6b';st.textContent='비활성화된 박스입니다.';return;}
     if(box.isExhausted||box.isOpened){st.style.color='#ff6b6b';st.textContent='이미 모두 개봉된 박스입니다.';return;}
     mbVault.unshift({uuid:box.uuid,name:box.name,items:box.items,expires:box.expires,opened:false,userName:name,showItems:box.showItems||false,allowBlank:box.allowBlank||false,animType:box.animType||'box'});
     localStorage.setItem('mb-vault',JSON.stringify(mbVault));
@@ -4154,14 +4155,20 @@ function mbRenderVault(){
 
 function mbOpenUI(uuid){
   mbCurrentUUID=uuid;mbOpenPhase=0;
+  const box=mbVault.find(b=>b.uuid===uuid);
+  const anim=box?.animType||'box';
   document.getElementById('mb-overlay').style.display='flex';
   document.getElementById('mb-hint').style.display='block';
   document.getElementById('mb-result').style.display='none';
-  document.getElementById('mb-box3d').style.display='block';
-  document.getElementById('mb-lid').style.transform='';
-  document.getElementById('mb-bow').style.opacity='1';
   document.getElementById('mb-spotlight').style.background='';
   document.getElementById('mb-particles').innerHTML='';
+  // 애니메이션 타입별 표시
+  document.getElementById('mb-box3d').style.display=anim==='box'?'block':'none';
+  document.getElementById('mb-roulette').style.display=anim==='roulette'?'block':'none';
+  document.getElementById('mb-capsule').style.display=anim==='capsule'?'block':'none';
+  if(anim==='box'){document.getElementById('mb-lid').style.transform='';document.getElementById('mb-bow').style.opacity='1';}
+  if(anim==='roulette') mbBuildRoulette(box?.items||[]);
+  if(anim==='capsule') document.getElementById('mb-capsule-top').style.transform='';
 }
 
 function mbCloseOverlay(){
@@ -4169,20 +4176,49 @@ function mbCloseOverlay(){
   document.getElementById('mb-sss').style.display='none';
 }
 
+function mbBuildRoulette(items){
+  const disk=document.getElementById('mb-roulette-disk');
+  if(!disk)return;
+  const n=Math.max(items.length,3);
+  const colors=['#e07820','#c8661a','#a05018','#804010','#d97020','#f08830'];
+  disk.innerHTML=Array.from({length:n},(_,i)=>{
+    const item=items[i];const name=item?.names?.[0]||item?.name||'?';
+    return `<div style="position:absolute;width:100%;height:100%;transform:rotate(${360/n*i}deg);transform-origin:50% 50%"><div style="position:absolute;top:10%;left:50%;transform:translateX(-50%);font-size:9px;color:#fff;font-weight:700;white-space:nowrap;background:rgba(0,0,0,.4);padding:2px 5px;border-radius:4px;max-width:65px;overflow:hidden;text-overflow:ellipsis">${name}</div></div>`;
+  }).join('');
+  disk.style.background=`conic-gradient(${colors.map((cl,i)=>`${cl} ${360/n*i}deg ${360/n*(i+1)}deg`).join(',')})`;
+}
+
 async function mbStartOpen(){
   if(mbOpenPhase!==0)return;
   mbOpenPhase=1;
   const box=mbVault.find(b=>b.uuid===mbCurrentUUID);
+  const anim=box?.animType||'box';
   document.getElementById('mb-hint').textContent='두근두근...';
-  document.getElementById('mb-box3d').style.animation='mbShake .7s ease-in-out 3';
-  await new Promise(r=>setTimeout(r,2100));
-  document.getElementById('mb-box3d').style.animation='';
+  if(anim==='box'){
+    document.getElementById('mb-box3d').style.animation='mbShake .7s ease-in-out 3';
+    await new Promise(r=>setTimeout(r,2100));
+    document.getElementById('mb-box3d').style.animation='';
+  } else if(anim==='roulette'){
+    const disk=document.getElementById('mb-roulette-disk');
+    disk.style.transition='transform 3s cubic-bezier(.17,.67,.12,1)';
+    disk.style.transform='rotate(1800deg)';
+    await new Promise(r=>setTimeout(r,3000));
+  } else if(anim==='capsule'){
+    const cap=document.getElementById('mb-capsule');
+    cap.style.animation='mbShake .7s ease-in-out 3';
+    await new Promise(r=>setTimeout(r,2100));
+    cap.style.animation='';
+  }
   mbOpenPhase=2;
   const result=mbRoll(box?.items||[],box?.allowBlank||false);
   document.getElementById('mb-spotlight').style.background=`radial-gradient(ellipse,${result.gInfo?.color||'#fff'}44 0%,transparent 70%)`;
   await new Promise(r=>setTimeout(r,400));
-  document.getElementById('mb-bow').style.opacity='0';
-  document.getElementById('mb-lid').style.transform='rotateX(-120deg) translateY(-30px)';
+  if(anim==='box'){
+    document.getElementById('mb-bow').style.opacity='0';
+    document.getElementById('mb-lid').style.transform='rotateX(-120deg) translateY(-30px)';
+  } else if(anim==='capsule'){
+    document.getElementById('mb-capsule-top').style.transform='translateY(-70px) rotate(-15deg)';
+  }
   await new Promise(r=>setTimeout(r,700));
   mbSpawnParticles(result.gInfo?.color||'#fff');
   if(result.grade==='SSS'){
@@ -4198,7 +4234,7 @@ async function mbStartOpen(){
   if(vb){vb.opened=true;vb.result={grade:result.grade,item:result.item,color:result.gInfo?.color||'#aaa'};}
   localStorage.setItem('mb-vault',JSON.stringify(mbVault));
   mbRenderVault();
-  document.getElementById('mb-box3d').style.display='none';
+  ['mb-box3d','mb-roulette','mb-capsule'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   document.getElementById('mb-hint').style.display='none';
   document.getElementById('mb-res-grade').textContent=result.grade;
   document.getElementById('mb-res-grade').style.color=result.gInfo?.color||'#fff';
@@ -4401,21 +4437,31 @@ document.getElementById('helpOverlay').addEventListener('click',function(e){if(e
 <!-- 미스테리박스 개봉 오버레이 -->
 <div id="mb-overlay" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.92);backdrop-filter:blur(12px);align-items:center;justify-content:center;flex-direction:column">
   <div style="position:relative;text-align:center;width:300px">
-    <div id="mb-spotlight" style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:200px;height:200px;border-radius:50%;pointer-events:none;transition:background .5s"></div>
+    <div id="mb-spotlight" style="position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:200px;height:200px;border-radius:50%;pointer-events:none;transition:background .5s"></div>
     <div id="mb-particles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden"></div>
+    <!-- 상자형 -->
     <div id="mb-box3d" style="width:150px;height:150px;margin:0 auto 16px;position:relative;cursor:pointer" onclick="mbStartOpen()">
       <div id="mb-bow" style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:20px;transition:opacity .4s">🎀</div>
       <div id="mb-lid" style="position:absolute;top:0;width:100%;height:48px;background:linear-gradient(135deg,#d97020,#f08830);border-radius:10px;transform-origin:bottom;transition:transform .6s cubic-bezier(.34,1.56,.64,1)"></div>
       <div style="position:absolute;bottom:0;width:100%;height:112px;background:linear-gradient(135deg,#c8661a,#e07820);border-radius:12px 12px 8px 8px;display:flex;align-items:center;justify-content:center;font-size:36px">🎁</div>
     </div>
-    <div id="mb-hint" style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:12px">탭해서 열어보세요</div>
+    <!-- 룰렛형 -->
+    <div id="mb-roulette" style="display:none;width:200px;height:200px;margin:0 auto 16px;position:relative;cursor:pointer" onclick="mbStartOpen()">
+      <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:22px;z-index:2">▼</div>
+      <div id="mb-roulette-disk" style="width:100%;height:100%;border-radius:50%;border:3px solid var(--gold);box-shadow:0 0 30px rgba(232,200,122,.3)"></div>
+    </div>
+    <!-- 캡슐형 -->
+    <div id="mb-capsule" style="display:none;width:120px;height:180px;margin:0 auto 16px;position:relative;cursor:pointer" onclick="mbStartOpen()">
+      <div id="mb-capsule-top" style="position:absolute;top:0;width:100%;height:55%;background:linear-gradient(180deg,#e07820,#c8661a);border-radius:60px 60px 0 0;transition:transform .8s cubic-bezier(.34,1.56,.64,1)"></div>
+      <div style="position:absolute;bottom:0;width:100%;height:55%;background:rgba(255,255,255,.12);border-radius:0 0 60px 60px;border:2px solid rgba(255,255,255,.2)"></div>
+    </div>
+    <div id="mb-hint" style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:14px">탭해서 열어보세요</div>
     <div id="mb-result" style="display:none">
-      <div id="mb-res-grade" style="font-size:48px;font-weight:900;margin-bottom:6px;font-family:'DM Mono',monospace"></div>
+      <div id="mb-res-grade" style="font-size:48px;font-weight:900;margin-bottom:6px;font-family:monospace"></div>
       <div id="mb-res-item" style="font-size:18px;font-weight:700;margin-bottom:4px"></div>
       <div id="mb-res-label" style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:20px;font-family:monospace"></div>
       <button onclick="mbCloseOverlay()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:10px;padding:10px 20px;font-family:inherit;font-size:13px;cursor:pointer">닫기</button>
     </div>
-    <button onclick="mbCloseOverlay()" style="position:absolute;top:-32px;right:0;background:none;border:none;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer">✕ 닫기</button>
   </div>
 </div>
 <div id="mb-sss" style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,.95)">
