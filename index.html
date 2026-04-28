@@ -1262,30 +1262,6 @@ try{todos=JSON.parse(localStorage.getItem('sv-todos')||'[]')}catch(_){}
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
-(function(){
-  tick();setInterval(tick,30000);
-  renderTodos();
-  scriptUrl=localStorage.getItem('sv-script-url')||'';
-  if(scriptUrl){
-    document.getElementById('setupScreen').style.display='none';
-    document.getElementById('syncBadge').style.display='flex';
-    syncFromSheet();
-    loadYT();
-  }
-  renderBrief();
-  renderSched();
-  const _vb=document.getElementById('appVersionBadge');if(_vb)_vb.textContent=APP_VERSION;
-  // 블로그 타임라인·절기문자 백그라운드 로드 (동기화와 병렬 실행)
-  loadBlogBg();
-  loadJolgimuBg();
-  loadNotice();
-  // 5초 후 자동 재시도 (프록시 초기 실패 대비)
-  setTimeout(()=>{
-    if(!blogLoaded) loadBlogBg();
-    if(!jolgiDatesGlobal.length) loadJolgimuBg();
-    loadNotice();
-  }, 5000);
-})();
 
 function tick(){
   const d=new Date();
@@ -4475,4 +4451,30 @@ function mbParseCSVRow(row){
   result.push(cur.trim());
   return result;
 }
+
+// ── 초기화 (모든 함수 정의 후 실행)
+(function(){
+  tick();setInterval(tick,30000);
+  renderTodos();
+  scriptUrl=localStorage.getItem('sv-script-url')||'';
+  if(scriptUrl){
+    document.getElementById('setupScreen').style.display='none';
+    document.getElementById('syncBadge').style.display='flex';
+    syncFromSheet();
+    loadYT();
+  }
+  renderBrief();
+  renderSched();
+  const _vb=document.getElementById('appVersionBadge');if(_vb)_vb.textContent=APP_VERSION;
+  // 블로그 타임라인·절기문자 백그라운드 로드 (동기화와 병렬 실행)
+  loadBlogBg();
+  loadJolgimuBg();
+  loadNotice();
+  // 5초 후 자동 재시도 (프록시 초기 실패 대비)
+  setTimeout(()=>{
+    if(!blogLoaded) loadBlogBg();
+    if(!jolgiDatesGlobal.length) loadJolgimuBg();
+    loadNotice();
+  }, 5000);
+})();
 
