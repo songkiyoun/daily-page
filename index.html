@@ -579,6 +579,39 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .notice-date{font-size:11px;color:var(--dim);margin-top:5px}
 .notice-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:0;flex-shrink:0;line-height:1}
 .notice-close:hover{color:#fff}
+<style id="mb-styles">
+@keyframes mbShake{0%,100%{transform:rotate(0)}15%{transform:rotate(-8deg) translateY(-4px)}30%{transform:rotate(8deg) translateY(-6px)}45%{transform:rotate(-6deg) translateY(-4px)}60%{transform:rotate(6deg) translateY(-8px)}75%{transform:rotate(-4deg)}90%{transform:rotate(4deg)}}
+@keyframes mbParticle{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-100px) scale(0)}}
+</style>
+<style id="mb-admin-styles">
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.preset-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 12px;font-size:12px;color:rgba(255,255,255,.65);cursor:pointer;font-family:inherit;transition:all .18s}
+.preset-btn:hover,.preset-btn.on{border-color:rgba(232,200,122,.35);color:#e8c87a;background:rgba(232,200,122,.08)}
+.items-wrap{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.item-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center}
+.grade-badge{font-family:'DM Mono',monospace;font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;white-space:nowrap;background:rgba(255,255,255,.07);min-width:56px;text-align:center}
+.del-item{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.2);color:#ff6b6b;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px}
+.add-sub-btn{background:rgba(232,200,122,.1);border:1px solid rgba(232,200,122,.25);color:#e8c87a;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:11px}
+.anim-select{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.anim-btn{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 6px;cursor:pointer;text-align:center;transition:all .2s;font-family:inherit}
+.anim-btn.on{border-color:#e8c87a;background:rgba(232,200,122,.08)}
+.anim-btn .anim-icon{font-size:24px;margin-bottom:4px}
+.anim-btn .anim-label{font-size:10px;color:rgba(255,255,255,.5)}
+.anim-btn.on .anim-label{color:#e8c87a}
+.box-list{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.box-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px}
+.box-card.inactive{opacity:.5}
+.box-card-title{font-size:14px;font-weight:700;margin-bottom:3px;color:#e8c87a;display:flex;align-items:center;gap:8px}
+.box-card-meta{font-size:11px;color:rgba(255,255,255,.35);font-family:monospace;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.box-card-actions{display:flex;gap:6px;flex-wrap:wrap}
+.copy-input{font-family:monospace;font-size:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:5px 9px;color:rgba(255,255,255,.5);width:100%;margin-top:7px;cursor:text}
+.sub-items{padding:4px 0 4px 62px;display:flex;flex-direction:column;gap:4px}
+.sub-item-row{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
+.toggle-row{display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 0}
+.toggle-row input[type=checkbox]{width:16px;height:16px;accent-color:#e8c87a}
+.toggle-row span{font-size:13px;color:rgba(255,255,255,.65)}
+#mb-admin-status{font-size:12px;text-align:center;padding:8px;border-radius:8px;margin-top:8px}
+</style>
 </style>
 </head>
 <body>
@@ -753,6 +786,12 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
         </button>
         <button class="sb-item" onclick="nav('todo',this)">
           <span class="icon">✅</span><span class="label">할 일</span>
+        </button>
+        <button class="sb-item" onclick="nav('mysteryboxadmin',this)">
+          <span class="icon">📦</span><span class="label">박스 관리</span>
+        </button>
+        <button class="sb-item" onclick="nav('mysterybox',this)">
+          <span class="icon">🎁</span><span class="label">미스테리 박스</span>
         </button>
       </div>
     </div>
@@ -1109,6 +1148,79 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
       </div>
     </div>
 
+
+    <!-- 🎁 미스테리 박스 관리 -->
+<div class="page" id="page-mysteryboxadmin">
+  <div class="page-title">박스 만들기</div>
+  <div class="page-sub">프리셋을 선택하거나 직접 상품을 입력하세요</div>
+
+  <div class="card" style="margin-bottom:14px">
+    <!-- 프리셋 -->
+    <div class="label" style="margin-bottom:8px">프리셋 템플릿</div>
+    <div class="presets">
+      <button class="preset-btn" onclick="applyPreset('coffee')">☕ 커피쿠폰</button>
+      <button class="preset-btn" onclick="applyPreset('shopping')">🛍 쇼핑쿠폰</button>
+      <button class="preset-btn" onclick="applyPreset('gift')">🎁 감사선물</button>
+      <button class="preset-btn" onclick="applyPreset('game')">🎮 게임아이템</button>
+      <button class="preset-btn" onclick="applyPreset('clear')">✏️ 직접입력</button>
+    </div>
+
+    <!-- 기본 정보 -->
+    <div class="field"><div class="label">박스 이름</div><input class="inp" id="admin-name" placeholder="예: 다이겨 감사 박스"></div>
+    <div class="row2">
+      <div class="field"><div class="label">유효기간</div><input class="inp" id="admin-expires" type="date"></div>
+      <div class="field"><div class="label">발급 수량 (0=무제한)</div><input class="inp" id="admin-limit" type="number" value="1" min="0"></div>
+    </div>
+
+    <!-- 옵션 토글 -->
+    <label class="toggle-row"><input type="checkbox" id="admin-show-items"><span>수령자에게 상품 목록 공개 <small>(열기 전 확인 가능)</small></span></label>
+    <label class="toggle-row"><input type="checkbox" id="admin-allow-blank"><span>꽝 포함 <small>(배정 안 된 등급 당첨 시 꽝)</small></span></label>
+
+    <!-- 개봉 애니메이션 선택 -->
+    <div class="label" style="margin-bottom:8px;margin-top:4px">개봉 애니메이션</div>
+    <div class="anim-select">
+      <div class="anim-btn on" onclick="selectAnim('box',this)"><div class="anim-icon">📦</div><div class="anim-label">상자형</div></div>
+      <div class="anim-btn" onclick="selectAnim('roulette',this)"><div class="anim-icon">🎡</div><div class="anim-label">룰렛형</div></div>
+      <div class="anim-btn" onclick="selectAnim('capsule',this)"><div class="anim-icon">💊</div><div class="anim-label">캡슐형</div></div>
+    </div>
+
+    <!-- 상품 목록 -->
+    <div class="label" style="margin-bottom:8px">상품 목록 <span style="color:var(--dim);font-size:10px">(+버튼으로 동일 등급에 여러 상품 추가 가능)</span></div>
+    <div class="items-wrap" id="adminItems"></div>
+    <button class="btn btn-ghost" onclick="addAdminItem()" style="font-size:12px;padding:7px 13px;margin-bottom:14px">+ 등급 추가</button>
+
+    <div id="admin-status" class="status" style="display:none"></div>
+    <button class="btn btn-gold btn-full" onclick="createBox()">🎁 박스 생성하기</button>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div style="font-size:13px;color:var(--mid);font-weight:700">생성된 박스</div>
+    <button class="btn btn-ghost" style="font-size:11px;padding:5px 11px" onclick="loadAdminBoxes()">↻ 새로고침</button>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="boxFilters">
+    <button class="preset-btn on" onclick="setBoxFilter('all',this)">전체</button>
+    <button class="preset-btn" onclick="setBoxFilter('active',this)">활성화</button>
+    <button class="preset-btn" onclick="setBoxFilter('inactive',this)">비활성화</button>
+    <button class="preset-btn" onclick="setBoxFilter('expired',this)">기간만료</button>
+  </div>
+  <div class="box-list" id="adminBoxList"><div class="empty">로딩 중...</div></div>
+</div>
+    <!-- 🎁 미스테리 박스 -->
+    <div class="page" id="page-mysterybox">
+      <div class="page-header">
+        <div><div class="page-title">🎁 미스테리 박스</div><div class="page-sub">받은 코드를 입력해 박스를 수령하세요</div></div>
+      </div>
+      <div class="page-body" style="padding:20px">
+        <div style="margin-bottom:16px">
+          <input id="mb-code" class="doc-inp" placeholder="박스 코드 입력" style="width:100%;margin-bottom:8px;letter-spacing:2px;text-align:center;font-size:15px" onkeydown="if(event.key==='Enter')mbClaim()">
+          <input id="mb-name" class="doc-inp" placeholder="수령인 이름" style="width:100%;margin-bottom:8px;text-align:center">
+          <button class="doc-btn gold" style="width:100%;padding:12px" onclick="mbClaim()">📬 박스 수령</button>
+          <div id="mb-status" style="display:none;font-size:12px;text-align:center;padding:8px;border-radius:8px;margin-top:8px"></div>
+        </div>
+        <div style="font-size:13px;color:var(--gold);font-weight:700;margin-bottom:10px">보관함</div>
+        <div id="mb-vault" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px"></div>
+      </div>
+    </div>
   </div><!-- /main -->
 </div><!-- /app-body -->
 
@@ -1204,6 +1316,8 @@ function nav(page,el){
   if(page==='order')   initOrder();
   if(page==='expense') initExpense();
   if(page==='refund')  initRefund();
+  if(page==='mysterybox') mbRenderVault();
+  if(page==='mysteryboxadmin'){renderAdminItems();loadAdminBoxes().catch(()=>{});}
   // close sidebar on mobile
   closeSidebar();
 }
@@ -3754,6 +3868,556 @@ function renderDaigeoChart(allItems){
 }
 
 
+
+// ══ 미스테리 박스 관리 ══
+const MB_GRADES_ADMIN=[{grade:'SSS',pct:0.0001,color:'#fff'},{grade:'SS',pct:0.001,color:'#e8c87a'},{grade:'S',pct:0.1,color:'#ff6b6b'},{grade:'A',pct:1,color:'#ff9f4a'},{grade:'B',pct:5,color:'#b97aff'},{grade:'C',pct:15,color:'#6fd18a'},{grade:'D',pct:25,color:'#7ecbe6'},{grade:'E',pct:30,color:'#aaa'},{grade:'F',pct:23.8989,color:'#888'}];
+
+if(typeof allBoxesCache==='undefined'){var allBoxesCache=[];}
+if(typeof currentBoxFilter==='undefined'){var currentBoxFilter='all';}
+if(typeof selectedAnim==='undefined'){var selectedAnim='box';}
+if(typeof adminItems==='undefined'){var adminItems=[];}
+if(typeof adminRowCount==='undefined'){var adminRowCount=0;}
+
+const PRESETS = {
+  coffee:[
+    {grade:'SSS',items:['자유롭게 음료 한 잔']},
+    {grade:'SS', items:['스무디급 음료 한 잔']},
+    {grade:'S',  items:['라떼급 음료 한 잔']},
+    {grade:'A',  items:['아메리카노 + 사이즈업']},
+    {grade:'B',  items:['아메리카노']},
+  ],
+  shopping:[
+    {grade:'SSS',items:['5만원 쿠폰']},
+    {grade:'SS', items:['3만원 쿠폰']},
+    {grade:'S',  items:['1만원 쿠폰']},
+    {grade:'A',  items:['5천원 쿠폰']},
+    {grade:'B',  items:['무료 배송 쿠폰']},
+  ],
+  gift:[
+    {grade:'SSS',items:['고급 선물세트']},
+    {grade:'SS', items:['케이크']},
+    {grade:'S',  items:['과일 바구니']},
+    {grade:'A',  items:['음료 세트']},
+    {grade:'B',  items:['간식 세트']},
+  ],
+  game:[
+    {grade:'SSS',items:['전설급 아이템']},
+    {grade:'SS', items:['영웅급 아이템']},
+    {grade:'S',  items:['희귀급 아이템']},
+    {grade:'A',  items:['고급 아이템']},
+    {grade:'B',  items:['일반 아이템']},
+  ],
+};
+
+const GRADE_ORDER = ['SSS','SS','S','A','B','C','D','E','F'];
+
+// ── 유틸
+
+function setBoxFilter(filter, el){
+  currentBoxFilter=filter;
+  document.querySelectorAll('#boxFilters .preset-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  renderBoxList();
+}
+
+function renderBoxList(){
+  const list=document.getElementById('adminBoxList');
+  if(!allBoxesCache.length){list.innerHTML='<div class="empty">생성된 박스가 없습니다</div>';return;}
+  const now=new Date();
+  const filtered=allBoxesCache.filter(box=>{
+    const isExp=box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<now;
+    const isActive=box.status==='활성'&&!isExp;
+    const isInactive=box.status!=='활성';
+    if(currentBoxFilter==='active') return isActive;
+    if(currentBoxFilter==='inactive') return isInactive;
+    if(currentBoxFilter==='expired') return isExp;
+    return true;
+  });
+  if(!filtered.length){list.innerHTML='<div class="empty">해당하는 박스가 없습니다</div>';return;}
+  list.innerHTML=filtered.map(box=>{
+    const isExp=box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<new Date();
+    const inactive=box.status!=='활성';
+    return `<div class="box-card ${inactive?'inactive':''} anim-up">
+      <div class="box-card-title">${esc(box.name)} ${inactive?'<span style="font-size:10px;color:#ff6b6b">비활성</span>':''}</div>
+      <div class="box-card-meta">
+        <span>상품 ${box.items?.length||0}종</span>
+        <span>개봉 ${box.openCount||0}${box.limit?'/'+box.limit:''}</span>
+        ${box.expires?(isExp?'<span style="color:#ff6b6b">~'+box.expires.split('T')[0]+' (만료)</span>':'<span>~'+box.expires.split('T')[0]+'</span>'):''}
+        <span>${box.animType||'상자'}형</span>
+      </div>
+      <input class="copy-input" value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy')">
+      <div class="box-card-actions" style="margin-top:8px">
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="copyBoxLink('${box.uuid}')">🔗 링크</button>
+        ${!inactive?`<button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="deactivateBox('${box.uuid}')">🔒 비활성화</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadAdminBoxes(){
+  const list=document.getElementById('adminBoxList');
+  list.innerHTML='<div class="empty">불러오는 중...</div>';
+  try{
+    const res=await apiGet({action:'list'});
+    const data=await res.json();
+    if(!data.ok){list.innerHTML='<div class="empty">로드 실패</div>';return;}
+    allBoxesCache=[...(data.boxes||[])].reverse();
+    renderBoxList();
+  }catch(e){list.innerHTML='<div class="empty">로드 실패</div>';}
+}
+
+async function createBox(){
+  const name=document.getElementById('admin-name').value.trim();
+  const expires=document.getElementById('admin-expires').value;
+  const limit=parseInt(document.getElementById('admin-limit').value)||0;
+  const showItems=document.getElementById('admin-show-items').checked;
+  const allowBlank=document.getElementById('admin-allow-blank').checked;
+  const st=document.getElementById('admin-status');
+  if(!name){alert('박스 이름을 입력해주세요.');return;}
+  if(!adminItems.length){alert('상품을 하나 이상 추가해주세요.');return;}
+  const items=adminItems.map(row=>({grade:row.grade,names:row.items.filter(Boolean).length?row.items.filter(Boolean):['(상품명 없음)']}));
+  st.style.display='block';st.className='status loading';st.textContent='생성 중...';
+  try{
+    const res=await apiPost({action:'create',name,items,expires,limit,showItems,allowBlank,animType:selectedAnim});
+    const data=await res.json();
+    if(data.ok){
+      st.className='status ok';st.textContent=`✓ 생성 완료! UUID: ${data.uuid}`;
+      document.getElementById('admin-name').value='';
+      adminItems=[];renderAdminItems();loadAdminBoxes();
+    }else{st.className='status err';st.textContent=data.error||'생성 실패';}
+  }catch(e){st.className='status err';st.textContent='네트워크 오류';}
+}
+
+async function deactivateBox(uuid){
+  if(!confirm('이 박스를 비활성화하시겠습니까?\n더 이상 열 수 없게 됩니다.'))return;
+  try{
+    const res=await apiPost({action:'deactivate',uuid});
+    const data=await res.json();
+    if(data.ok){alert('비활성화 완료');loadAdminBoxes();}
+    else alert(data.error||'실패');
+  }catch(e){alert('네트워크 오류');}
+}
+
+// allBoxesCache/currentBoxFilter already declared above
+
+function copyBoxLink(uuid){
+  const url=location.href.split('?')[0]+'?box='+uuid;
+  function fallback(){const t=document.createElement('textarea');t.value=url;t.style.cssText='position:fixed;opacity:0';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('링크 복사됨!\n'+url);}
+  if(navigator.clipboard&&location.protocol==='https:'){navigator.clipboard.writeText(url).then(()=>alert('링크 복사됨!\n'+url)).catch(fallback);}
+  else fallback();
+}
+
+function promptCopy(url){prompt('아래 링크를 직접 복사하세요 (Ctrl+C):',url);}
+
+// ══ 통계 ══
+async function loadStats(){
+  document.getElementById('openLog').innerHTML='<div class="empty">불러오는 중...</div>';
+  try{
+    const [boxRes,statsRes]=await Promise.all([apiGet({action:'list'}),apiGet({action:'stats'})]);
+    const boxData=await boxRes.json();
+    const statsData=await statsRes.json();
+
+    // 박스 선택박스 채우기
+    const sel=document.getElementById('stats-box-select');
+    const curVal=sel.value;
+    sel.innerHTML='<option value="">전체 박스</option>';
+    (boxData.boxes||[]).forEach(b=>{sel.innerHTML+=`<option value="${b.uuid}">${esc(b.name)}</option>`;});
+    sel.value=curVal;
+
+    const logs=statsData.logs||[];
+    const filtered=sel.value?logs.filter(l=>l.uuid===sel.value):logs;
+
+    // KPI
+    const total=filtered.length;
+    const sssCount=filtered.filter(l=>l.grade==='SSS').length;
+    const highCount=filtered.filter(l=>['SSS','SS','S'].includes(l.grade)).length;
+    document.getElementById('statCards').innerHTML=`
+      <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">총 개봉</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--sss)">${sssCount}</div><div class="stat-label">SSS 당첨</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--s)">${highCount}</div><div class="stat-label">S 이상</div></div>`;
+
+    // 로그
+    const log=document.getElementById('openLog');
+    if(!filtered.length){log.innerHTML='<div class="empty">개봉 이력이 없습니다</div>';return;}
+    log.innerHTML=[...filtered].reverse().map(l=>{
+      const gInfo=GRADES.find(g=>g.grade===l.grade);
+      return `<div class="log-row">
+        <div class="log-grade" style="color:${gInfo?.color||'#aaa'}">${l.grade}</div>
+        <div class="log-info">
+          <div class="log-item">${esc(l.item)}</div>
+          <div class="log-meta">${l.userName?'👤 '+esc(l.userName)+' · ':''}${l.openedAt||''}</div>
+        </div>
+        <div style="font-size:10px;color:var(--dim)">${esc(l.boxName||'')}</div>
+      </div>`;
+    }).join('');
+  }catch(e){document.getElementById('openLog').innerHTML='<div class="empty">로드 실패</div>';}
+}
+
+function applyPreset(key){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('on'));
+  event.target.classList.add('on');
+  adminItems=[]; adminRowCount=0;
+  if(key==='clear'){renderAdminItems();return;}
+  const p=PRESETS[key]||[];
+  p.forEach(row=>{adminItems.push({id:adminRowCount++,grade:row.grade,items:[...row.items]});});
+  renderAdminItems();
+}
+
+function selectAnim(type, el){
+  selectedAnim = type;
+  document.querySelectorAll('.anim-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+
+function addAdminItem(){
+  const usedGrades=adminItems.map(i=>i.grade);
+  const next=GRADE_ORDER.find(g=>!usedGrades.includes(g))||'F';
+  adminItems.push({id:adminRowCount++,grade:next,items:['']});
+  renderAdminItems();
+}
+
+function removeAdminGrade(id){
+  adminItems=adminItems.filter(i=>i.id!==id);
+  renderAdminItems();
+}
+
+function addSubItem(id){
+  const row=adminItems.find(i=>i.id===id);
+  if(row) row.items.push('');
+  renderAdminItems();
+}
+
+function removeSubItem(id,idx){
+  const row=adminItems.find(i=>i.id===id);
+  if(row&&row.items.length>1) row.items.splice(idx,1);
+  renderAdminItems();
+}
+
+function renderAdminItems(){
+  const allowBlank=document.getElementById('admin-allow-blank').checked;
+  const pctMap=mbCalcDisplayPct(allowBlank);
+  const wrap=document.getElementById('adminItems');
+  if(!adminItems.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--dim);text-align:center;padding:10px 0">등급을 추가해주세요</div>';
+    return;
+  }
+  wrap.innerHTML=adminItems.map(row=>{
+    const gInfo=GRADES.find(g=>g.grade===row.grade);
+    const pct=pctMap[row.grade]!=null?pctMap[row.grade]+'%':'';
+    const subItems=row.items.map((item,idx)=>`
+      <div class="sub-item-row">
+        <input class="inp" style="font-size:12px;padding:7px 10px" placeholder="상품명"
+          value="${esc(item)}"
+          oninput="(function(el,id,idx){const r=adminItems.find(x=>x.id===id);if(r)r.items[idx]=el.value;})(this,${row.id},${idx})">
+        ${row.items.length>1?`<button class="del-item" style="padding:4px 7px;font-size:11px" onclick="removeSubItem(${row.id},${idx})">✕</button>`:''}
+      </div>`).join('');
+    return `<div class="anim-up">
+      <div class="item-row">
+        <div class="grade-badge" style="color:${gInfo?.color||'#aaa'}">${row.grade}<br><span style="opacity:.5;font-size:9px">${pct}</span></div>
+        <div style="font-size:12px;color:var(--mid)">${row.items.filter(Boolean).join(' / ')||'(상품명 입력)'}</div>
+        <button class="add-sub-btn" onclick="addSubItem(${row.id})">+상품</button>
+        <button class="del-item" onclick="removeAdminGrade(${row.id})">✕</button>
+      </div>
+      <div class="sub-items">${subItems}</div>
+    </div>`;
+  }).join('');
+}
+
+// allowBlank 체크 시 확률 재계산
+document.getElementById('admin-allow-blank').addEventListener('change',renderAdminItems);
+
+function mbCalcDisplayPct(allowBlank){
+  // allowBlank=false → 배정된 등급만 확률 재분배
+  const assignedGrades=adminItems.map(i=>i.grade);
+  if(allowBlank){
+    return Object.fromEntries(GRADES.map(g=>[g.grade,g.pct]));
+  }
+  const assigned=MB_GRADES_ADMIN.filter(g=>assignedGrades.includes(g.grade));
+  const total=assigned.reduce((s,g)=>s+g.pct,0);
+  const map={};
+  assigned.forEach(g=>map[g.grade]=parseFloat((g.pct/total*100).toFixed(4)));
+  return map;
+}
+
+async function apiFetch(url, opts){
+  const proxies=[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
+  for(const pu of proxies){
+    try{const r=await fetch(pu,opts);if(r.ok)return r;}catch(_){}
+  }
+  throw new Error('네트워크 오류');
+}
+
+async function apiPost(body){
+  return apiFetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+}
+
+async function apiGet(params){
+  return apiFetch(API+'?'+new URLSearchParams(params).toString());
+}
+
+// 별 배경
+(function(){
+  const c=document.getElementById('bgStars');
+  for(let i=0;i<80;i++){
+    const s=document.createElement('div');s.className='star';
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--del:${Math.random()*4}s;opacity:${Math.random()*.4}`;
+    c.appendChild(s);
+  }
+})();
+
+// 탭 전환
+function switchTab(name){
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('on',['admin','stats','user'][i]===name));
+  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('on',['tab-admin','tab-stats','tab-user'][i]==='tab-'+name));
+  if(name==='admin') loadAdminBoxes();
+  if(name==='stats') loadStats();
+  if(name==='user') renderVault();
+}
+
+// ══ 관리자 ══
+let adminItems = []; // [{id, grade, items:[str]}]
+let adminRowCount = 0;
+let selectedAnim = 'box';
+
+function selectAnim(type, el){
+  selectedAnim = type;
+  document.querySelectorAll('.anim-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+
+function applyPreset(key){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('on'));
+  event.target.classList.add('on');
+  adminItems=[]; adminRowCount=0;
+  if(key==='clear'){renderAdminItems();return;}
+  const p=PRESETS[key]||[];
+  p.forEach(row=>{adminItems.push({id:adminRowCount++,grade:row.grade,items:[...row.items]});});
+  renderAdminItems();
+}
+
+function addAdminItem(){
+  const usedGrades=adminItems.map(i=>i.grade);
+  const next=GRADE_ORDER.find(g=>!usedGrades.includes(g))||'F';
+  adminItems.push({id:adminRowCount++,grade:next,items:['']});
+  renderAdminItems();
+}
+
+function removeAdminGrade(id){
+  adminItems=adminItems.filter(i=>i.id!==id);
+  renderAdminItems();
+}
+
+function addSubItem(id){
+  const row=adminItems.find(i=>i.id===id);
+  if(row) row.items.push('');
+  renderAdminItems();
+}
+
+function removeSubItem(id,idx){
+  const row=adminItems.find(i=>i.id===id);
+  if(row&&row.items.length>1) row.items.splice(idx,1);
+  renderAdminItems();
+}
+
+function mbCalcDisplayPct(allowBlank){
+  // allowBlank=false → 배정된 등급만 확률 재분배
+  const assignedGrades=adminItems.map(i=>i.grade);
+  if(allowBlank){
+    return Object.fromEntries(GRADES.map(g=>[g.grade,g.pct]));
+  }
+  const assigned=MB_GRADES_ADMIN.filter(g=>assignedGrades.includes(g.grade));
+  const total=assigned.reduce((s,g)=>s+g.pct,0);
+  const map={};
+  assigned.forEach(g=>map[g.grade]=parseFloat((g.pct/total*100).toFixed(4)));
+  return map;
+}
+
+function renderAdminItems(){
+  const allowBlank=document.getElementById('admin-allow-blank').checked;
+  const pctMap=mbCalcDisplayPct(allowBlank);
+  const wrap=document.getElementById('adminItems');
+  if(!adminItems.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--dim);text-align:center;padding:10px 0">등급을 추가해주세요</div>';
+    return;
+  }
+  wrap.innerHTML=adminItems.map(row=>{
+    const gInfo=GRADES.find(g=>g.grade===row.grade);
+    const pct=pctMap[row.grade]!=null?pctMap[row.grade]+'%':'';
+    const subItems=row.items.map((item,idx)=>`
+      <div class="sub-item-row">
+        <input class="inp" style="font-size:12px;padding:7px 10px" placeholder="상품명"
+          value="${esc(item)}"
+          oninput="(function(el,id,idx){const r=adminItems.find(x=>x.id===id);if(r)r.items[idx]=el.value;})(this,${row.id},${idx})">
+        ${row.items.length>1?`<button class="del-item" style="padding:4px 7px;font-size:11px" onclick="removeSubItem(${row.id},${idx})">✕</button>`:''}
+      </div>`).join('');
+    return `<div class="anim-up">
+      <div class="item-row">
+        <div class="grade-badge" style="color:${gInfo?.color||'#aaa'}">${row.grade}<br><span style="opacity:.5;font-size:9px">${pct}</span></div>
+        <div style="font-size:12px;color:var(--mid)">${row.items.filter(Boolean).join(' / ')||'(상품명 입력)'}</div>
+        <button class="add-sub-btn" onclick="addSubItem(${row.id})">+상품</button>
+        <button class="del-item" onclick="removeAdminGrade(${row.id})">✕</button>
+      </div>
+      <div class="sub-items">${subItems}</div>
+    </div>`;
+  }).join('');
+}
+
+// allowBlank 체크 시 확률 재계산
+document.getElementById('admin-allow-blank').addEventListener('change',renderAdminItems);
+// ══ 미스테리 박스 ══
+const MB_API = 'https://script.google.com/macros/s/AKfycbzFl9jYqi_KGTb3jtDqpXVV_yGGV-OnQA4574fXpKTy-znMr6E8cZWwxpy1V2ksUtfYhw/exec';
+const MB_GRADES = [
+  {grade:'SSS',pct:0.0001,color:'#fff'},{grade:'SS',pct:0.001,color:'#e8c87a'},
+  {grade:'S',pct:0.1,color:'#ff6b6b'},{grade:'A',pct:1,color:'#ff9f4a'},
+  {grade:'B',pct:5,color:'#b97aff'},{grade:'C',pct:15,color:'#6fd18a'},
+  {grade:'D',pct:25,color:'#7ecbe6'},{grade:'E',pct:30,color:'#aaa'},
+  {grade:'F',pct:23.8989,color:'#888'},
+];
+let mbVault=JSON.parse(localStorage.getItem('mb-vault')||'[]');
+let mbCurrentUUID='';
+let mbOpenPhase=0;
+
+async function mbApiFetch(url,opts){
+  const proxies=[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
+  for(const pu of proxies){try{const r=await fetch(pu,opts);if(r.ok)return r;}catch(_){}}
+  throw new Error('네트워크 오류');
+}
+
+async function mbClaim(){
+  const code=document.getElementById('mb-code').value.trim();
+  const name=document.getElementById('mb-name').value.trim();
+  const st=document.getElementById('mb-status');
+  if(!code){alert('코드를 입력해주세요.');return;}
+  if(!name){alert('수령인 이름을 입력해주세요.');return;}
+  if(mbVault.find(b=>b.uuid===code)){
+    st.style.display='block';st.style.background='rgba(255,80,80,.1)';st.style.color='#ff6b6b';st.textContent='이미 보관함에 있는 박스입니다.';return;
+  }
+  st.style.display='block';st.style.background='';st.style.color='rgba(255,255,255,.5)';st.textContent='확인 중...';
+  try{
+    const res=await mbApiFetch(MB_API+'?action=get&uuid='+code);
+    const data=await res.json();
+    if(!data.ok){st.style.color='#ff6b6b';st.textContent=data.error;return;}
+    const box=data.box;
+    if(box.isExpired){st.style.color='#ff6b6b';st.textContent='유효기간이 만료됐습니다.';return;}
+    if(box.isExhausted||box.isOpened){st.style.color='#ff6b6b';st.textContent='이미 모두 개봉된 박스입니다.';return;}
+    mbVault.unshift({uuid:box.uuid,name:box.name,items:box.items,expires:box.expires,opened:false,userName:name,showItems:box.showItems||false,allowBlank:box.allowBlank||false,animType:box.animType||'box'});
+    localStorage.setItem('mb-vault',JSON.stringify(mbVault));
+    st.style.color='#6fd18a';st.textContent='✓ 보관함에 추가됐습니다!';
+    document.getElementById('mb-code').value='';document.getElementById('mb-name').value='';
+    mbRenderVault();
+  }catch(e){st.style.color='#ff6b6b';st.textContent='네트워크 오류';}
+}
+
+function mbRenderVault(){
+  const el=document.getElementById('mb-vault');
+  if(!mbVault.length){el.innerHTML='<div style="color:rgba(255,255,255,.3);font-size:12px;text-align:center;padding:20px;grid-column:1/-1">수령한 박스가 없습니다</div>';return;}
+  el.innerHTML=mbVault.map(box=>`
+    <div onclick="${!box.opened?`mbOpenUI('${box.uuid}')`:''}" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 8px;text-align:center;cursor:${box.opened?'default':'pointer'};transition:all .2s;${!box.opened?'':'opacity:.7'}">
+      <div style="font-size:28px;margin-bottom:6px">${box.opened?'📭':'🎁'}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.65);font-weight:700;margin-bottom:3px">${box.name}</div>
+      ${box.opened&&box.result?`<div style="font-size:11px;font-weight:700;color:${box.result.color||'#aaa'}">${box.result.grade}</div><div style="font-size:10px;color:#fff;margin-top:2px;word-break:keep-all">${box.result.item}</div>`:''}</div>`).join('');
+}
+
+function mbOpenUI(uuid){
+  mbCurrentUUID=uuid;mbOpenPhase=0;
+  document.getElementById('mb-overlay').style.display='flex';
+  document.getElementById('mb-hint').style.display='block';
+  document.getElementById('mb-result').style.display='none';
+  document.getElementById('mb-box3d').style.display='block';
+  document.getElementById('mb-lid').style.transform='';
+  document.getElementById('mb-bow').style.opacity='1';
+  document.getElementById('mb-spotlight').style.background='';
+  document.getElementById('mb-particles').innerHTML='';
+}
+
+function mbCloseOverlay(){
+  document.getElementById('mb-overlay').style.display='none';
+  document.getElementById('mb-sss').style.display='none';
+}
+
+async function mbStartOpen(){
+  if(mbOpenPhase!==0)return;
+  mbOpenPhase=1;
+  const box=mbVault.find(b=>b.uuid===mbCurrentUUID);
+  document.getElementById('mb-hint').textContent='두근두근...';
+  document.getElementById('mb-box3d').style.animation='mbShake .7s ease-in-out 3';
+  await new Promise(r=>setTimeout(r,2100));
+  document.getElementById('mb-box3d').style.animation='';
+  mbOpenPhase=2;
+  const result=mbRoll(box?.items||[],box?.allowBlank||false);
+  document.getElementById('mb-spotlight').style.background=`radial-gradient(ellipse,${result.gInfo?.color||'#fff'}44 0%,transparent 70%)`;
+  await new Promise(r=>setTimeout(r,400));
+  document.getElementById('mb-bow').style.opacity='0';
+  document.getElementById('mb-lid').style.transform='rotateX(-120deg) translateY(-30px)';
+  await new Promise(r=>setTimeout(r,700));
+  mbSpawnParticles(result.gInfo?.color||'#fff');
+  if(result.grade==='SSS'){
+    document.getElementById('mb-sss-item').textContent=result.item;
+    document.getElementById('mb-sss').style.display='flex';
+    await new Promise(r=>setTimeout(r,2500));
+    document.getElementById('mb-sss').style.display='none';
+  }
+  try{
+    await mbApiFetch(MB_API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'open',uuid:mbCurrentUUID,grade:result.grade,item:result.item,memo:box?.userName||''})});
+  }catch(_){}
+  const vb=mbVault.find(b=>b.uuid===mbCurrentUUID);
+  if(vb){vb.opened=true;vb.result={grade:result.grade,item:result.item,color:result.gInfo?.color||'#aaa'};}
+  localStorage.setItem('mb-vault',JSON.stringify(mbVault));
+  mbRenderVault();
+  document.getElementById('mb-box3d').style.display='none';
+  document.getElementById('mb-hint').style.display='none';
+  document.getElementById('mb-res-grade').textContent=result.grade;
+  document.getElementById('mb-res-grade').style.color=result.gInfo?.color||'#fff';
+  document.getElementById('mb-res-item').textContent=result.item;
+  document.getElementById('mb-res-label').textContent=result.grade+'등급';
+  document.getElementById('mb-result').style.display='block';
+  mbOpenPhase=3;
+}
+
+function mbRoll(items,allowBlank){
+  if(!items.length)return{grade:'F',item:'꽝',gInfo:MB_GRADES.find(g=>g.grade==='F')};
+  const pool=[];
+  items.forEach(item=>{
+    const names=item.names||[item.name||'꽝'];
+    names.forEach(n=>pool.push({grade:item.grade,item:n,gInfo:MB_GRADES.find(g=>g.grade===item.grade)}));
+  });
+  if(allowBlank){
+    const rand=Math.random()*100;let cum=0;
+    for(const g of MB_GRADES){
+      if(rand>=cum&&rand<cum+g.pct){
+        const match=pool.filter(p=>p.grade===g.grade);
+        if(!match.length)return{grade:g.grade,item:'꽝',gInfo:g};
+        return match[Math.floor(Math.random()*match.length)];
+      }
+      cum+=g.pct;
+    }
+    const last=MB_GRADES[MB_GRADES.length-1];
+    const match=pool.filter(p=>p.grade===last.grade);
+    return match.length?match[0]:{grade:last.grade,item:'꽝',gInfo:last};
+  } else {
+    const assigned=[...new Set(pool.map(p=>p.grade))];
+    const ag=MB_GRADES.filter(g=>assigned.includes(g.grade));
+    const total=ag.reduce((s,g)=>s+g.pct,0);
+    const rand=Math.random()*total;let cum=0;
+    for(const g of ag){
+      cum+=g.pct;
+      const match=pool.filter(p=>p.grade===g.grade);
+      if(rand<=cum&&match.length)return match[Math.floor(Math.random()*match.length)];
+    }
+    return pool[pool.length-1];
+  }
+}
+
+function mbSpawnParticles(color){
+  const c=document.getElementById('mb-particles');
+  for(let i=0;i<16;i++){
+    const p=document.createElement('div');
+    p.style.cssText=`position:absolute;width:6px;height:6px;border-radius:50%;background:${color};left:${20+Math.random()*60}%;top:${40+Math.random()*30}%;animation:mbParticle ${.8+Math.random()*.6}s ${Math.random()*.5}s ease-out both`;
+    c.appendChild(p);
+  }
+  setTimeout(()=>c.innerHTML='',2000);
+}
+
 // ══════════════════════════════════════════════
 //  공지사항
 // ══════════════════════════════════════════════
@@ -3899,5 +4563,33 @@ function closeHelp(){document.getElementById('helpOverlay').classList.remove('sh
 document.getElementById('evModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('helpOverlay').addEventListener('click',function(e){if(e.target===this)closeHelp();});
 </script>
+
+<!-- 미스테리박스 개봉 오버레이 -->
+<div id="mb-overlay" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.92);backdrop-filter:blur(12px);align-items:center;justify-content:center;flex-direction:column">
+  <div style="position:relative;text-align:center;width:300px">
+    <div id="mb-spotlight" style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:200px;height:200px;border-radius:50%;pointer-events:none;transition:background .5s"></div>
+    <div id="mb-particles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden"></div>
+    <div id="mb-box3d" style="width:150px;height:150px;margin:0 auto 16px;position:relative;cursor:pointer" onclick="mbStartOpen()">
+      <div id="mb-bow" style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:20px;transition:opacity .4s">🎀</div>
+      <div id="mb-lid" style="position:absolute;top:0;width:100%;height:48px;background:linear-gradient(135deg,#d97020,#f08830);border-radius:10px;transform-origin:bottom;transition:transform .6s cubic-bezier(.34,1.56,.64,1)"></div>
+      <div style="position:absolute;bottom:0;width:100%;height:112px;background:linear-gradient(135deg,#c8661a,#e07820);border-radius:12px 12px 8px 8px;display:flex;align-items:center;justify-content:center;font-size:36px">🎁</div>
+    </div>
+    <div id="mb-hint" style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:12px">탭해서 열어보세요</div>
+    <div id="mb-result" style="display:none">
+      <div id="mb-res-grade" style="font-size:48px;font-weight:900;margin-bottom:6px;font-family:'DM Mono',monospace"></div>
+      <div id="mb-res-item" style="font-size:18px;font-weight:700;margin-bottom:4px"></div>
+      <div id="mb-res-label" style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:20px;font-family:monospace"></div>
+      <button onclick="mbCloseOverlay()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:10px;padding:10px 20px;font-family:inherit;font-size:13px;cursor:pointer">닫기</button>
+    </div>
+    <button onclick="mbCloseOverlay()" style="position:absolute;top:-32px;right:0;background:none;border:none;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer">✕ 닫기</button>
+  </div>
+</div>
+<div id="mb-sss" style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,.95)">
+  <div style="text-align:center">
+    <div style="font-size:64px;font-weight:900;color:#fff;text-shadow:0 0 60px #fff">✨ SSS ✨</div>
+    <div id="mb-sss-item" style="font-size:16px;color:#e8c87a;margin-top:12px"></div>
+  </div>
+</div>
+
 </body>
 </html>
