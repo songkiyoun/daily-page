@@ -1768,6 +1768,12 @@ width:297mm !important;height:210mm !important;
 <div class="doc-lbl">생성된 박스</div>
 <button class="tbtn" onclick="mbLoadBoxes()" style="font-size:11px">↻ 새로고침</button>
 </div>
+<div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
+<button id="mb-filter-all" onclick="mbSetFilter('all')" style="background:var(--gs);border:1px solid var(--gb);border-radius:6px;padding:4px 10px;color:var(--gold);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">전체</button>
+<button id="mb-filter-active" onclick="mbSetFilter('active')" style="background:var(--s);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,.45);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">활성화</button>
+<button id="mb-filter-inactive" onclick="mbSetFilter('inactive')" style="background:var(--s);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,.45);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">비활성화</button>
+<button id="mb-filter-expired" onclick="mbSetFilter('expired')" style="background:var(--s);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,.45);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">기간만료</button>
+</div>
 <div id="mb-box-list"><div class="empty">박스가 없습니다.</div></div>
 </div>
 </div>
@@ -4772,16 +4778,36 @@ async function mbCreateBox(){
   }
 }
 
-async function mbLoadBoxes(){
-  const list = document.getElementById('mb-box-list');
-  list.innerHTML = '<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
-  const res = await mbFetch({action:'list'});
-  if(!res?.ok||!res.boxes?.length){
-    list.innerHTML = '<div class="empty">생성된 박스가 없습니다.</div>'; return;
-  }
-  list.innerHTML = res.boxes.map(box=>{
-    const expired = box.expire && new Date(box.expire) < new Date();
-    const active = box.active!==false;
+let mbBoxFilter = 'all';
+function mbSetFilter(f){
+  mbBoxFilter=f;
+  ['all','active','inactive','expired'].forEach(k=>{
+    const btn=document.getElementById('mb-filter-'+k);
+    if(btn){
+      btn.style.background=k===f?'var(--gs)':'var(--s)';
+      btn.style.borderColor=k===f?'var(--gb)':'rgba(255,255,255,.1)';
+      btn.style.color=k===f?'var(--gold)':'rgba(255,255,255,.45)';
+    }
+  });
+  mbRenderBoxList(window._mbBoxCache||[]);
+}
+function mbRenderBoxList(boxes){
+  const list=document.getElementById('mb-box-list');
+  const now=new Date();
+  let filtered=boxes.filter(box=>{
+    const expired=box.expire&&new Date(box.expire)<now;
+    const active=box.active!==false;
+    if(mbBoxFilter==='active') return active&&!expired;
+    if(mbBoxFilter==='inactive') return !active;
+    if(mbBoxFilter==='expired') return expired;
+    return true;
+  });
+  // 최신순 (createdAt 내림차순, 없으면 원래 역순)
+  filtered = filtered.reverse();
+  if(!filtered.length){list.innerHTML='<div class="empty">해당 조건의 박스가 없습니다.</div>';return;}
+  list.innerHTML=filtered.map(box=>{
+    const expired=box.expire&&new Date(box.expire)<now;
+    const active=box.active!==false;
     return `<div class="mb-box-card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
         <div>
@@ -4802,15 +4828,11 @@ async function mbLoadBoxes(){
 }
 
 function mbCopyLink(uuid){
-  // GitHub Pages 배포 시 자동으로 올바른 URL 생성
-  // file:// 환경에서는 UUID만 복사
-  const base = location.protocol==='file:' ? '' : location.href.split('?')[0];
-  const val = base ? base+'?mb='+uuid : uuid;
-  const msg = base ? '링크가 복사됐습니다.' : 'UUID가 복사됐습니다.\n(GitHub Pages 배포 후 전체 링크 복사 가능)';
+  // UUID만 복사 (수령자가 입력창에 붙여넣기 하면 됨)
   if(navigator.clipboard&&window.isSecureContext){
-    navigator.clipboard.writeText(val).then(()=>alert(msg+'\n\n'+val));
+    navigator.clipboard.writeText(uuid).then(()=>alert('UUID 복사됨:\n'+uuid));
   } else {
-    prompt(msg, val);
+    prompt('UUID를 복사하세요:', uuid);
   }
 }
 
@@ -4828,19 +4850,32 @@ async function mbClaimBox(){
   if(mParam) val = mParam[1];
   const st = document.getElementById('mb-claim-status');
   if(!val){st.textContent='UUID를 입력해주세요.';return;}
+  st.style.color='var(--dim)';
   st.textContent='박스 확인 중…';
+
+  // file:// 환경에서는 API 미작동 안내
+  if(location.protocol==='file:'){
+    st.style.color='var(--orange)';
+    st.textContent='⚠ 로컬 파일에서는 API 연결이 불가합니다. GitHub Pages에 배포 후 이용해주세요.';
+    return;
+  }
 
   let res = null;
   try{ res = await mbFetch({action:'get', uuid:val}); }catch(e){}
-  if(!res?.ok||!res.box){
+  if(!res){
     st.style.color='var(--red)';
-    st.textContent = res===null
-      ? '✗ API 연결 실패. GitHub Pages 배포 환경에서 정상 작동합니다.'
-      : '✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';
+    st.textContent='✗ API 연결 실패. 잠시 후 다시 시도해주세요.';
     return;
   }
-  st.textContent = '';
+  if(!res.ok||!res.box){
+    st.style.color='var(--red)';
+    st.textContent='✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';
+    return;
+  }
+  st.style.color='var(--green)';
+  st.textContent='✓ 박스 확인 완료!';
   mbCurrentBox = {...res.box, uuid:val};
+  setTimeout(()=>{st.textContent='';}, 1500);
   mbShowOverlay();
 }
 
