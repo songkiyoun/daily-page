@@ -1176,9 +1176,53 @@ width:297mm !important;height:210mm !important;
 .mb-open-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;display:none;align-items:center;justify-content:center;flex-direction:column;gap:20px}
 .mb-open-overlay.show{display:flex}
 .mb-prize-card{background:linear-gradient(135deg,var(--gs),rgba(201,169,110,.05));border:2px solid var(--gb);border-radius:16px;padding:32px 40px;text-align:center;animation:up .5s ease}
-.mb-vault-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:4px 0}
-.mb-vault-item{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px;transition:border-color .18s}
-.mb-vault-item:hover{border-color:var(--gb)}
+/* ── MB Vault Chips */
+.mb-vault-chips{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0}
+.mb-chip{display:flex;align-items:center;gap:8px;background:var(--s);border:1px solid var(--b);border-radius:9px;padding:9px 13px;transition:border-color .18s;cursor:default;min-width:180px;max-width:calc(50% - 4px);flex:1 0 180px}
+@media(max-width:600px){.mb-chip{max-width:100%;flex:1 0 100%}}
+.mb-chip:hover{border-color:var(--gb)}
+.mb-chip.mb-chip-pending{border-style:dashed;border-color:rgba(255,255,255,.18)}
+.mb-chip-body{flex:1;min-width:0}
+.mb-chip-item{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb-chip-meta{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.mb-chip-status{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;flex-shrink:0;white-space:nowrap}
+.mb-chip-status.opened{background:rgba(95,207,133,.12);color:var(--green);border:1px solid rgba(95,207,133,.25)}
+.mb-chip-status.pending-s{background:rgba(232,146,58,.12);color:var(--orange);border:1px solid rgba(232,146,58,.25)}
+/* ── MB Box Animation */
+.mb-box-scene{display:flex;flex-direction:column;align-items:center;cursor:default;user-select:none}
+.mb-box-lid-wrap{position:relative;z-index:2;transform-origin:center bottom}
+.mb-box-lid{width:158px;height:38px;background:#000;border:4px solid #fff;border-radius:6px 6px 2px 2px;position:relative;overflow:hidden}
+.mb-box-lid::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:8px;background:rgba(255,255,255,.18);border-radius:4px}
+.mb-box-body{width:148px;height:120px;background:#000;border:4px solid #fff;border-top:none;border-radius:0 0 10px 10px;display:flex;align-items:center;justify-content:center}
+.mb-box-qmark{font-size:72px;font-weight:900;color:#fff;font-family:'DM Sans',sans-serif;line-height:1;text-shadow:0 0 20px rgba(255,255,255,.3)}
+@keyframes mb-shake{0%,100%{transform:rotate(0) translateX(0)}15%{transform:rotate(-5deg) translateX(-5px)}30%{transform:rotate(5deg) translateX(5px)}45%{transform:rotate(-4deg) translateX(-3px)}60%{transform:rotate(4deg) translateX(3px)}75%{transform:rotate(-2deg) translateX(-1px)}90%{transform:rotate(2deg) translateX(1px)}}
+@keyframes mb-lid-fly{0%{transform:translateY(0) rotate(0);opacity:1}30%{transform:translateY(-20px) rotate(-8deg);opacity:1}100%{transform:translateY(-130px) rotate(-40deg);opacity:0}}
+@keyframes mb-box-flash{0%,100%{border-color:#fff;box-shadow:none}50%{border-color:var(--gold);box-shadow:0 0 18px rgba(201,169,110,.6)}}
+/* ── MB Roulette Animation */
+.mb-roulette-machine{display:flex;flex-direction:column;align-items:center;gap:10px}
+.mb-roulette-header{font-size:28px;letter-spacing:6px;text-shadow:0 0 10px rgba(255,215,0,.5)}
+.mb-roulette-body{background:#111;border:3px solid #666;border-radius:12px;padding:8px 10px;display:flex;gap:6px;box-shadow:0 0 30px rgba(0,0,0,.9),inset 0 0 15px rgba(0,0,0,.5)}
+.mb-roulette-reel{width:72px;height:108px;overflow:hidden;position:relative;border:2px solid #444;border-radius:7px;background:#0a0a0a}
+.mb-roulette-reel::before,.mb-roulette-reel::after{content:'';position:absolute;left:0;right:0;height:34px;z-index:2;pointer-events:none}
+.mb-roulette-reel::before{top:0;background:linear-gradient(to bottom,#0a0a0a 40%,transparent)}
+.mb-roulette-reel::after{bottom:0;background:linear-gradient(to top,#0a0a0a 40%,transparent)}
+.mb-roulette-window-bar{position:absolute;top:50%;left:-4px;right:-4px;height:38px;transform:translateY(-50%);border-top:2px solid rgba(201,169,110,.7);border-bottom:2px solid rgba(201,169,110,.7);z-index:3;pointer-events:none;background:rgba(201,169,110,.04)}
+.mb-reel-strip{display:flex;flex-direction:column;align-items:center;position:absolute;width:100%;will-change:transform}
+.mb-reel-item{height:36px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;width:100%;flex-shrink:0;letter-spacing:.5px}
+/* ── MB Capsule Animation */
+.mb-capsule-scene{display:flex;flex-direction:column;align-items:center;position:relative;width:130px;height:130px;margin:0 auto}
+.mb-capsule-top{width:110px;height:60px;border-radius:55px 55px 0 0;position:absolute;top:5px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;transform-origin:center bottom}
+.mb-capsule-bot{width:110px;height:60px;border-radius:0 0 55px 55px;position:absolute;bottom:5px;display:flex;align-items:flex-start;justify-content:center;padding-top:4px;transform-origin:center top}
+.mb-capsule-qmark{font-size:36px;font-weight:900;color:rgba(255,255,255,.9);text-shadow:0 2px 8px rgba(0,0,0,.6);line-height:1}
+@keyframes mb-capsule-shake{0%,100%{transform:rotate(0) scale(1)}20%{transform:rotate(-7deg) scale(1.05)}40%{transform:rotate(7deg) scale(1.05)}60%{transform:rotate(-5deg)}80%{transform:rotate(5deg)}}
+@keyframes mb-capsule-top-open{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-90px) rotate(-20deg);opacity:0}}
+@keyframes mb-capsule-bot-open{0%{transform:translateY(0);opacity:1}100%{transform:translateY(70px) rotate(10deg);opacity:0}}
+@keyframes mb-capsule-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+/* ── MB Items Preview */
+.mb-items-preview{max-width:340px;background:rgba(255,255,255,.04);border:1px solid var(--gb);border-radius:12px;padding:16px 20px;width:90vw}
+.mb-items-preview-title{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:12px}
+.mb-items-preview-list{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto;margin-bottom:4px}
+.mb-items-preview-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mid);padding:3px 0}
 </style>
 </head>
 <body>
@@ -1768,10 +1812,12 @@ width:297mm !important;height:210mm !important;
 <!-- 수령 탭 -->
 <div class="doc-pane" id="mb-pane-user">
 <div class="doc-form-card">
-<div class="doc-lbl" style="margin-bottom:8px">박스 UUID 입력</div>
-<div style="display:flex;gap:8px;margin-bottom:14px">
-<input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;flex:1" id="mb-uuid-inp" placeholder="박스 UUID 또는 링크만 붙여넣기">
-<button class="doc-btn gold" onclick="mbClaimBox()">🎁 열기</button>
+<div class="doc-lbl" style="margin-bottom:6px">수령자 이름 <span style="color:var(--red);font-size:11px">* 필수</span></div>
+<input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;margin-bottom:10px;transition:border-color .16s" id="mb-name-inp" placeholder="이름을 입력하세요" onkeydown="if(event.key==='Enter')document.getElementById('mb-uuid-inp').focus()">
+<div class="doc-lbl" style="margin-bottom:6px">박스 UUID 입력</div>
+<div style="display:flex;gap:8px;margin-bottom:10px">
+<input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;flex:1;transition:border-color .16s" id="mb-uuid-inp" placeholder="박스 UUID 또는 링크만 붙여넣기" onkeydown="if(event.key==='Enter')mbClaimBox()">
+<button class="doc-btn gold" onclick="mbClaimBox()">🎁 받기</button>
 </div>
 <div id="mb-claim-status" style="font-size:12px;color:var(--dim);margin-bottom:10px"></div>
 </div>
@@ -4746,103 +4792,262 @@ async function mbDeactivate(uuid){
 // ── 수령: 박스 열기
 async function mbClaimBox(){
   let val = document.getElementById('mb-uuid-inp').value.trim();
-  // ?mb= 파라미터에서 UUID 추출
+  const nameInp = document.getElementById('mb-name-inp');
+  const name = (nameInp?.value||'').trim();
   const mParam = val.match(/[?&]mb=([^&]+)/);
   if(mParam) val = mParam[1];
   const st = document.getElementById('mb-claim-status');
-  if(!val){st.textContent='UUID를 입력해주세요.';return;}
-  st.style.color='var(--dim)';
-  st.textContent='박스 확인 중…';
-
-  // file:// 환경에서는 API 미작동 안내
+  const niEl = document.getElementById('mb-name-inp');
+  if(!name){
+    st.style.color='var(--red)';st.textContent='✗ 이름을 먼저 입력해주세요.';
+    if(niEl){niEl.style.borderColor='var(--red)';niEl.focus();}
+    return;
+  }
+  if(niEl) niEl.style.borderColor='';
+  if(!val){st.style.color='var(--red)';st.textContent='✗ UUID를 입력해주세요.';return;}
+  st.style.color='var(--dim)';st.textContent='박스 확인 중…';
   if(location.protocol==='file:'){
     st.style.color='var(--orange)';
     st.textContent='⚠ 로컬 파일에서는 API 연결이 불가합니다. GitHub Pages에 배포 후 이용해주세요.';
     return;
   }
-
   let res = null;
   try{ res = await mbFetch({action:'get', uuid:val}); }catch(e){}
   if(!res){
-    st.style.color='var(--red)';
-    st.textContent='✗ API 연결 실패. 잠시 후 다시 시도해주세요.';
-    return;
+    st.style.color='var(--red)';st.textContent='✗ API 연결 실패. 잠시 후 다시 시도해주세요.';return;
   }
   if(!res.box){
-    st.style.color='var(--red)';
-    st.textContent='✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';
-    return;
+    st.style.color='var(--red)';st.textContent='✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';return;
   }
-  // 사용 불가 박스 차단
   if(res.box.isExpired){
-    st.style.color='var(--red)';
-    st.textContent='✗ 유효기간이 만료된 박스입니다.';
-    return;
+    st.style.color='var(--red)';st.textContent='✗ 유효기간이 만료된 박스입니다.';return;
   }
   if(res.box.isExhausted||res.box.isOpened){
-    st.style.color='var(--red)';
-    st.textContent='✗ 발급 수량이 모두 소진된 박스입니다.';
-    return;
+    st.style.color='var(--red)';st.textContent='✗ 발급 수량이 모두 소진된 박스입니다.';return;
   }
   if(res.box.status==='비활성'){
-    st.style.color='var(--red)';
-    st.textContent='✗ 비활성화된 박스입니다.';
-    return;
+    st.style.color='var(--red)';st.textContent='✗ 비활성화된 박스입니다.';return;
   }
-  const boxStatus = [];
-  st.style.color='var(--green)';
-  st.textContent='✓ 박스 확인 완료! 아래 수령 목록에서 열어보세요.';
-  mbCurrentBox = {...res.box, uuid:val};
-  // 수령 대기 항목을 vault에 추가 (pending 상태)
+  st.style.color='var(--green)';st.textContent='✓ 박스 확인 완료! 아래 목록의 열기 버튼을 눌러주세요.';
+  mbCurrentBox = {...res.box, uuid:val, recipientName:name};
   const pending = {
     grade:'?', item:'개봉 대기', boxName:res.box.name||'',
     date:new Date().toISOString().slice(0,10),
-    uuid:val, pending:true
+    uuid:val, pending:true, recipientName:name
   };
   mbVault.unshift(pending);
   try{localStorage.setItem('sv-mb-vault',JSON.stringify(mbVault.slice(0,50)));}catch(_){}
   mbRenderVault();
   document.getElementById('mb-uuid-inp').value='';
-  setTimeout(()=>{st.textContent='';},3000);
+  setTimeout(()=>{st.textContent='';},3500);
 }
 
 function mbShowOverlay(){
-  // 동적 생성 (정적 HTML에 항상 떠있는 문제 방지)
   let ov = document.getElementById('mb-overlay');
   if(!ov){
     ov = document.createElement('div');
     ov.id = 'mb-overlay';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px';
-    ov.innerHTML = `
-      <div id="mb-anim-area" style="font-size:80px">🎁</div>
-      <button id="mb-open-btn" onclick="mbDoOpen()" style="background:#c9a96e;border:none;border-radius:8px;padding:14px 36px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;cursor:pointer">🎁 지금 열기</button>
-      <div id="mb-prize-card" style="display:none;background:linear-gradient(135deg,rgba(201,169,110,.16),rgba(201,169,110,.05));border:2px solid rgba(201,169,110,.32);border-radius:16px;padding:32px 40px;text-align:center">
-        <div id="mb-prize-grade" style="font-size:13px;margin-bottom:8px"></div>
-        <div id="mb-prize-item" style="font-size:28px;font-weight:700;color:#fff;margin-bottom:6px"></div>
-        <div id="mb-prize-label" style="font-size:13px;color:rgba(255,255,255,.45)"></div>
-        <button onclick="mbCloseOverlay()" style="margin-top:18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:9px 20px;color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;cursor:pointer">닫기</button>
-      </div>`;
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:800;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:22px;padding:24px;overflow-y:auto';
     document.body.appendChild(ov);
   }
-  const icons = {box:'📦', roulette:'🎰', capsule:'💊'};
-  document.getElementById('mb-anim-area').textContent = icons[mbCurrentBox?.animType||'box']||'🎁';
-  document.getElementById('mb-prize-card').style.display = 'none';
-  document.getElementById('mb-open-btn').style.display = 'block';
+  const box = mbCurrentBox;
+  const anim = box?.animType || 'box';
+  const showItems = box?.showItems && Array.isArray(box?.items) && box.items.length > 0;
+
+  // Items preview HTML
+  let itemsHTML = '';
+  if(showItems){
+    const rows = box.items.flatMap(g=>(g.items||[]).map(item=>`
+      <div class="mb-items-preview-row">
+        <span class="mb-grade-badge mb-grade-${g.grade}" style="font-size:10px;padding:1px 6px">${g.grade}</span>
+        <span>${esc(item)}</span>
+      </div>`)).join('');
+    itemsHTML = `<div class="mb-items-preview" id="mb-items-preview-panel">
+      <div class="mb-items-preview-title">📋 이 박스에 들어있는 상품 목록</div>
+      <div class="mb-items-preview-list">${rows}</div>
+      <button onclick="mbHideItemsPreview()" style="margin-top:14px;width:100%;background:var(--gold);border:none;border-radius:9px;padding:12px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">확인했습니다 → 열기 진행</button>
+    </div>`;
+  }
+
+  // Animation HTML by type
+  let animHTML = '';
+  if(anim === 'box'){
+    animHTML = `<div class="mb-box-scene" id="mb-anim-area">
+      <div class="mb-box-lid-wrap" id="mb-box-lid-wrap"><div class="mb-box-lid" id="mb-box-lid"></div></div>
+      <div class="mb-box-body" id="mb-box-body"><span class="mb-box-qmark">?</span></div>
+    </div>`;
+  } else if(anim === 'roulette'){
+    const grades = ['SSS','SS','S','A','B','C','D','E','F'];
+    const gColors = {SSS:'#ffd700',SS:'#ff6464',S:'#c9a96e',A:'#a78bfa',B:'#5b9bd5',C:'#5fcf85',D:'#e8923a',E:'rgba(255,255,255,.5)',F:'rgba(255,255,255,.25)'};
+    const itemsRow = grades.map(g=>`<div class="mb-reel-item" data-grade="${g}" style="color:${gColors[g]||'#fff'}">${g}</div>`).join('');
+    animHTML = `<div class="mb-roulette-machine" id="mb-anim-area">
+      <div class="mb-roulette-header">🎰 🎰 🎰</div>
+      <div class="mb-roulette-body">
+        ${[0,1,2].map(i=>`<div class="mb-roulette-reel" id="mb-reel-${i}">
+          <div class="mb-roulette-window-bar"></div>
+          <div class="mb-reel-strip" id="mb-strip-${i}">${itemsRow.repeat(8)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  } else {
+    // capsule / 뽑기알
+    animHTML = `<div class="mb-capsule-scene" id="mb-anim-area">
+      <div class="mb-capsule-top" id="mb-capsule-top" style="background:radial-gradient(ellipse at 50% 25%,#ffe566,#c49a00);border:3px solid #fff;box-shadow:inset 0 4px 12px rgba(255,255,255,.35)">
+        <div class="mb-capsule-qmark">?</div>
+      </div>
+      <div class="mb-capsule-bot" id="mb-capsule-bot" style="background:radial-gradient(ellipse at 50% 75%,#ff7070,#900);border:3px solid #fff;box-shadow:inset 0 -4px 12px rgba(0,0,0,.4)"></div>
+    </div>`;
+  }
+
+  const wrapStyle = showItems ? 'display:none;flex-direction:column;align-items:center;gap:22px' : 'display:flex;flex-direction:column;align-items:center;gap:22px';
+  ov.innerHTML = `
+    ${itemsHTML}
+    <div id="mb-anim-wrap" style="${wrapStyle}">
+      ${animHTML}
+      <button id="mb-open-btn" onclick="mbDoOpen()" style="background:#c9a96e;border:none;border-radius:10px;padding:14px 40px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 20px rgba(201,169,110,.35)">🎁 지금 열기</button>
+    </div>
+    <div id="mb-prize-card" style="display:none;background:linear-gradient(135deg,rgba(201,169,110,.16),rgba(201,169,110,.05));border:2px solid rgba(201,169,110,.32);border-radius:16px;padding:32px 40px;text-align:center;max-width:320px;width:90vw">
+      <div id="mb-prize-grade" style="font-size:13px;margin-bottom:10px"></div>
+      <div id="mb-prize-item" style="font-size:26px;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.3"></div>
+      <div id="mb-prize-label" style="font-size:13px;color:rgba(255,255,255,.45)"></div>
+      <button onclick="mbCloseOverlay()" style="margin-top:20px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:10px 24px;color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;cursor:pointer;font-size:14px">닫기</button>
+    </div>`;
   ov.style.display = 'flex';
+
+  // Start idle animation
+  if(anim === 'roulette') mbRouletteIdleStart();
+  else if(anim === 'capsule') mbCapsuleIdleStart();
+}
+
+function mbHideItemsPreview(){
+  const pp = document.getElementById('mb-items-preview-panel');
+  const aw = document.getElementById('mb-anim-wrap');
+  if(pp) pp.style.display = 'none';
+  if(aw){ aw.style.display='flex'; aw.style.flexDirection='column'; aw.style.alignItems='center'; aw.style.gap='22px'; }
+}
+
+// ── Roulette idle
+let _mbRouletteIdleRafs = [];
+function mbRouletteIdleStart(){
+  _mbRouletteIdleRafs.forEach(id=>cancelAnimationFrame(id));
+  _mbRouletteIdleRafs = [];
+  [0,1,2].forEach((i)=>{
+    const strip = document.getElementById('mb-strip-'+i);
+    if(!strip) return;
+    const itemH = 36, grades = 9, cycleH = grades * itemH;
+    let pos = i * itemH * 3;
+    const speed = [1.0, 1.3, 1.6][i];
+    const tick = ()=>{
+      pos = (pos + speed) % (cycleH * 8);
+      strip.style.transform = `translateY(-${pos}px)`;
+      const raf = requestAnimationFrame(tick);
+      _mbRouletteIdleRafs[i] = raf;
+    };
+    _mbRouletteIdleRafs[i] = requestAnimationFrame(tick);
+  });
+}
+function mbRouletteIdleStop(){
+  _mbRouletteIdleRafs.forEach(id=>cancelAnimationFrame(id));
+  _mbRouletteIdleRafs = [];
+}
+
+// ── Capsule idle
+let _mbCapsuleIdleRaf = null;
+function mbCapsuleIdleStart(){
+  const scene = document.getElementById('mb-anim-area');
+  if(!scene) return;
+  scene.style.animation = 'mb-capsule-float 2.5s ease-in-out infinite';
+}
+function mbCapsuleIdleStop(){
+  const scene = document.getElementById('mb-anim-area');
+  if(scene) scene.style.animation = '';
+}
+
+// ── Box open animation
+function mbBoxOpenAnim(){
+  return new Promise(resolve=>{
+    const scene = document.getElementById('mb-anim-area');
+    const lidWrap = document.getElementById('mb-box-lid-wrap');
+    const body = document.getElementById('mb-box-body');
+    if(!scene||!lidWrap||!body){resolve();return;}
+    // Shake
+    scene.style.animation = 'mb-shake .65s ease';
+    setTimeout(()=>{
+      scene.style.animation = '';
+      // Lid flies off
+      lidWrap.style.animation = 'mb-lid-fly .75s ease forwards';
+      body.style.animation = 'mb-box-flash .35s ease 3';
+      setTimeout(resolve, 1100);
+    }, 700);
+  });
+}
+
+// ── Roulette spin animation
+function mbRouletteSpinAnim(prize){
+  return new Promise(resolve=>{
+    const gradeOrder = ['SSS','SS','S','A','B','C','D','E','F'];
+    const prizeIdx = Math.max(0, gradeOrder.indexOf(prize.grade));
+    const itemH = 36, grades = 9, cycleH = grades * itemH;
+    mbRouletteIdleStop();
+
+    const durations = [2200, 2900, 3600];
+    const extraCycles = [10, 13, 16];
+    // Target: prizeIdx item centered in window (window center offset = 54px - 18px = 36px)
+    const targetBase = prizeIdx * itemH; // approximate center
+
+    [0,1,2].forEach((i)=>{
+      const strip = document.getElementById('mb-strip-'+i);
+      if(!strip) return;
+      const currentMatch = (strip.style.transform||'').match(/translateY\(-?(\d+\.?\d*)px\)/);
+      const currentPos = currentMatch ? parseFloat(currentMatch[1]) : 0;
+      const finalTarget = targetBase + extraCycles[i] * cycleH;
+      const duration = durations[i];
+      let startTime = null;
+      const startPos = currentPos;
+      const animate = (ts)=>{
+        if(!startTime) startTime = ts;
+        const t = Math.min((ts - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const pos = startPos + (finalTarget - startPos) * eased;
+        strip.style.transform = `translateY(-${pos % (cycleH * 8)}px)`;
+        if(t < 1){ requestAnimationFrame(animate); }
+        else { strip.style.transform = `translateY(-${targetBase % cycleH || 0}px)`; }
+      };
+      requestAnimationFrame(animate);
+    });
+    setTimeout(resolve, durations[2] + 400);
+  });
+}
+
+// ── Capsule open animation
+function mbCapsuleOpenAnim(){
+  return new Promise(resolve=>{
+    const scene = document.getElementById('mb-anim-area');
+    const top = document.getElementById('mb-capsule-top');
+    const bot = document.getElementById('mb-capsule-bot');
+    mbCapsuleIdleStop();
+    if(!scene||!top||!bot){resolve();return;}
+    // Shake
+    scene.style.animation = 'mb-capsule-shake .65s ease';
+    setTimeout(()=>{
+      scene.style.animation = '';
+      top.style.animation = 'mb-capsule-top-open .85s ease forwards';
+      bot.style.animation = 'mb-capsule-bot-open .85s ease forwards';
+      setTimeout(resolve, 1000);
+    }, 700);
+  });
 }
 
 async function mbDoOpen(){
   const btn = document.getElementById('mb-open-btn');
   btn.textContent = '두근두근…'; btn.disabled = true;
+  const box = mbCurrentBox;
+  const anim = box?.animType || 'box';
 
   // ── 클라이언트 추첨 (서버는 기록만 담당)
-  const box = mbCurrentBox;
   const items = box.items || [];
-
-  // 상품 풀에서 등급별 추첨
   function mbDraw(){
     if(!items.length) return {grade:'F', item:'꽝'};
-    // 등급별 확률 기반 추첨
     const pool = [];
     items.forEach(g=>{
       const grade = MB_GRADES.find(x=>x.grade===g.grade);
@@ -4858,18 +5063,24 @@ async function mbDoOpen(){
         return {grade:g.grade, item};
       }
     }
-    // fallback: 마지막 등급
     const last = pool[pool.length-1];
     return {grade:last.grade, item:last.list[0]||'꽝'};
   }
 
   const prize = mbDraw();
 
-  // 서버에 개봉 기록 (grade, item 포함)
-  let res = null;
-  try{
-    res = await mbPost({action:'open', uuid:box.uuid, grade:prize.grade, item:prize.item});
-  }catch(e){ console.warn('mbDoOpen error:', e); }
+  // 애니메이션과 서버 기록을 병렬 실행
+  let animPromise;
+  if(anim === 'box') animPromise = mbBoxOpenAnim();
+  else if(anim === 'roulette') animPromise = mbRouletteSpinAnim(prize);
+  else animPromise = mbCapsuleOpenAnim();
+
+  const serverPromise = mbPost({
+    action:'open', uuid:box.uuid, grade:prize.grade, item:prize.item,
+    recipientName:box.recipientName||''
+  }).catch(()=>null);
+
+  const [, res] = await Promise.all([animPromise, serverPromise]);
 
   if(!res?.ok){
     btn.textContent = '🎁 지금 열기'; btn.disabled = false;
@@ -4879,14 +5090,14 @@ async function mbDoOpen(){
 
   // 결과 표시
   document.getElementById('mb-prize-grade').innerHTML =
-    `<span class="mb-grade-badge mb-grade-${prize.grade}">${prize.grade}</span>`;
+    `<span class="mb-grade-badge mb-grade-${prize.grade}" style="font-size:14px;padding:4px 14px">${prize.grade}</span>`;
   document.getElementById('mb-prize-item').textContent = prize.item;
   document.getElementById('mb-prize-label').textContent = box.name||'';
-  document.getElementById('mb-open-btn').style.display = 'none';
+  const animWrap = document.getElementById('mb-anim-wrap');
+  if(animWrap) animWrap.style.display = 'none';
   document.getElementById('mb-prize-card').style.display = 'block';
 
   // vault 저장
-  // pending 항목을 실제 결과로 교체
   const pendingIdx = mbVault.findIndex(v=>v.pending && v.uuid===box.uuid);
   const result = {grade:prize.grade, item:prize.item, boxName:box.name||'', date:new Date().toISOString().slice(0,10)};
   if(pendingIdx>=0) mbVault[pendingIdx]=result;
@@ -4898,10 +5109,10 @@ async function mbDoOpen(){
 function mbOpenPending(idx){
   const item = mbVault[idx];
   if(!item||!item.pending||!item.uuid) return;
-  mbCurrentBox = {uuid:item.uuid, name:item.boxName, animType:'box', items:[]};
+  mbCurrentBox = {uuid:item.uuid, name:item.boxName, animType:'box', items:[], recipientName:item.recipientName||''};
   // 박스 상세 정보 다시 가져오기
   mbFetch({action:'get', uuid:item.uuid}).then(res=>{
-    if(res?.ok&&res.box) mbCurrentBox = {...res.box, uuid:item.uuid};
+    if(res?.ok&&res.box) mbCurrentBox = {...res.box, uuid:item.uuid, recipientName:item.recipientName||''};
     mbShowOverlay();
   }).catch(()=>mbShowOverlay());
 }
@@ -4917,23 +5128,29 @@ function mbRenderVault(){
   const el = document.getElementById('mb-vault');
   if(!el) return;
   if(!mbVault.length){el.innerHTML='<div class="empty">수령한 박스가 없습니다.</div>';return;}
-  el.innerHTML = `<div class="mb-vault-wrap">` + mbVault.map((v,i)=>`
-    <div class="mb-vault-item">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span class="mb-grade-badge mb-grade-${v.pending?'pending':v.grade}"
-          style="${v.pending?'background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.12);':''}font-size:12px;padding:3px 10px">
-          ${v.pending?'미개봉':v.grade}
-        </span>
-        <span style="font-size:10px;color:var(--dim)">${v.date}</span>
+  el.innerHTML = `<div class="mb-vault-chips">` + mbVault.map((v,i)=>{
+    const isPending = !!v.pending;
+    const gradeHTML = isPending
+      ? `<span class="mb-grade-badge" style="background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.14);font-size:11px;padding:2px 8px">?</span>`
+      : `<span class="mb-grade-badge mb-grade-${v.grade}" style="font-size:11px;padding:2px 8px">${v.grade}</span>`;
+    const itemName = isPending ? '개봉 대기 중' : esc(v.item);
+    const statusHTML = isPending
+      ? `<span class="mb-chip-status pending-s">미개봉</span>`
+      : `<span class="mb-chip-status opened">개봉완료</span>`;
+    const openBtn = isPending
+      ? `<button onclick="mbOpenPending(${i})" style="display:block;width:100%;background:var(--gold);border:none;border-radius:6px;padding:6px 0;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;margin-top:6px">🎁 열기</button>`
+      : '';
+    return `<div class="mb-chip${isPending?' mb-chip-pending':''}" style="flex-direction:column;align-items:flex-start;gap:5px">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:6px">
+        ${gradeHTML}${statusHTML}
       </div>
-      <div>
-        <div style="font-size:14px;font-weight:700;color:${v.pending?'rgba(255,255,255,.45)':'#fff'};margin-bottom:2px">${esc(v.item)}</div>
-        <div style="font-size:11.5px;color:var(--dim)">${esc(v.boxName)}</div>
+      <div class="mb-chip-body" style="width:100%">
+        <div class="mb-chip-item">${itemName}</div>
+        <div class="mb-chip-meta">${esc(v.boxName)} · ${v.date}</div>
       </div>
-      ${v.pending
-        ? `<button onclick="mbOpenPending(${i})" style="width:100%;background:var(--gold);border:none;border-radius:7px;padding:8px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;margin-top:2px">🎁 열기</button>`
-        : ''}
-    </div>`).join('') + `</div>`;
+      ${openBtn}
+    </div>`;
+  }).join('') + `</div>`;
 }
 
 // ── 통계
@@ -4941,23 +5158,52 @@ async function mbLoadStats(){
   const el = document.getElementById('mb-stats-body');
   if(!el) return;
   el.innerHTML = '<div class="spin-wrap"><div class="spin"></div><div class="spin-t">통계 불러오는 중…</div></div>';
-  const res = await mbFetch({action:'stats'});
-  if(!res?.ok){el.innerHTML='<div class="empty">통계를 불러오지 못했습니다.</div>';return;}
-  const stats = res.stats||{};
+
+  // 박스 목록과 통계를 병렬 요청
+  const [statsRes, listRes] = await Promise.all([
+    mbFetch({action:'stats'}).catch(()=>null),
+    mbFetch({action:'list'}).catch(()=>null)
+  ]);
+
+  // 박스 목록에서 totalBoxes / activeBoxes 직접 집계
+  const now = new Date();
+  let totalBoxes = 0, activeBoxes = 0;
+  if(listRes?.boxes?.length){
+    const boxes = listRes.boxes;
+    totalBoxes = boxes.length;
+    activeBoxes = boxes.filter(b=>{
+      const expired = b.expires && new Date(b.expires) < now;
+      return b.status === '활성' && !expired;
+    }).length;
+  }
+
+  // 개봉 수: API stats > 로컬 vault 카운트
+  const stats = statsRes?.stats || {};
+  const apiTotalOpen = parseInt(stats.totalOpen) || 0;
+  const localTotalOpen = mbVault.filter(v=>!v.pending).length;
+  const totalOpen = apiTotalOpen > 0 ? apiTotalOpen : localTotalOpen;
+
+  // Logs: API > vault
+  const apiLogs = statsRes?.logs || [];
+  const localLogs = mbVault.filter(v=>!v.pending).slice(0,10).map(v=>({
+    grade:v.grade, item:v.item, boxName:v.boxName, date:v.date
+  }));
+  const logs = apiLogs.length ? apiLogs : localLogs;
+
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px">
-      <div class="kpi-card"><div class="kpi-label">총 개봉</div><div class="kpi-val">${stats.totalOpen||0}회</div></div>
-      <div class="kpi-card"><div class="kpi-label">활성 박스</div><div class="kpi-val ok">${stats.activeBoxes||0}개</div></div>
-      <div class="kpi-card"><div class="kpi-label">총 박스</div><div class="kpi-val">${stats.totalBoxes||0}개</div></div>
+      <div class="kpi-card"><div class="kpi-label">총 개봉</div><div class="kpi-val">${totalOpen}회</div><div class="kpi-sub">${apiTotalOpen > 0 ? '서버 집계' : '로컬 기준'}</div></div>
+      <div class="kpi-card"><div class="kpi-label">활성 박스</div><div class="kpi-val ok">${activeBoxes}개</div></div>
+      <div class="kpi-card"><div class="kpi-label">총 박스</div><div class="kpi-val">${totalBoxes}개</div></div>
     </div>
-    ${(res.logs||[]).length ? `
+    ${logs.length ? `
     <div class="bcard">
       <div class="bcardtitle">📋 최근 개봉 기록</div>
-      ${(res.logs||[]).slice(0,10).map(l=>`
+      ${logs.slice(0,10).map(l=>`
         <div class="brow">
           <div class="brow-left">
             <div class="bname"><span class="mb-grade-badge mb-grade-${l.grade}">${l.grade}</span> ${esc(l.item)}</div>
-            <div class="bsub-t">${esc(l.boxName)} · ${l.date}</div>
+            <div class="bsub-t">${esc(l.boxName||'')} · ${l.date||''}${l.recipientName ? ' · '+esc(l.recipientName) : ''}</div>
           </div>
         </div>`).join('')}
     </div>` : '<div class="empty">개봉 기록이 없습니다.</div>'}`;
