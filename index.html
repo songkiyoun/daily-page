@@ -4921,21 +4921,20 @@ function mbSetFilter(f){
 }
 function mbRenderBoxList(boxes){
   const list=document.getElementById('mb-box-list');
-  const now=new Date();
+  const todayStr = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD
+  const isExpiredClient = (expires) => expires && expires < todayStr;
   let filtered=boxes.filter(box=>{
-    // API 실제 필드: expires(만료일), status('활성'/'비활성'), createdAt
-    const expired = box.expires && new Date(box.expires) < now;
+    const expired = isExpiredClient(box.expires);
     const active = box.status === '활성';
     if(mbBoxFilter==='active')   return active && !expired;
     if(mbBoxFilter==='inactive') return !active;
     if(mbBoxFilter==='expired')  return expired;
     return true;
   });
-  // 원본 배열 역순 = 최신순 (구글시트는 아래로 추가되므로)
   filtered.reverse();
   if(!filtered.length){list.innerHTML='<div class="empty">해당 조건의 박스가 없습니다.</div>';return;}
   list.innerHTML=filtered.map(box=>{
-    const expired = box.expires && new Date(box.expires) < now;
+    const expired = isExpiredClient(box.expires);
     const active  = box.status === '활성';
     const statusTag = !active
       ? '<span class="tag" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);font-size:10px">비활성화</span>'
@@ -5436,6 +5435,7 @@ async function mbLoadStats(){
   ]);
 
   const now = new Date();
+  const todayStr = now.toLocaleDateString('sv-SE');
 
   // 총 박스 / 활성 박스: 서버 stats 우선, 없으면 list에서 집계
   let totalBoxes = statsRes?.stats?.totalBoxes ?? 0;
@@ -5446,7 +5446,7 @@ async function mbLoadStats(){
     const boxes = listRes.boxes;
     totalBoxes = totalBoxes || boxes.length;
     activeBoxes = activeBoxes || boxes.filter(b=>{
-      const expired = b.expires && new Date(b.expires) < now;
+      const expired = b.expires && b.expires < todayStr;
       return b.status === '활성' && !expired;
     }).length;
   }
