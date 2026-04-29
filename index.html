@@ -1177,9 +1177,10 @@ width:297mm !important;height:210mm !important;
 .mb-open-overlay.show{display:flex}
 .mb-prize-card{background:linear-gradient(135deg,var(--gs),rgba(201,169,110,.05));border:2px solid var(--gb);border-radius:16px;padding:32px 40px;text-align:center;animation:up .5s ease}
 /* ── MB Vault Chips */
-.mb-vault-chips{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0}
-.mb-chip{display:flex;align-items:center;gap:8px;background:var(--s);border:1px solid var(--b);border-radius:9px;padding:9px 13px;transition:border-color .18s;cursor:default;min-width:180px;max-width:calc(50% - 4px);flex:1 0 180px}
-@media(max-width:600px){.mb-chip{max-width:100%;flex:1 0 100%}}
+.mb-vault-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px;padding:4px 0}
+@media(min-width:900px){.mb-vault-chips{grid-template-columns:repeat(6,1fr)}}
+@media(max-width:600px){.mb-vault-chips{grid-template-columns:repeat(2,1fr)}}
+.mb-chip{display:flex;flex-direction:column;gap:6px;background:var(--s);border:1px solid var(--b);border-radius:10px;padding:11px 13px;transition:border-color .18s;cursor:default;min-width:0;width:100%}
 .mb-chip:hover{border-color:var(--gb)}
 .mb-chip.mb-chip-pending{border-style:dashed;border-color:rgba(255,255,255,.18)}
 .mb-chip-body{flex:1;min-width:0}
@@ -4515,7 +4516,7 @@ function closeHelp(){document.getElementById('helpOverlay').classList.remove('sh
 // ══════════════════════════════════════════════
 //  미스테리 박스
 // ══════════════════════════════════════════════
-const MB_API = 'https://script.google.com/macros/s/AKfycbzFl9jYqi_KGTb3jtDqpXVV_yGGV-OnQA4574fXpKTy-znMr6E8cZWwxpy1V2ksUtfYhw/exec';
+const MB_API = 'https://script.google.com/macros/s/AKfycbwPU97wZCYa1OEwEAtrzkZnPH6QjPhUe4UIputaEu7caxKH5dDmuIpnpYTmnV3C5-Ggxg/exec';
 const MB_GRADES = [
   {grade:'SSS', pct:0.0001, label:'SSS'},
   {grade:'SS',  pct:0.001,  label:'SS'},
@@ -4690,7 +4691,17 @@ async function mbCreateBox(){
   if(!grades.length){alert('등급을 1개 이상 추가해주세요.');return;}
 
   st.textContent = '생성 중…'; st.style.color = 'var(--dim)';
-  const res = await mbPost({action:'create', name, expire, limit, anim, showList, hasFail, grades});
+  // GAS 필드명에 맞춰 전송
+  const res = await mbPost({
+    action:'create',
+    name,
+    expires: expire,      // expire → expires
+    limit,
+    animType: anim,       // anim → animType
+    showItems: showList,  // showList → showItems
+    allowBlank: hasFail,  // hasFail → allowBlank
+    items: grades         // grades → items
+  });
   if(res?.ok){
     st.textContent = '✓ 박스 생성 완료!'; st.style.color = 'var(--green)';
     mbLoadBoxes();
@@ -4852,12 +4863,18 @@ function mbShowOverlay(){
   }
   const box = mbCurrentBox;
   const anim = box?.animType || 'box';
-  const showItems = box?.showItems && Array.isArray(box?.items) && box.items.length > 0;
+  // GAS가 'TRUE'/'FALSE' 문자열로 반환할 수 있음 → 다양한 형태 처리
+  const rawShowItems = box?.showItems ?? box?.showList;
+  const showItemsFlag = rawShowItems === true || rawShowItems === 'TRUE' || rawShowItems === 'true' || rawShowItems === 1 || rawShowItems === '1';
+  // items가 JSON 문자열로 올 수 있음
+  let boxItems = box?.items || [];
+  if(typeof boxItems === 'string'){try{boxItems = JSON.parse(boxItems);}catch(_){boxItems=[];}}
+  const showItems = showItemsFlag && Array.isArray(boxItems) && boxItems.length > 0;
 
   // Items preview HTML
   let itemsHTML = '';
   if(showItems){
-    const rows = box.items.flatMap(g=>(g.items||[]).map(item=>`
+    const rows = boxItems.flatMap(g=>(g.items||g.names||[]).map(item=>`
       <div class="mb-items-preview-row">
         <span class="mb-grade-badge mb-grade-${g.grade}" style="font-size:10px;padding:1px 6px">${g.grade}</span>
         <span>${esc(item)}</span>
@@ -5042,16 +5059,18 @@ async function mbDoOpen(){
   const btn = document.getElementById('mb-open-btn');
   btn.textContent = '두근두근…'; btn.disabled = true;
   const box = mbCurrentBox;
-  const anim = box?.animType || 'box';
+  // animType 필드: GAS가 다른 이름으로 줄 수 있음
+  const anim = box?.animType || box?.anim || box?.openType || 'box';
 
-  // ── 클라이언트 추첨 (서버는 기록만 담당)
-  const items = box.items || [];
+  // ── 클라이언트 추첨
+  let boxItems = box?.items || [];
+  if(typeof boxItems === 'string'){try{boxItems=JSON.parse(boxItems);}catch(_){boxItems=[];}}
   function mbDraw(){
-    if(!items.length) return {grade:'F', item:'꽝'};
+    if(!boxItems.length) return {grade:'F', item:'꽝'};
     const pool = [];
-    items.forEach(g=>{
+    boxItems.forEach(g=>{
       const grade = MB_GRADES.find(x=>x.grade===g.grade);
-      if(grade) pool.push({grade:g.grade, pct:grade.pct, list:g.items||[]});
+      if(grade) pool.push({grade:g.grade, pct:grade.pct, list:g.items||g.names||[]});
     });
     if(!pool.length) return {grade:'F', item:'꽝'};
     const total = pool.reduce((s,g)=>s+g.pct, 0);
@@ -5069,26 +5088,12 @@ async function mbDoOpen(){
 
   const prize = mbDraw();
 
-  // 애니메이션과 서버 기록을 병렬 실행
-  let animPromise;
-  if(anim === 'box') animPromise = mbBoxOpenAnim();
-  else if(anim === 'roulette') animPromise = mbRouletteSpinAnim(prize);
-  else animPromise = mbCapsuleOpenAnim();
+  // ── 애니메이션 실행 (서버 응답 대기 없이)
+  if(anim === 'box') await mbBoxOpenAnim();
+  else if(anim === 'roulette') await mbRouletteSpinAnim(prize);
+  else await mbCapsuleOpenAnim();
 
-  const serverPromise = mbPost({
-    action:'open', uuid:box.uuid, grade:prize.grade, item:prize.item,
-    recipientName:box.recipientName||''
-  }).catch(()=>null);
-
-  const [, res] = await Promise.all([animPromise, serverPromise]);
-
-  if(!res?.ok){
-    btn.textContent = '🎁 지금 열기'; btn.disabled = false;
-    alert('개봉 실패.\n만료됐거나 수량 소진, 또는 API 연결 오류입니다.');
-    return;
-  }
-
-  // 결과 표시
+  // ── 결과 표시 (애니메이션 완료 후 즉시)
   document.getElementById('mb-prize-grade').innerHTML =
     `<span class="mb-grade-badge mb-grade-${prize.grade}" style="font-size:14px;padding:4px 14px">${prize.grade}</span>`;
   document.getElementById('mb-prize-item').textContent = prize.item;
@@ -5097,7 +5102,15 @@ async function mbDoOpen(){
   if(animWrap) animWrap.style.display = 'none';
   document.getElementById('mb-prize-card').style.display = 'block';
 
-  // vault 저장
+  // ── 서버 기록 (백그라운드, UX 차단 안 함)
+  mbPost({
+    action:'open', uuid:box.uuid, grade:prize.grade, item:prize.item,
+    recipientName:box.recipientName||''
+  }).then(res=>{
+    if(!res?.ok) console.warn('MB 서버 기록 실패 (결과는 정상 표시됨)');
+  }).catch(()=>{});
+
+  // ── vault 저장
   const pendingIdx = mbVault.findIndex(v=>v.pending && v.uuid===box.uuid);
   const result = {grade:prize.grade, item:prize.item, boxName:box.name||'', date:new Date().toISOString().slice(0,10)};
   if(pendingIdx>=0) mbVault[pendingIdx]=result;
@@ -5140,11 +5153,11 @@ function mbRenderVault(){
     const openBtn = isPending
       ? `<button onclick="mbOpenPending(${i})" style="display:block;width:100%;background:var(--gold);border:none;border-radius:6px;padding:6px 0;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;margin-top:6px">🎁 열기</button>`
       : '';
-    return `<div class="mb-chip${isPending?' mb-chip-pending':''}" style="flex-direction:column;align-items:flex-start;gap:5px">
-      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:6px">
+    return `<div class="mb-chip${isPending?' mb-chip-pending':''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
         ${gradeHTML}${statusHTML}
       </div>
-      <div class="mb-chip-body" style="width:100%">
+      <div class="mb-chip-body">
         <div class="mb-chip-item">${itemName}</div>
         <div class="mb-chip-meta">${esc(v.boxName)} · ${v.date}</div>
       </div>
@@ -5159,42 +5172,39 @@ async function mbLoadStats(){
   if(!el) return;
   el.innerHTML = '<div class="spin-wrap"><div class="spin"></div><div class="spin-t">통계 불러오는 중…</div></div>';
 
-  // 박스 목록과 통계를 병렬 요청
   const [statsRes, listRes] = await Promise.all([
     mbFetch({action:'stats'}).catch(()=>null),
     mbFetch({action:'list'}).catch(()=>null)
   ]);
 
-  // 박스 목록에서 totalBoxes / activeBoxes 직접 집계
   const now = new Date();
-  let totalBoxes = 0, activeBoxes = 0;
-  if(listRes?.boxes?.length){
+
+  // 총 박스 / 활성 박스: 서버 stats 우선, 없으면 list에서 집계
+  let totalBoxes = statsRes?.stats?.totalBoxes ?? 0;
+  let activeBoxes = statsRes?.stats?.activeBoxes ?? 0;
+  let totalOpen = statsRes?.stats?.totalOpen ?? 0;
+
+  if((!totalBoxes || !activeBoxes) && listRes?.boxes?.length){
     const boxes = listRes.boxes;
-    totalBoxes = boxes.length;
-    activeBoxes = boxes.filter(b=>{
+    totalBoxes = totalBoxes || boxes.length;
+    activeBoxes = activeBoxes || boxes.filter(b=>{
       const expired = b.expires && new Date(b.expires) < now;
       return b.status === '활성' && !expired;
     }).length;
   }
 
-  // 개봉 수: API stats > 로컬 vault 카운트
-  const stats = statsRes?.stats || {};
-  const apiTotalOpen = parseInt(stats.totalOpen) || 0;
-  const localTotalOpen = mbVault.filter(v=>!v.pending).length;
-  const totalOpen = apiTotalOpen > 0 ? apiTotalOpen : localTotalOpen;
+  // 총 개봉: 서버 우선, 없으면 로컬 vault
+  if(!totalOpen) totalOpen = mbVault.filter(v=>!v.pending).length;
 
-  // Logs: API > vault
-  const apiLogs = statsRes?.logs || [];
-  const localLogs = mbVault.filter(v=>!v.pending).slice(0,10).map(v=>({
-    grade:v.grade, item:v.item, boxName:v.boxName, date:v.date
+  const logs = statsRes?.logs || mbVault.filter(v=>!v.pending).slice(0,10).map(v=>({
+    grade:v.grade, item:v.item, boxName:v.boxName, openedAt:v.date
   }));
-  const logs = apiLogs.length ? apiLogs : localLogs;
 
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px">
-      <div class="kpi-card"><div class="kpi-label">총 개봉</div><div class="kpi-val">${totalOpen}회</div><div class="kpi-sub">${apiTotalOpen > 0 ? '서버 집계' : '로컬 기준'}</div></div>
-      <div class="kpi-card"><div class="kpi-label">활성 박스</div><div class="kpi-val ok">${activeBoxes}개</div></div>
       <div class="kpi-card"><div class="kpi-label">총 박스</div><div class="kpi-val">${totalBoxes}개</div></div>
+      <div class="kpi-card"><div class="kpi-label">활성 박스</div><div class="kpi-val ok">${activeBoxes}개</div></div>
+      <div class="kpi-card"><div class="kpi-label">총 개봉</div><div class="kpi-val">${totalOpen}회</div></div>
     </div>
     ${logs.length ? `
     <div class="bcard">
@@ -5203,7 +5213,7 @@ async function mbLoadStats(){
         <div class="brow">
           <div class="brow-left">
             <div class="bname"><span class="mb-grade-badge mb-grade-${l.grade}">${l.grade}</span> ${esc(l.item)}</div>
-            <div class="bsub-t">${esc(l.boxName||'')} · ${l.date||''}${l.recipientName ? ' · '+esc(l.recipientName) : ''}</div>
+            <div class="bsub-t">${esc(l.boxName||'')} · ${l.openedAt||l.date||''}${l.userName ? ' · '+esc(l.userName) : ''}</div>
           </div>
         </div>`).join('')}
     </div>` : '<div class="empty">개봉 기록이 없습니다.</div>'}`;
