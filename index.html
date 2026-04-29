@@ -4532,7 +4532,7 @@ function closeHelp(){document.getElementById('helpOverlay').classList.remove('sh
 // ══════════════════════════════════════════════
 //  미스테리 박스
 // ══════════════════════════════════════════════
-const MB_API = 'https://script.google.com/macros/s/AKfycbzd0uMyL_DE0PI77cSJf5vJ0xdalQfjU9Ocv6lYas8HZPEe1OEyIlyFw_i4aaR4oP0GjA/exec';
+const MB_API = 'https://script.google.com/macros/s/AKfycbzsMJwkkGwzHWyY-Krwu63Is0BqEvnLLy8dyNRUcnTQIt5AjlWRaz-cWjqbnvdvYClMUA/exec';
 const MB_GRADES = [
   {grade:'SSS', pct:0.0001, label:'SSS'},
   {grade:'SS',  pct:0.001,  label:'SS'},
@@ -4583,6 +4583,7 @@ function initMB(){
   mbTab('admin');
   mbLoadBoxes();
   mbRenderVault();
+  mbLoadMembers(); // 멤버 미리 로드 (딜레이 방지)
 }
 
 function mbTab(name){
@@ -4591,7 +4592,7 @@ function mbTab(name){
     document.getElementById('mb-pane-'+t)?.classList.toggle('on', t===name);
   });
   if(name==='stats') mbLoadStats();
-  if(name==='user'){ mbLoadMembers(); mbRenderVault(); }
+  if(name==='user'){ mbLoadMembers(); mbRenderVault(); mbOnNameSelect(); }
 }
 
 // ── 멤버 목록 로드 (members 시트)
@@ -4611,11 +4612,13 @@ async function mbLoadMembers(){
 
 // ── 이름 선택 시 꽝 카운트 조회
 async function mbOnNameSelect(){
-  const name = document.getElementById('mb-name-sel').value;
+  const name = (document.getElementById('mb-name-sel')?.value||'');
   const wrap = document.getElementById('mb-synthesis-wrap');
   if(!name){ if(wrap) wrap.style.display='none'; return; }
   if(wrap) wrap.style.display='block';
-  // 꽝 카운트 조회
+  // 로딩 표시
+  const badge = document.getElementById('mb-fail-badge');
+  if(badge) badge.textContent = '꽝 조회 중…';
   const res = await mbFetch({action:'failCount', recipientName:name}).catch(()=>null);
   const count = res?.count ?? 0;
   mbUpdateFailUI(count);
@@ -5226,11 +5229,14 @@ async function mbDoOpen(){
       r -= g.pct;
       if(r<=0){
         const item = g.list[Math.floor(Math.random()*g.list.length)]||'꽝';
-        return {grade:g.grade, item};
+        // E열(당첨상품)='꽝'이면 등급도 F로 통일
+        const grade = item==='꽝' ? 'F' : g.grade;
+        return {grade, item};
       }
     }
     const last = pool[pool.length-1];
-    return {grade:last.grade, item:last.list[0]||'꽝'};
+    const item = last.list[0]||'꽝';
+    return {grade: item==='꽝' ? 'F' : last.grade, item};
   }
 
   const prize = mbDraw();
