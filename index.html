@@ -4200,13 +4200,13 @@ function rfRenderPreview(doc){
   while(rows.length<20)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
   const TD='border:1px solid #555;vertical-align:middle;font-size:12px;padding:4px 5px;height:26px';
   const rowsHTML=rows.map(r=>`<tr>
-    <td style="${TD};text-align:center">${rfEsc(r.name)}</td>
-    <td style="${TD};text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.ssn)}</td>
-    <td style="${TD};text-align:center">${rfEsc(r.bank)}</td>
-    <td style="${TD};text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.acct)}</td>
-    <td style="${TD};text-align:center">${rfEsc(r.owner)}</td>
-    <td style="${TD};text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
-    <td style="${TD}">${rfEsc(r.note)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center">${rfEsc(r.name)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.ssn)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center">${rfEsc(r.bank)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.acct)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center">${rfEsc(r.owner)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
+    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111">${rfEsc(r.note)}</td>
   </tr>`).join('');
   const el=document.getElementById('rfPreviewDoc');
   if(!el)return;
@@ -4278,7 +4278,7 @@ function openSearch(){
       </div>
       <div style="margin:14px 18px 0;display:flex;align-items:center;gap:10px;background:#0a0a0e;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:10px 14px;flex-shrink:0">
         <span style="font-size:14px;color:rgba(255,255,255,.35)">🔍</span>
-        <input id="searchInp" placeholder="일정, 할일, 협찬, 발주서, 지출결의서…" oninput="runSearch(this.value)" autocomplete="off" style="${INP_STYLE}">
+        <input id="searchInp" placeholder="일정, 할일, 협찬, 발주서, 지출결의서…" oninput="runSearch(this.value)" autocomplete="off" style="flex:1;background:none;border:none;outline:none;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px">
         <button onclick="document.getElementById('searchInp').value='';runSearch('')" style="background:none;border:none;color:rgba(255,255,255,.2);font-size:16px;cursor:pointer;padding:0;line-height:1">✕</button>
       </div>
       <div id="searchBody" style="overflow-y:auto;padding:10px 0 14px;flex:1">
@@ -4444,7 +4444,7 @@ return `<div class="bcard">
 //  공지사항
 // ══════════════════════════════════════════════
 const SH_NOTICE = '1atWDHWjyATL-NeqpFtLt0plAkeUn0bdA6q2L24mDAsk';
-const NOTICE_CSV_URL = `https://docs.google.com/spreadsheets/d/${SH_NOTICE}/export?format=csv&gid=0`;
+const NOTICE_CSV_URL = `https://docs.google.com/spreadsheets/d/1atWDHWjyATL-NeqpFtLt0plAkeUn0bdA6q2L24mDAsk/export?format=csv&gid=0`;
 
 async function loadNotice(){
 try{
@@ -4582,8 +4582,6 @@ status.textContent='✗ 실패';
 
 function openHelp(){document.getElementById('helpOverlay').classList.add('show');}
 function closeHelp(){document.getElementById('helpOverlay').classList.remove('show');}
-document.getElementById('evModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
-document.getElementById('helpOverlay').addEventListener('click',function(e){if(e.target===this)closeHelp();});
 
 
 
@@ -4717,17 +4715,17 @@ function mbAddGrade(){
   const div = document.createElement('div');
   div.className = 'mb-grade-row';
   div.dataset.gid = id;
-  const gradeOpts = MB_GRADES.map(g=>`<option value="${g}">${g}</option>`).join('');
+  // MB_GRADES는 {grade,pct} 객체 배열 → grade, pct 분리해서 사용
+  const gradeOpts = MB_GRADES.map(g=>`<option value="${g.grade}">${g.grade} (${g.pct}%)</option>`).join('');
   div.innerHTML = `
-    <select style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;box-sizing:border-box;cursor:pointer" data-gf="grade">
+    <select style="background:#111116;border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:5px 8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;box-sizing:border-box;cursor:pointer;min-width:160px;background:#111116" data-gf="grade">
       ${gradeOpts}
     </select>
-    <input style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;box-sizing:border-box;width:90px" placeholder="확률%" type="number" min="0" max="100" data-gf="pct">
     <div style="flex:1">
       <div id="mb-items-${id}" style="margin-bottom:4px"></div>
-      <button onclick="mbAddItem(${id})" style="background:var(--s);border:1px solid var(--b);border-radius:6px;padding:3px 10px;color:var(--dim);font-size:11px;cursor:pointer">+ 상품 추가</button>
+      <button onclick="mbAddItem(${id})" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 10px;color:rgba(255,255,255,.45);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">+ 상품 추가</button>
     </div>
-    <button onclick="this.closest('.mb-grade-row').remove()" style="background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:var(--red);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px">✕</button>`;
+    <button onclick="this.closest('.mb-grade-row').remove()" style="background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:#e05555;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px;flex-shrink:0">✕</button>`;
   wrap.appendChild(div);
 }
 
@@ -4967,6 +4965,8 @@ if(!blogLoaded) loadBlogBg();
 if(!jolgiDatesGlobal.length) loadJolgimuBg();
 loadNotice();
 }, 5000);
+document.getElementById('evModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.getElementById('helpOverlay').addEventListener('click',function(e){if(e.target===this)closeHelp();});
 })();
 </script>
 
