@@ -1176,7 +1176,9 @@ width:297mm !important;height:210mm !important;
 .mb-open-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;display:none;align-items:center;justify-content:center;flex-direction:column;gap:20px}
 .mb-open-overlay.show{display:flex}
 .mb-prize-card{background:linear-gradient(135deg,var(--gs),rgba(201,169,110,.05));border:2px solid var(--gb);border-radius:16px;padding:32px 40px;text-align:center;animation:up .5s ease}
-.mb-vault-item{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.mb-vault-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:4px 0}
+.mb-vault-item{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px;transition:border-color .18s}
+.mb-vault-item:hover{border-color:var(--gb)}
 </style>
 </head>
 <body>
@@ -4094,7 +4096,7 @@ function rfRenderPreview(doc){
       </tr>
     </table>
     <!-- 기안 정보 -->
-    <table style="width:55%;border-collapse:collapse;margin-bottom:6px">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:6px">
       <tr><td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;letter-spacing:1px;padding:5px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td><td style="padding:5px 10px;font-size:12px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111">${rfEsc(doc.manager)}</td></tr>
       <tr><td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;letter-spacing:1px;padding:5px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">기&nbsp;안&nbsp;일&nbsp;자</td><td style="padding:5px 10px;font-size:12px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111">${rfFmtDate(doc.date)}</td></tr>
       <tr><td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;letter-spacing:1px;padding:5px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">반&nbsp;환&nbsp;금&nbsp;액</td><td style="padding:5px 10px;font-size:12px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111;font-weight:700">₩ ${rfFmtN(doc.total||0)}</td></tr>
@@ -4766,11 +4768,28 @@ async function mbClaimBox(){
     st.textContent='✗ API 연결 실패. 잠시 후 다시 시도해주세요.';
     return;
   }
-  if(!res.ok||!res.box){
+  if(!res.box){
     st.style.color='var(--red)';
     st.textContent='✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';
     return;
   }
+  // 사용 불가 박스 차단
+  if(res.box.isExpired){
+    st.style.color='var(--red)';
+    st.textContent='✗ 유효기간이 만료된 박스입니다.';
+    return;
+  }
+  if(res.box.isExhausted||res.box.isOpened){
+    st.style.color='var(--red)';
+    st.textContent='✗ 발급 수량이 모두 소진된 박스입니다.';
+    return;
+  }
+  if(res.box.status==='비활성'){
+    st.style.color='var(--red)';
+    st.textContent='✗ 비활성화된 박스입니다.';
+    return;
+  }
+  const boxStatus = [];
   st.style.color='var(--green)';
   st.textContent='✓ 박스 확인 완료! 아래 수령 목록에서 열어보세요.';
   mbCurrentBox = {...res.box, uuid:val};
@@ -4898,19 +4917,23 @@ function mbRenderVault(){
   const el = document.getElementById('mb-vault');
   if(!el) return;
   if(!mbVault.length){el.innerHTML='<div class="empty">수령한 박스가 없습니다.</div>';return;}
-  el.innerHTML = mbVault.map((v,idx)=>`
-    <div class="mb-vault-item" style="justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-        <span class="mb-grade-badge mb-grade-${v.pending?'?':v.grade}" style="${v.pending?'background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.15)':''}">${v.pending?'?':v.grade}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700;color:${v.pending?'rgba(255,255,255,.5)':'#fff'}">${esc(v.item)}</div>
-          <div style="font-size:11px;color:var(--dim)">${esc(v.boxName)} · ${v.date}</div>
-        </div>
+  el.innerHTML = `<div class="mb-vault-wrap">` + mbVault.map((v,i)=>`
+    <div class="mb-vault-item">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="mb-grade-badge mb-grade-${v.pending?'pending':v.grade}"
+          style="${v.pending?'background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.12);':''}font-size:12px;padding:3px 10px">
+          ${v.pending?'미개봉':v.grade}
+        </span>
+        <span style="font-size:10px;color:var(--dim)">${v.date}</span>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:${v.pending?'rgba(255,255,255,.45)':'#fff'};margin-bottom:2px">${esc(v.item)}</div>
+        <div style="font-size:11.5px;color:var(--dim)">${esc(v.boxName)}</div>
       </div>
       ${v.pending
-        ? `<button onclick="mbOpenPending(${idx})" style="background:var(--gold);border:none;border-radius:7px;padding:7px 14px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">🎁 열기</button>`
+        ? `<button onclick="mbOpenPending(${i})" style="width:100%;background:var(--gold);border:none;border-radius:7px;padding:8px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;margin-top:2px">🎁 열기</button>`
         : ''}
-    </div>`).join('');
+    </div>`).join('') + `</div>`;
 }
 
 // ── 통계
