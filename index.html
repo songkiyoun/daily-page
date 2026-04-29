@@ -1289,7 +1289,7 @@ width:297mm !important;height:210mm !important;
 <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
 <div class="bmark">◇</div>
 <div class="brand-text">
-<div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v3.3</span></div>
+<div class="bname">Semo<em>View</em> Daily <span id="appVerSpan" style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v3.3</span></div>
 <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
 </div>
 </div>
@@ -1826,6 +1826,7 @@ width:297mm !important;height:210mm !important;
 // ══════════════════════════════════════════════
 //  CONFIG & STATE
 // ══════════════════════════════════════════════
+const APP_VERSION='v3.3';
 const PROXIES=[
 u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
 u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
@@ -4803,11 +4804,10 @@ function mbRenderBoxList(boxes){
     if(mbBoxFilter==='expired')  return expired;
     return true;
   });
-  // createdAt 기준 최신순
+  // createdAt 기준 최신순 (구글시트 날짜 형식 대응)
   filtered.sort((a,b)=>{
-    const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
-    const db = b.createdAt ? new Date(b.createdAt) : new Date(0);
-    return db - da;
+    const toD=s=>s?new Date(String(s).replace(' ','T')):new Date(0);
+    return toD(b.createdAt)-toD(a.createdAt);
   });
   if(!filtered.length){list.innerHTML='<div class="empty">해당 조건의 박스가 없습니다.</div>';return;}
   list.innerHTML=filtered.map(box=>{
@@ -4856,6 +4856,14 @@ async function mbLoadBoxes(){
   }
   window._mbBoxCache = res.boxes;
   mbRenderBoxList(res.boxes);
+}
+
+function mbCopyLink(uuid){
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(uuid).then(()=>alert('UUID 복사됨:\n'+uuid));
+  } else {
+    prompt('UUID를 복사하세요:', uuid);
+  }
 }
 
 async function mbDeactivate(uuid){
@@ -5002,6 +5010,8 @@ function mbCheckUrlParam(){
 // ── 초기화 (모든 함수 정의 후 실행)
 (function(){
 tick();setInterval(tick,30000);
+const _vEl=document.getElementById('appVerSpan');
+if(_vEl)_vEl.textContent=APP_VERSION;
 renderTodos();
 scriptUrl=localStorage.getItem('sv-script-url')||'';
 if(scriptUrl){
