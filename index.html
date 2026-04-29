@@ -549,37 +549,632 @@ width:297mm !important;height:210mm !important;
 }
 
 /* ══ 전체검색 ══ */
-.search-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:900;display:none;align-items:flex-start;justify-content:center;padding:60px 16px 16px;backdrop-filter:blur(6px)}
-.search-overlay.show{display:flex}
-.search-modal{background:#16161e;border:1px solid var(--b);border-radius:14px;width:100%;max-width:660px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)}
-.search-hdr{padding:14px 16px;border-bottom:1px solid var(--b)}
-.search-inp-wrap{display:flex;align-items:center;gap:10px;background:var(--s);border:1px solid var(--gb);border-radius:10px;padding:8px 14px}
-.search-icon{font-size:16px;flex-shrink:0}
-.search-inp{flex:1;background:none;border:none;outline:none;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px}
-.search-inp::placeholder{color:var(--dim)}
-.search-close{background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;padding:0 2px}
-.search-close:hover{color:#fff}
-.search-body{overflow-y:auto;padding:10px 0}
-.search-empty{text-align:center;color:var(--dim);font-size:13px;padding:32px;font-style:italic}
-.search-section-title{font-size:10.5px;letter-spacing:1px;color:var(--gold);font-weight:700;text-transform:uppercase;padding:10px 16px 5px}
-.search-item{padding:10px 16px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:background .15s}
-.search-item:hover{background:var(--s)}
-.search-item-icon{font-size:16px;flex-shrink:0;margin-top:1px}
-.search-item-body{flex:1;min-width:0}
-.search-item-title{font-size:13.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.search-item-title mark{background:rgba(201,169,110,.35);color:var(--gold);border-radius:3px;padding:0 2px}
-.search-item-meta{font-size:11.5px;color:var(--dim);margin-top:2px}
-.search-divider{height:1px;background:var(--b);margin:6px 0}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SemoView Daily</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#0c0c11;--sb:#0f0f18;--s:rgba(255,255,255,.05);--sh:rgba(255,255,255,.09);
+--b:rgba(255,255,255,.09);--gold:#c9a96e;--gs:rgba(201,169,110,.16);
+--gb:rgba(201,169,110,.32);--text:#fff;--dim:rgba(255,255,255,.45);
+--mid:rgba(255,255,255,.72);--r:10px;
+--green:#5fcf85;--red:#e05555;--blue:#5b9bd5;--orange:#e8923a;
+--sidebar-w:220px;
+}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;font-size:15px}
+
+/* ── TOP BAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--b);background:rgba(12,12,17,.97);flex-shrink:0;flex-wrap:wrap;gap:8px;position:relative;z-index:60}
+.brand{display:flex;align-items:center;gap:10px}
+.bmark{width:28px;height:28px;border:1px solid var(--gb);border-radius:7px;background:var(--gs);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:13px}
+.bname{font-family:'Playfair Display',serif;font-size:16px;font-weight:600}
+.bname em{color:var(--gold);font-style:normal}
+.bsub{font-size:10.5px;color:var(--dim);margin-top:1px}
+.bsub a{color:var(--gold);text-decoration:none;opacity:.8}
+.topright{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.hdate{font-size:12px;color:var(--mid)}
+.sync-badge{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mid)}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sdot.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.sdot.err{background:var(--red)}
+.sdot.ing{background:var(--orange);animation:pulse 1s ease infinite}
+.tbtn{background:var(--s);border:1px solid var(--b);border-radius:7px;padding:5px 11px;color:var(--mid);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .18s;white-space:nowrap}
+.tbtn:hover{border-color:var(--gb);color:var(--gold)}
+.mob-menu-btn{display:none;background:none;border:none;color:var(--mid);font-size:20px;cursor:pointer;padding:2px 6px;line-height:1}
+@media(max-width:750px){.mob-menu-btn{display:flex;align-items:center}}
+
+/* ── APP BODY ── */
+.app-body{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);background:var(--sb);border-right:1px solid var(--b);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;transition:transform .25s ease;z-index:50}
+@media(max-width:750px){
+.sidebar{position:fixed;top:52px;left:0;bottom:0;transform:translateX(-100%);box-shadow:4px 0 20px rgba(0,0,0,.4)}
+.sidebar.open{transform:translateX(0)}
+.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;display:none}
+.sidebar-overlay.show{display:block}
+}
+
+.sb-section{padding:10px 0}
+.sb-section+.sb-section{border-top:1px solid var(--b)}
+
+.sb-label{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim);font-weight:700;padding:8px 16px 5px}
+
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 16px;cursor:pointer;transition:all .16s;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--mid);font-weight:500;position:relative;border-radius:0}
+.sb-item:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.sb-item.active{background:var(--gs);color:var(--gold);font-weight:600}
+.sb-item.active::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
+.sb-item .icon{font-size:15px;flex-shrink:0;width:20px;text-align:center}
+.sb-item .label{flex:1}
+.sb-item .badge{background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;flex-shrink:0}
+.sb-item .badge.gold{background:var(--gs);color:var(--gold);border:1px solid var(--gb)}
+
+.sb-sub{padding-left:8px}
+.sb-sub .sb-item{font-size:13px;color:var(--dim);padding:7px 16px 7px 20px}
+.sb-sub .sb-item::before{display:none}
+.sb-sub .sb-item.active{color:var(--gold);background:rgba(201,169,110,.08)}
+.sb-sub .sb-item .icon{font-size:13px;width:18px}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.page{display:none;flex:1;flex-direction:column;overflow:hidden}
+.page.active{display:flex}
+
+.page-header{padding:14px 18px 12px;border-bottom:1px solid var(--b);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.page-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--gold);letter-spacing:.6px}
+.page-sub{font-size:12px;color:var(--dim);margin-top:2px}
+.page-body{flex:1;overflow-y:auto;padding:16px}
+
+/* ── QUICK BAR ── */
+.qbar{padding:10px 16px;border-bottom:1px solid var(--b);background:rgba(255,255,255,.02);flex-shrink:0}
+.qrow{display:flex;gap:7px}
+.qinput{flex:1;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .18s}
+.qinput:focus{border-color:var(--gb)}.qinput::placeholder{color:var(--dim)}
+.qadd{background:var(--gold);border:none;border-radius:8px;padding:9px 15px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background .18s;white-space:nowrap}
+.qadd:hover{background:#d9ba82}
+.qhint{font-size:11.5px;color:var(--dim);margin-top:5px}
+
+/* ── BRIEFING ── */
+.brief-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+@media(max-width:900px){.brief-grid{grid-template-columns:1fr}}
+.kpi-card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;transition:border-color .18s}
+.kpi-card:hover{border-color:var(--gb)}
+.kpi-icon{font-size:20px;margin-bottom:8px}
+.kpi-label{font-size:11px;color:var(--dim);letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase}
+.kpi-val{font-size:22px;font-weight:700;color:#fff}
+.kpi-sub{font-size:12px;color:var(--dim);margin-top:3px}
+.kpi-val.warn{color:var(--orange)}
+.kpi-val.danger{color:var(--red)}
+.kpi-val.ok{color:var(--green)}
+
+.bcard{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;animation:up .3s ease}
+.bcard.alert{border-color:rgba(224,85,85,.4);background:rgba(224,85,85,.05)}
+.bcardtitle{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:11px;font-weight:700;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.brow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);line-height:1.55}
+.brow:last-child{border-bottom:none;padding-bottom:0}
+.brow-left{flex:1;min-width:0}
+.bname{font-size:14px;font-weight:700;color:#fff;margin-bottom:2px}
+.bsub-t{font-size:12px;color:var(--dim)}
+.bval{font-size:14px;font-weight:700;color:#fff;text-align:right;flex-shrink:0}
+.btags{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.tag.g{background:rgba(95,207,133,.15);color:var(--green);border:1px solid rgba(95,207,133,.3)}
+.tag.r{background:rgba(224,85,85,.15);color:var(--red);border:1px solid rgba(224,85,85,.3)}
+.tag.o{background:rgba(232,146,58,.15);color:var(--orange);border:1px solid rgba(232,146,58,.3)}
+.tag.gold{background:var(--gs);color:var(--gold);border:1px solid var(--gb)}
+.tag.b{background:rgba(91,155,213,.12);color:var(--blue);border:1px solid rgba(91,155,213,.25)}
+
+/* ── EVENTS ── */
+.day-group{margin-bottom:14px}
+.dlabel{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px;display:flex;align-items:center;gap:7px;font-weight:700}
+.dlabel.tdy{color:var(--gold)}
+.dline{flex:1;height:1px;background:var(--b)}
+.ecard{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:11px 13px 11px 17px;margin-bottom:7px;position:relative;cursor:pointer;transition:all .18s;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;animation:up .3s ease both}
+.ecard::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:2px;background:var(--gold);border-radius:0 2px 2px 0;opacity:.7}
+.ecard:hover{background:var(--sh);border-color:var(--gb)}
+.etime{font-size:11px;color:var(--gold);font-weight:700;letter-spacing:.4px;margin-bottom:4px}
+.etitle{font-size:14px;font-weight:600;color:#fff;line-height:1.4}
+.emeta{font-size:11.5px;color:var(--dim);margin-top:2px}
+.edel{opacity:0;background:none;border:none;color:var(--dim);font-size:12px;cursor:pointer;flex-shrink:0;padding:2px 4px;border-radius:4px;transition:all .16s;line-height:1}
+.ecard:hover .edel{opacity:.55}.edel:hover{opacity:1!important;color:var(--red)}
+
+/* ── TODO ── */
+.tadd-row{display:flex;gap:6px;margin-bottom:7px}
+.tinput{flex:1;background:var(--s);border:1px solid var(--b);border-radius:7px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .16s}
+.tinput:focus{border-color:var(--gb)}.tinput::placeholder{color:var(--dim)}
+.taddbtn{width:33px;height:33px;background:var(--gs);border:1px solid var(--gb);border-radius:7px;cursor:pointer;color:var(--gold);font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .16s;flex-shrink:0}
+.taddbtn:hover{background:rgba(201,169,110,.28)}
+.psel{width:100%;background:var(--s);border:1px solid var(--b);border-radius:7px;padding:6px 10px;color:var(--mid);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;margin-bottom:12px}
+.psel option{background:#13131a}
+.glabel{font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;font-weight:700;padding-left:2px;margin-top:12px}
+.glabel:first-child{margin-top:0}
+.titem{display:flex;align-items:flex-start;gap:8px;padding:9px 11px;background:var(--s);border:1px solid var(--b);border-radius:7px;margin-bottom:5px;transition:all .16s;animation:up .25s ease both}
+.titem:hover{border-color:rgba(255,255,255,.12)}
+.cb{width:16px;height:16px;border:1.5px solid rgba(255,255,255,.22);border-radius:4px;cursor:pointer;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .16s}
+.cb.done{background:var(--gold);border-color:var(--gold)}
+.cb.done::after{content:'✓';color:#0c0c11;font-size:10px;font-weight:800}
+.tlabel{font-size:13.5px;color:#fff;line-height:1.5;flex:1;font-weight:500}
+.tlabel.done{text-decoration:line-through;color:var(--dim);font-weight:400}
+.ptag{font-size:10px;padding:2px 7px;border-radius:9px;font-weight:700;flex-shrink:0;margin-top:2px}
+.ptag.high{background:rgba(224,85,85,.18);color:#ff8080;border:1px solid rgba(224,85,85,.3)}
+.ptag.mid{background:var(--gs);color:var(--gold);border:1px solid var(--gb)}
+.ptag.low{background:rgba(91,155,213,.12);color:#7aafd4;border:1px solid rgba(91,155,213,.25)}
+.delbtn{background:none;border:none;cursor:pointer;color:var(--dim);font-size:12px;opacity:0;transition:opacity .16s;padding:0;line-height:1;flex-shrink:0}
+.titem:hover .delbtn{opacity:.55}.delbtn:hover{opacity:1!important}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px);padding:16px}
+.overlay.show{display:flex}
+.modal{width:100%;max-width:390px;background:#13131a;border:1px solid var(--b);border-radius:14px;padding:22px 20px;animation:up .28s ease}
+.mtitle{font-family:'Playfair Display',serif;font-size:15px;color:var(--gold);margin-bottom:16px}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--dim);margin-bottom:5px;font-weight:700}
+.field input{width:100%;background:var(--s);border:1px solid var(--b);border-radius:7px;padding:9px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .16s}
+.field input:focus{border-color:var(--gb)}
+.mrow2{display:flex;gap:8px}.mrow2 .field{flex:1}
+.mbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.mbtn{border:none;border-radius:7px;padding:9px 18px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .16s}
+.mbtn.cancel{background:var(--s);border:1px solid var(--b);color:var(--mid)}.mbtn.cancel:hover{border-color:var(--gb)}
+.mbtn.save{background:var(--gold);color:#0c0c11;font-weight:700}.mbtn.save:hover{background:#d9ba82}
+
+/* ── SETUP ── */
+.setup{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px}
+.sbox{width:100%;max-width:480px;background:rgba(255,255,255,.03);border:1px solid var(--b);border-radius:16px;padding:34px 30px}
+.slogo{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:7px}
+.slogo em{color:var(--gold);font-style:normal}
+.sdesc{font-size:13.5px;color:var(--mid);line-height:1.8;margin-bottom:20px}
+.ssteps{background:rgba(255,255,255,.03);border:1px solid var(--b);border-radius:10px;padding:16px 18px;margin-bottom:20px}
+.sstep{display:flex;gap:11px;align-items:flex-start;margin-bottom:10px;font-size:13px;color:var(--mid);line-height:1.65}
+.sstep:last-child{margin-bottom:0}
+.snum{width:21px;height:21px;border-radius:50%;background:var(--gs);border:1px solid var(--gb);color:var(--gold);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.slabel{font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--dim);margin-bottom:7px;font-weight:700}
+.srow{display:flex;gap:9px;margin-bottom:10px}
+.sinput{flex:1;background:var(--s);border:1px solid var(--b);border-radius:9px;padding:10px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;transition:border-color .18s}
+.sinput:focus{border-color:var(--gb)}.sinput::placeholder{color:var(--dim)}
+.sbtn{background:var(--gold);border:none;border-radius:9px;padding:0 18px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.sbtn:hover{background:#d9ba82}
+.serr{font-size:12px;color:var(--red);margin-bottom:8px;display:none}
+.snote{font-size:11.5px;color:var(--dim);line-height:1.7}.snote strong{color:var(--mid)}
+
+/* ── MISC ── */
+.empty{text-align:center;color:var(--dim);font-size:13px;padding:28px 0;font-style:italic;line-height:2}
+.spin-wrap{display:flex;flex-direction:column;align-items:center;gap:9px;padding:30px 0}
+.spin{width:18px;height:18px;border:2px solid var(--b);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+.spin-t{font-size:12px;color:var(--dim)}
+.advice-box{background:linear-gradient(135deg,rgba(201,169,110,.08),rgba(201,169,110,.03));border:1px solid var(--gb);border-radius:var(--r);padding:12px 14px;margin-bottom:12px}
+.advice-title{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:6px;font-weight:700}
+.advice-text{font-size:13.5px;color:var(--mid);line-height:1.8}
+.warn-box{background:rgba(224,85,85,.08);border:1px solid rgba(224,85,85,.25);border-radius:7px;padding:8px 12px;font-size:12.5px;color:#ff9999;line-height:1.7;margin-top:7px}
+.coming-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:var(--dim);padding:40px 20px;text-align:center}
+.coming-soon .cs-icon{font-size:36px;opacity:.5}
+.coming-soon .cs-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--mid)}
+.coming-soon .cs-desc{font-size:13px;color:var(--dim);line-height:1.8;max-width:300px}
+
+/* MOBILE BOTTOM */
+.mob-bottom{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(12,12,17,.97);border-top:1px solid var(--b);z-index:55;grid-template-columns:repeat(4,1fr)}
+@media(max-width:750px){
+.mob-bottom{display:grid}
+body{padding-bottom:60px;height:auto !important;overflow:auto !important}
+.app-body{overflow:visible;height:auto}
+.main{overflow:visible;height:auto}
+.page{overflow:visible;height:auto}
+.page.active{height:auto;min-height:0}
+.page-body{overflow:visible;max-height:none;height:auto}
+}
+.mobtab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--dim);cursor:pointer;padding:7px 4px;border:none;background:none;font-family:'DM Sans',sans-serif;transition:color .16s;width:100%}
+.mobtab.on{color:var(--gold)}
+.mobtab .mi{font-size:18px}
+
+/* ── HELP MODAL ── */
+.help-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:flex-start;justify-content:center;z-index:250;backdrop-filter:blur(5px);padding:16px;overflow-y:auto}
+.help-overlay.show{display:flex}
+.help-modal{width:100%;max-width:640px;background:#0f0f16;border:1px solid var(--b);border-radius:16px;overflow:hidden;animation:up .3s ease;margin:auto}
+.help-hdr{background:var(--gs);border-bottom:1px solid var(--b);padding:18px 22px;display:flex;align-items:center;justify-content:space-between}
+.help-ttl{font-family:'Playfair Display',serif;font-size:18px;color:#fff}
+.help-ttl em{color:var(--gold);font-style:normal}
+.help-close{background:var(--s);border:1px solid var(--b);border-radius:7px;width:30px;height:30px;color:var(--mid);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .16s}
+.help-close:hover{border-color:var(--gb);color:var(--gold)}
+.help-body{padding:20px 22px;max-height:72vh;overflow-y:auto}
+.hs{margin-bottom:22px}
+.hs-title{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.hs-title::after{content:'';flex:1;height:1px;background:var(--b)}
+.hcode{background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:7px;padding:8px 12px;font-family:monospace;font-size:12.5px;color:var(--gold);margin:7px 0;line-height:1.6;word-break:break-all}
+.hnote{background:rgba(201,169,110,.07);border:1px solid var(--gb);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;padding:9px 13px;margin:8px 0;font-size:13px;color:var(--mid);line-height:1.7}
+.hwarn{background:rgba(224,85,85,.07);border-left:3px solid var(--red);border-radius:0 7px 7px 0;padding:9px 13px;margin:8px 0;font-size:13px;color:#ffaaaa;line-height:1.7}
+.hstep{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.hstep:last-child{border-bottom:none}
+.hnum{width:24px;height:24px;border-radius:50%;background:var(--gs);border:1px solid var(--gb);color:var(--gold);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.hstep-t{font-size:13.5px;font-weight:700;color:#fff;margin-bottom:4px}
+.hstep-d{font-size:12.5px;color:var(--mid);line-height:1.75}
+.hstep-d strong{color:#fff}
+
+@keyframes up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(201,169,110,.3)}
+
+/* ── BLOG / CLIENT ── */
+.client-list{display:flex;flex-direction:column;gap:10px}
+.client-card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);overflow:hidden;transition:border-color .18s;cursor:pointer}
+.client-card:hover{border-color:var(--gb)}
+.client-card.active{border-color:var(--gb)}
+.client-head{display:flex;align-items:center;gap:12px;padding:13px 15px}
+.client-status{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;flex-shrink:0}
+.client-status.on{background:rgba(95,207,133,.15);color:var(--green);border:1px solid rgba(95,207,133,.3)}
+.client-status.stop{background:rgba(232,146,58,.15);color:var(--orange);border:1px solid rgba(232,146,58,.3)}
+.client-status.end{background:var(--s);color:var(--dim);border:1px solid var(--b)}
+.client-name{font-size:15px;font-weight:700;color:#fff;flex:1}
+.client-meta{font-size:12px;color:var(--dim);margin-top:2px}
+.client-right{text-align:right;flex-shrink:0}
+.client-last{font-size:12px;color:var(--dim)}
+.client-pay{font-size:11px;margin-top:3px}
+.client-detail{border-top:1px solid var(--b);padding:14px 15px;display:none;animation:up .2s ease}
+.client-card.active .client-detail{display:block}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+@media(max-width:600px){.detail-grid{grid-template-columns:1fr}}
+.detail-item{background:rgba(255,255,255,.03);border-radius:8px;padding:10px 12px}
+.detail-label{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;font-weight:700}
+.detail-val{font-size:14px;font-weight:600;color:#fff}
+.timeline-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.tl-item{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;font-size:13px}
+.tl-date{font-size:11px;color:var(--gold);font-weight:700;min-width:70px;flex-shrink:0;margin-top:1px}
+.tl-status{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;flex-shrink:0;margin-top:2px}
+.tl-status.before{background:var(--gs);color:var(--gold);border:1px solid var(--gb)}
+.tl-status.done{background:rgba(95,207,133,.12);color:var(--green);border:1px solid rgba(95,207,133,.25)}
+
+/* ── SPONSOR ── */
+.sp-qbar{padding:10px 0;margin-bottom:14px}
+.sp-row{display:flex;gap:7px}
+.sp-input{flex:1;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .18s}
+.sp-input:focus{border-color:var(--gb)}.sp-input::placeholder{color:var(--dim)}
+.sp-add{background:var(--gold);border:none;border-radius:8px;padding:9px 15px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.sp-add:hover{background:#d9ba82}
+.sp-hint{font-size:11.5px;color:var(--dim);margin-top:5px}
+.sp-tabs{display:flex;gap:6px;margin-bottom:14px}
+.sp-tab{background:var(--s);border:1px solid var(--b);border-radius:7px;padding:5px 13px;font-size:12px;color:var(--dim);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .16s}
+.sp-tab.on{background:var(--gs);border-color:var(--gb);color:var(--gold);font-weight:600}
+.sp-list{display:flex;flex-direction:column;gap:8px}
+.sp-card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:13px 14px;display:flex;align-items:flex-start;gap:12px;transition:border-color .16s;animation:up .25s ease both}
+.sp-card:hover{border-color:var(--gb)}
+.sp-card.done-card{opacity:.55}
+.sp-card.urgent{border-left:3px solid var(--red)}
+.sp-card.warn{border-left:3px solid var(--orange)}
+.sp-cb{width:18px;height:18px;border:1.5px solid rgba(255,255,255,.22);border-radius:5px;cursor:pointer;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .16s}
+.sp-cb.done{background:var(--green);border-color:var(--green)}
+.sp-cb.done::after{content:'✓';color:#0c0c11;font-size:10px;font-weight:800}
+.sp-body{flex:1;min-width:0}
+.sp-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:3px}
+.sp-title.done{text-decoration:line-through;color:var(--dim);font-weight:400}
+.sp-meta{font-size:12px;color:var(--dim);display:flex;flex-wrap:wrap;gap:8px}
+.sp-right{text-align:right;flex-shrink:0}
+.sp-dday{font-size:15px;font-weight:700}
+.sp-dday.danger{color:var(--red)}
+.sp-dday.warn{color:var(--orange)}
+.sp-dday.ok{color:var(--green)}
+.sp-dday.done{color:var(--dim);font-size:12px}
+.sp-del{background:none;border:none;cursor:pointer;color:var(--dim);font-size:12px;opacity:0;padding:2px 4px;line-height:1;transition:opacity .16s}
+.sp-card:hover .sp-del{opacity:.55}.sp-del:hover{opacity:1!important;color:var(--red)}
+
+.cal-wrap{max-width:860px;margin:0 auto}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
+.cal-nav-btn{background:var(--s);border:1px solid var(--b);border-radius:8px;padding:7px 14px;color:var(--mid);cursor:pointer;font-size:15px;transition:all .16s;line-height:1}
+.cal-nav-btn:hover{border-color:var(--gb);color:var(--gold)}
+.cal-month{font-family:'Playfair Display',serif;font-size:20px;color:#fff;text-align:center;flex:1}
+.cal-today-btn{background:var(--gs);border:1px solid var(--gb);border-radius:8px;padding:5px 12px;color:var(--gold);cursor:pointer;font-size:11.5px;font-family:'DM Sans',sans-serif;font-weight:600}
+.cal-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--dim)}
+.cal-legend span{display:flex;align-items:center;gap:4px}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.cal-dow div{text-align:center;font-size:11.5px;font-weight:700;padding:5px 0;color:var(--dim)}
+.cal-dow div:first-child{color:var(--red)}
+.cal-dow div:last-child{color:var(--blue)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-cell{background:var(--s);border:1px solid var(--b);border-radius:8px;padding:6px 5px;min-height:72px;cursor:pointer;transition:border-color .16s;position:relative;display:flex;flex-direction:column;gap:2px}
+.cal-cell:hover{border-color:var(--gb)}
+.cal-cell.empty{background:none;border-color:transparent;cursor:default}
+.cal-cell.today{background:var(--gs);border-color:var(--gb)}
+.cal-cell.has-holiday{background:rgba(224,85,85,.07)}
+.cal-num{font-size:13px;font-weight:400;color:var(--mid);line-height:1;margin-bottom:2px}
+.cal-cell.today .cal-num{color:var(--gold);font-weight:700}
+.cal-cell.sun .cal-num{color:var(--red)}
+.cal-cell.sat .cal-num{color:var(--blue)}
+.cal-cell.holiday .cal-num{color:var(--red)}
+.cal-pip{font-size:9px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:3px;padding:0 3px}
+.cal-pip.jolgi{color:#a78bfa;background:rgba(167,139,250,.1)}
+.cal-pip.holiday{color:var(--red);background:rgba(224,85,85,.1)}
+.cal-pip.ev{color:var(--gold);background:var(--gs)}
+.cal-pip.more{color:var(--dim);font-style:italic}
+/* Day detail panel */
+.cal-detail{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:16px 18px;margin-top:14px;animation:up .2s ease}
+.cal-detail-date{font-family:'Playfair Display',serif;font-size:15px;color:var(--gold);margin-bottom:12px}
+.cal-detail-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13.5px}
+.cal-detail-item:last-child{border-bottom:none;padding-bottom:0}
+.cal-detail-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;flex-shrink:0;margin-top:2px}
+.cal-detail-badge.jolgi{background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
+.cal-detail-badge.holiday{background:rgba(224,85,85,.15);color:var(--red);border:1px solid rgba(224,85,85,.3)}
+.cal-detail-badge.ev{background:var(--gs);color:var(--gold);border:1px solid var(--gb)}
+.cal-detail-text{flex:1;color:var(--mid);line-height:1.6}
+.cal-detail-time{font-size:11px;color:var(--dim);margin-top:2px}
+.cal-empty-day{color:var(--dim);font-size:13px;font-style:italic;padding:8px 0}
+@media(max-width:600px){
+.cal-cell{min-height:52px;padding:4px 3px}
+.cal-num{font-size:12px}
+.cal-pip{display:none}
+.cal-cell.has-ev::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);position:absolute;bottom:4px;left:50%;transform:translateX(-50%)}
+.cal-cell.has-jolgi::after{background:#a78bfa}
+}
+
+/* ══════════════════════════════════════════
+  회사문서 공통 UI
+══════════════════════════════════════════ */
+.doc-ui-wrap{max-width:860px}
+.doc-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.doc-tab{background:var(--s);border:1px solid var(--b);border-radius:8px;padding:6px 16px;font-size:13px;color:var(--dim);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .16s}
+.doc-tab.on{background:var(--gs);border-color:var(--gb);color:var(--gold);font-weight:600}
+.doc-pane{display:none}.doc-pane.on{display:block}
+.doc-form-card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:20px 22px;margin-bottom:14px}
+.doc-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.doc-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.doc-full{grid-column:1/-1}
+.doc-field{display:flex;flex-direction:column}
+.doc-lbl{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim);margin-bottom:5px;font-weight:700}
+.doc-inp{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;transition:border-color .16s}
+.doc-inp:focus{border-color:var(--gb)}.doc-inp::placeholder{color:var(--dim)}
+.doc-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+.doc-btn{border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;font-weight:600;transition:all .18s}
+.doc-btn.ghost{background:var(--s);border:1px solid var(--b);color:var(--mid)}.doc-btn.ghost:hover{border-color:var(--gb);color:var(--gold)}
+.doc-btn.gold{background:var(--gold);color:#0c0c11}.doc-btn.gold:hover{background:#d9ba82}
+.doc-btn.blue{background:rgba(91,155,213,.15);border:1px solid rgba(91,155,213,.3);color:#5b9bd5}
+.doc-add-btn{background:var(--gs);border:1px solid var(--gb);border-radius:8px;padding:7px 14px;color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12.5px;cursor:pointer;margin-bottom:14px;display:block}
+.doc-total-bar{background:var(--gs);border:1px solid var(--gb);border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.doc-total-lbl{font-size:12px;color:var(--gold);font-weight:700}
+.doc-total-val{font-size:18px;font-weight:700;color:#fff}
+.doc-preview-bar{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.doc-list-item{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:13px 15px;margin-bottom:9px;transition:all .18s;animation:up .25s ease both}
+.doc-list-item:hover{border-color:var(--gb)}
+.doc-list-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+.doc-list-meta{font-size:12px;color:var(--dim);display:flex;gap:10px;flex-wrap:wrap}
+.doc-list-actions{display:flex;gap:6px;margin-top:9px}
+/* 업무보고 work row */
+.r-work-row{display:grid;grid-template-columns:1fr 2fr auto;gap:6px;margin-bottom:6px;align-items:stretch}
+.r-work-inp{background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:8px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;resize:none;min-height:52px;line-height:1.6;width:100%}
+.r-work-inp:focus{border-color:var(--gb)}.r-work-inp::placeholder{color:var(--dim)}
+.r-del-btn{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:var(--red);border-radius:8px;padding:0 10px;cursor:pointer;font-size:13px}
+/* 지출 명세 헤더 */
+.e-dh{display:grid;grid-template-columns:18% 18% 12% 10% 29% 13%;margin-bottom:4px}
+.e-dhc{background:rgba(255,255,255,.07);border:1px solid var(--b);padding:6px 4px;font-size:10.5px;color:var(--dim);text-align:center;font-weight:700}
+.e-detail-row{display:grid;grid-template-columns:18% 18% 12% 10% 26% 11% auto;gap:3px;margin-bottom:4px;align-items:center}
+.e-dinp{background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:6px;padding:6px 7px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;width:100%}
+.e-dinp option{background:#1a1a2e;color:#fff}
+.e-dinp:focus{border-color:var(--gb)}.e-dinp::placeholder{color:rgba(255,255,255,.2)}
+.e-dinp.r{text-align:right}
+.rf-dh{display:grid;gap:0;margin-bottom:4px}
+.rf-dh>.e-dhc{background:rgba(255,255,255,.07);border:1px solid var(--b);padding:6px 4px;font-size:10.5px;color:var(--dim);text-align:center;font-weight:700}
+.e-del{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:var(--red);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px}
+@media(max-width:600px){
+.doc-grid2,.doc-grid3{grid-template-columns:1fr}
+.r-work-row{grid-template-columns:1fr auto;grid-template-rows:auto auto}
+.r-work-inp:first-child{grid-column:1}
+}
+
+/* ══════════════════════════════════════════
+  문서 인쇄 스타일 (공통)
+══════════════════════════════════════════ */
+/* 발주서 */
+.doc-order{background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',sans-serif;width:700px;height:990px;margin:0 auto;padding:15mm 15mm 10mm 15mm;border:1px solid #bbb;box-sizing:border-box}
+.doc-order table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
+.doc-order td{border:1.5px solid #444;vertical-align:middle;padding:0}
+.doc-order .td-title{text-align:center;vertical-align:middle;padding:8px;font-size:32px;font-weight:900;letter-spacing:8px;color:#111}
+.doc-order .td-lbl{background:#f0f0f0;font-weight:700;text-align:center;color:#111;font-size:13px;letter-spacing:1px;padding:8px 4px;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc-order .td-val{padding:8px 10px;font-size:13px;color:#111;text-align:center;vertical-align:middle}
+.doc-order .td-note{padding:14px 12px;font-size:13px;color:#444;line-height:2;white-space:pre-wrap;vertical-align:top}
+.doc-order .note-ph{color:#999;font-size:13px}
+/* 지출결의서 */
+.doc-expense{background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',sans-serif;width:700px;height:990px;margin:0 auto;padding:15mm 15mm 10mm 15mm;border:1px solid #bbb;box-sizing:border-box;overflow:hidden}
+.doc-expense table{width:100%;border-collapse:collapse;table-layout:fixed}
+.doc-expense td,.doc-expense th{border:1px solid #555;vertical-align:middle;padding:0}
+.de-title-area{width:100%;border-collapse:collapse}
+.de-title{font-size:32px;font-weight:900;letter-spacing:0px;color:#111;padding:10px 0 10px 6px;white-space:nowrap;vertical-align:middle}
+.de-approval-head{background:#f0f0f0;font-weight:700;font-size:13px;text-align:center;vertical-align:middle;border:1px solid #555;padding:5px 0;width:12%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-approval-sign{height:48px;width:12%;border:1px solid #555;text-align:center;vertical-align:middle}
+.de-info{margin-top:16px;border-collapse:collapse;width:34%}
+.de-info td{border:1px solid #555;padding:0;vertical-align:middle}
+.de-info .lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:7px 4px;white-space:nowrap;width:40%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-info .val{padding:7px 10px;font-size:13px;text-align:center;height:30px}
+.de-detail{margin-top:16px;border-collapse:collapse;width:100%;table-layout:fixed}
+.de-detail .th{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:7px 2px;height:30px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-detail .td-cat{font-size:13px;text-align:center;padding:5px 4px;height:28px}
+.de-detail .td-desc{font-size:13px;padding:5px 6px;height:28px;text-align:center}
+.de-detail .td-amt{font-size:13px;text-align:right;padding:5px 6px;height:28px}
+.de-detail .td-bank{font-size:13px;text-align:center;padding:5px 4px;height:28px}
+.de-detail .td-acct{font-size:13px;text-align:center;padding:5px 4px;height:28px}
+.de-detail .td-own{font-size:13px;text-align:center;padding:5px 4px;height:28px}
+.de-detail .td-sum-lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:2px;padding:7px 4px;height:27px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-detail .td-sum-val{font-weight:700;font-size:13px;text-align:right;padding:7px 10px}
+.de-memo{border-collapse:collapse;width:100%}
+.de-memo td{border:1px solid #555;padding:0;vertical-align:top}
+.de-memo .memo-lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:2px;padding:8px 4px;white-space:nowrap;width:10%;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.de-memo .memo-val{padding:8px 10px;font-size:13px;height:64px}
+
+
+/* ═══════════════════════════════════
+  📄 반환금 처리대장 문서 (A4 세로)
+═══════════════════════════════════ */
+.doc-refund{
+background:#fff;color:#111;
+font-family:'Malgun Gothic','맑은 고딕',sans-serif;
+width:700px;height:990px;
+margin:0 auto;
+padding:15mm 15mm 10mm 15mm;
+border:1px solid #bbb;
+box-sizing:border-box;
+overflow:hidden;
+}
+.doc-refund table{width:100%;border-collapse:collapse;table-layout:fixed}
+.doc-refund td,.doc-refund th{border:1px solid #555;vertical-align:middle;padding:0}
+
+/* 상단: 제목 + 결재란 */
+.dr-top{width:100%;border-collapse:collapse}
+.dr-title{
+font-size:21px;font-weight:900;letter-spacing:1px;
+color:#111;padding:12px 0 12px 4px;
+white-space:nowrap;vertical-align:middle;
+}
+.dr-ap-head{
+background:#f0f0f0;font-weight:700;font-size:13px;
+text-align:center;vertical-align:middle;
+border:1px solid #555;padding:5px 0;width:13%;
+-webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.dr-ap-sign{height:44px;width:13%;border:1px solid #555}
+
+/* 날짜 */
+
+
+/* 명세 테이블 */
+.dr-tbl{margin-top:8px;border-collapse:collapse;width:100%;table-layout:fixed}
+.dr-tbl .th{
+background:#f0f0f0;font-weight:700;text-align:center;
+font-size:12px;letter-spacing:1px;padding:6px 2px;height:26px;
+-webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.dr-tbl .th2{
+background:#f0f0f0;font-weight:700;text-align:center;
+font-size:12px;padding:4px 2px;height:22px;
+-webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+
+/* 기안 정보 테이블 */
+.dr-info{margin-top:8px;border-collapse:collapse;width:50%}
+.dr-info td{border:1px solid #555;padding:0;vertical-align:middle}
+.dr-info .lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.dr-info .val{padding:6px 10px;font-size:13px;text-align:center;height:28px;color:#111}
+.dr-info .val.bold{font-weight:700;color:#111}
+
+.dr-tbl .td-no{font-size:12px;text-align:center;padding:4px 2px;height:26px}
+.dr-tbl .td-ssn{font-size:11px;text-align:center;padding:4px 3px;height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-tbl .td-name{font-size:12px;text-align:center;padding:4px 3px;height:26px}
+.dr-tbl .td-bank{font-size:12px;text-align:center;padding:4px 3px;height:26px}
+.dr-tbl .td-acct{font-size:11px;text-align:center;padding:4px 3px;height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-tbl .td-owner{font-size:12px;text-align:center;padding:4px 3px;height:26px}
+.dr-tbl .td-amt{font-size:12px;text-align:right;padding:4px 6px;height:26px}
+.dr-tbl .td-req{font-size:12px;text-align:center;padding:4px 3px;height:26px}
+.dr-tbl .td-note{font-size:11px;padding:4px 4px;height:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.dr-tbl .td-sum-lbl{
+background:#f0f0f0;font-weight:700;text-align:center;
+font-size:12px;letter-spacing:2px;padding:6px 4px;
+-webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.dr-tbl .td-sum-val{font-weight:700;font-size:13px;text-align:right;padding:6px 8px}
+
+@page{size:A4 portrait;margin:0}
+@media print{
+/* print-area만 출력, 앱 UI 전체 숨김 */
+body *{visibility:hidden !important}
+#print-area,#print-area *{visibility:visible !important}
+#print-area{
+position:fixed !important;
+top:0 !important;left:0 !important;
+margin:0 !important;
+padding:15mm 15mm 10mm 15mm !important;
+border:none !important;
+z-index:9999;
+}
+.doc-order#print-area,
+  .doc-expense#print-area{
+  .doc-expense#print-area,
+  .doc-refund#print-area{
+width:210mm !important;height:297mm !important;
+overflow:visible !important;
+}
+.doc-report#print-area{
+width:297mm !important;height:210mm !important;
+}
+}
+
+/* ══ 전체검색 ══ */
+.search-close{background:var(--s);border:1px solid var(--b);color:var(--dim);font-size:12px;cursor:pointer;padding:4px 8px;border-radius:6px;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.search-close:hover{border-color:var(--gb);color:var(--gold)}
 
 /* ── 공지사항 배너 ── */
-.notice-banner{background:linear-gradient(135deg,rgba(201,169,110,.18),rgba(201,169,110,.08));border:1px solid var(--gb);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start;animation:up .3s ease}
-.notice-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.notice-banner{background:var(--s);border:1px solid var(--gb);border-left:3px solid var(--gold);border-radius:0 var(--r) var(--r) 0;padding:12px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start;animation:up .3s ease}
+.notice-icon{font-size:16px;flex-shrink:0;margin-top:2px;opacity:.8}
 .notice-body{flex:1;min-width:0}
-.notice-title{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:3px}
-.notice-text{font-size:13px;color:var(--mid);line-height:1.6;white-space:pre-wrap}
-.notice-date{font-size:11px;color:var(--dim);margin-top:5px}
-.notice-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:0;flex-shrink:0;line-height:1}
-.notice-close:hover{color:#fff}
+.notice-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:3px;letter-spacing:.3px}
+.notice-text{font-size:12.5px;color:var(--mid);line-height:1.65;white-space:pre-wrap}
+.notice-date{font-size:10.5px;color:var(--dim);margin-top:5px;font-family:'DM Mono',monospace}
+.notice-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:2px 4px;flex-shrink:0;line-height:1;border-radius:4px;transition:all .15s}
+.notice-close:hover{color:#fff;background:rgba(255,255,255,.08)}
+
+/* ── 데일리 검색 */
+.search-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:900;backdrop-filter:blur(5px);padding:16px}
+.search-overlay.show{display:flex}
+.search-modal{width:100%;max-width:540px;background:#0f0f16;border:1px solid var(--b);border-radius:16px;overflow:hidden;animation:up .3s ease;margin:auto;display:flex;flex-direction:column;max-height:85vh}
+.search-hdr{background:var(--gs);border-bottom:1px solid var(--b);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.search-hdr-title{font-family:'Playfair Display',serif;font-size:16px;color:#fff}
+.search-hdr-title em{color:var(--gold);font-style:normal}
+.search-hdr-close{background:var(--s);border:1px solid var(--b);border-radius:7px;width:28px;height:28px;color:var(--mid);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .16s}
+.search-hdr-close:hover{border-color:var(--gb);color:var(--gold)}
+.search-inp-wrap{margin:14px 18px 0;display:flex;align-items:center;gap:10px;background:#0a0a0e;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:10px 14px;transition:border-color .18s;flex-shrink:0}
+.search-inp-wrap:focus-within{border-color:rgba(201,169,110,.45)}
+.search-icon{font-size:14px;flex-shrink:0;color:var(--dim)}
+.search-inp{flex:1;background:none;border:none;outline:none;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px}
+.search-inp::placeholder{color:rgba(255,255,255,.2)}
+.search-clear{background:none;border:none;color:rgba(255,255,255,.2);font-size:14px;cursor:pointer;padding:0;line-height:1;transition:color .15s;flex-shrink:0}
+.search-clear:hover{color:var(--dim)}
+.search-body{overflow-y:auto;padding:10px 0 14px;flex:1}
+.search-empty{text-align:center;color:var(--dim);font-size:13px;padding:32px 20px;font-style:italic;line-height:2}
+.search-section-title{font-size:9.5px;letter-spacing:1.2px;color:var(--gold);font-weight:700;text-transform:uppercase;padding:12px 18px 5px;opacity:.8}
+.search-item{padding:9px 18px;display:flex;align-items:flex-start;gap:11px;cursor:pointer;transition:background .12s}
+.search-item:hover{background:rgba(255,255,255,.04)}
+.search-item-icon{font-size:14px;flex-shrink:0;margin-top:2px;opacity:.55}
+.search-item-body{flex:1;min-width:0}
+.search-item-title{font-size:13.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-item-title mark{background:rgba(201,169,110,.22);color:var(--gold);border-radius:3px;padding:0 2px}
+.search-item-meta{font-size:11.5px;color:var(--dim);margin-top:2px}
+.search-divider{height:1px;background:var(--b);margin:5px 18px}
+
+
+
+/* ── 반환금 처리대장 */
+.rf-hdr{display:grid;grid-template-columns:12% 17% 10% 21% 9% 11% 1fr 26px;gap:2px;margin-bottom:4px}
+.rf-row{display:grid;grid-template-columns:12% 17% 10% 21% 9% 11% 1fr 26px;gap:2px;margin-bottom:4px;align-items:center}
+.rf-inp{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:6px;padding:6px 7px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none}
+.rf-inp:focus{border-color:var(--gb)}.rf-inp::placeholder{color:rgba(255,255,255,.2)}
+.rf-inp.r{text-align:right}
+.rf-del{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:var(--red);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px}
+
+/* ── 반환금 행 구조 */
+.rf-detail-row{display:grid;grid-template-columns:13% 18% 10% 24% 10% 11% 1fr 28px;gap:3px;margin-bottom:4px;align-items:center}
+
+
+
+
+
+
+
+/* ══ 미스테리박스 ══ */
+.mb-grade-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700}
+.mb-grade-SSS{background:rgba(255,215,0,.2);color:#ffd700;border:1px solid rgba(255,215,0,.4)}
+.mb-grade-SS{background:rgba(255,100,100,.2);color:#ff6464;border:1px solid rgba(255,100,100,.4)}
+.mb-grade-S{background:rgba(201,169,110,.2);color:var(--gold);border:1px solid var(--gb)}
+.mb-grade-A{background:rgba(167,139,250,.2);color:#a78bfa;border:1px solid rgba(167,139,250,.4)}
+.mb-grade-B{background:rgba(91,155,213,.2);color:var(--blue);border:1px solid rgba(91,155,213,.4)}
+.mb-grade-C{background:rgba(95,207,133,.2);color:var(--green);border:1px solid rgba(95,207,133,.4)}
+.mb-grade-F{background:rgba(255,255,255,.06);color:var(--dim);border:1px solid var(--b)}
+.mb-box-card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;transition:border-color .18s}
+.mb-box-card:hover{border-color:var(--gb)}
+.mb-inp{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;transition:border-color .16s}
+.mb-inp:focus{border-color:var(--gb)}.mb-inp::placeholder{color:var(--dim)}
+.mb-grade-row{display:flex;gap:8px;align-items:center;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:6px}
+.mb-item-row{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.mb-open-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;display:none;align-items:center;justify-content:center;flex-direction:column;gap:20px}
+.mb-open-overlay.show{display:flex}
+.mb-prize-card{background:linear-gradient(135deg,var(--gs),rgba(201,169,110,.05));border:2px solid var(--gb);border-radius:16px;padding:32px 40px;text-align:center;animation:up .5s ease}
+.mb-vault-item{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -685,22 +1280,6 @@ width:297mm !important;height:210mm !important;
 </div>
 
 <!-- SEARCH OVERLAY -->
-<div class="search-overlay" id="searchOverlay">
-<div class="search-modal">
-<div class="search-hdr">
-<div class="search-inp-wrap">
-<span class="search-icon">🔍</span>
-<input class="search-inp" id="searchInp" placeholder="일정, 할일, 협찬, 발주서, 지출결의서 검색…"
-oninput="runSearch(this.value)" autocomplete="off">
-<button class="search-close" onclick="closeSearch()">✕</button>
-</div>
-</div>
-<div class="search-body" id="searchBody">
-<div class="search-empty">검색어를 입력하세요</div>
-</div>
-</div>
-</div>
-
 <!-- SIDEBAR OVERLAY (mobile) -->
 <div class="sidebar-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
 
@@ -802,6 +1381,16 @@ oninput="runSearch(this.value)" autocomplete="off">
 </button>
 <button class="sb-item" onclick="nav('refund',this)">
 <span class="icon">💸</span><span class="label">반환금 처리대장</span>
+</button>
+</div>
+</div>
+
+<!-- 미스테리박스 -->
+<div class="sb-section">
+<div class="sb-label">미스테리박스</div>
+<div class="sb-sub">
+<button class="sb-item" onclick="nav('mb',this)">
+<span class="icon">🎁</span><span class="label">미스테리 박스</span>
 </button>
 </div>
 </div>
@@ -1073,6 +1662,7 @@ oninput="runSearch(this.value)" autocomplete="off">
 <button class="doc-tab" id="rft-list" onclick="docTab('refund','list')">📂 저장 목록</button>
 <button class="doc-tab" id="rft-preview" onclick="docTab('refund','preview')">👁 미리보기·출력</button>
 </div>
+
 <div class="doc-pane on" id="rfp-write">
 <div class="doc-form-card">
 <input type="hidden" id="rf-editId">
@@ -1081,12 +1671,15 @@ oninput="runSearch(this.value)" autocomplete="off">
 <div class="doc-field"><div class="doc-lbl">기안일자</div><input class="doc-inp" id="rf-date" type="date"></div>
 </div>
 <div class="doc-total-bar"><span class="doc-total-lbl">💰 반환금 합계</span><span class="doc-total-val" id="rfTotal">0원</span></div>
-              <div class="e-dh" style="grid-template-columns:9% 18% 11% 26% 9% 14% 13%">
-              <div class="e-dh" style="display:grid;grid-template-columns:9% 18% 11% 26% 9% 14% 1fr 28px;gap:0;margin-bottom:4px">
-<div class="e-dhc">성함</div><div class="e-dhc">주민번호</div><div class="e-dhc">은행명</div>
-<div class="e-dhc">입금계좌</div><div class="e-dhc">예금주</div><div class="e-dhc">금액</div>
-                <div class="e-dhc">비고</div>
-                <div class="e-dhc">비고</div><div class="e-dhc"></div>
+<div style="display:grid;grid-template-columns:12% 17% 10% 21% 9% 11% 1fr 26px;gap:2px;margin-bottom:3px;width:100%;box-sizing:border-box;overflow:hidden">
+<div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden">성함</div>
+<div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden">주민번호</div>
+<div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden">은행명</div>
+<div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden">입금계좌</div>
+<div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden">예금주</div>
+<div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden">금액</div>
+<div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden">비고</div>
+<div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden"></div>
 </div>
 <div id="rfRows"></div>
 <button class="doc-add-btn" onclick="rfAddRow()">+ 행 추가</button>
@@ -1097,7 +1690,9 @@ oninput="runSearch(this.value)" autocomplete="off">
 </div>
 </div>
 </div>
+
 <div class="doc-pane" id="rfp-list"><div id="rfListBody"></div></div>
+
 <div class="doc-pane" id="rfp-preview">
 <div class="doc-preview-bar">
 <span style="font-size:12px;color:var(--dim)">📄 A4 세로 · 여백: <strong style="color:var(--gold)">없음</strong> · 배율: <strong style="color:var(--gold)">100%</strong></span>
@@ -1108,10 +1703,108 @@ oninput="runSearch(this.value)" autocomplete="off">
 </div>
 <div style="overflow-x:auto"><div id="rfPreviewDoc"></div></div>
 </div>
+
 </div>
 </div>
 </div>
 
+<!-- 🎁 미스테리 박스 -->
+<div class="page" id="page-mb">
+<div class="page-header">
+<div><div class="page-title">🎁 미스테리 박스</div><div class="page-sub">박스 관리 · 수령 · 통계</div></div>
+</div>
+<div class="page-body">
+<div class="doc-ui-wrap">
+<div class="doc-tabs">
+<button class="doc-tab on" id="mb-dt-admin" onclick="mbTab('admin')">⚙ 관리자</button>
+<button class="doc-tab" id="mb-dt-user" onclick="mbTab('user')">🎁 수령</button>
+<button class="doc-tab" id="mb-dt-stats" onclick="mbTab('stats')">📊 통계</button>
+</div>
+<!-- 관리자 탭 -->
+<div class="doc-pane on" id="mb-pane-admin">
+<div class="doc-form-card">
+<div class="doc-lbl" style="margin-bottom:12px;font-size:12px;color:var(--gold)">새 박스 만들기</div>
+<div class="doc-grid2">
+<div class="doc-field"><div class="doc-lbl">박스 이름</div><input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box" id="mb-name" placeholder="예: 다이겨 감사 박스"></div>
+<div class="doc-field"><div class="doc-lbl">유효기간</div><input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;color-scheme:dark" id="mb-expire" type="date"></div>
+<div class="doc-field"><div class="doc-lbl">발급 수량 (0=무제한)</div><input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box" id="mb-limit" type="number" value="1" min="0"></div>
+<div class="doc-field"><div class="doc-lbl">개봉 애니메이션</div>
+<select style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;cursor:pointer;background:#13131a" id="mb-anim">
+<option value="box">📦 상자형</option>
+<option value="roulette">🎰 룰렛형</option>
+<option value="capsule">💊 캡슐형</option>
+</select>
+</div>
+</div>
+<div style="display:flex;gap:10px;margin-bottom:12px">
+<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mid);cursor:pointer">
+<input type="checkbox" id="mb-showlist" style="accent-color:var(--gold)"> 수령자에게 상품 목록 공개
+</label>
+<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mid);cursor:pointer">
+<input type="checkbox" id="mb-hasfail" style="accent-color:var(--gold)"> 꽝 포함
+</label>
+</div>
+<div class="doc-lbl" style="margin-bottom:8px">상품 등급 & 목록</div>
+<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+<span style="font-size:11px;color:rgba(255,255,255,.4);align-self:center">프리셋:</span>
+<button onclick="mbApplyPreset('coffee')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">☕ 커피쿠폰</button>
+<button onclick="mbApplyPreset('shopping')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">🛍 쇼핑쿠폰</button>
+<button onclick="mbApplyPreset('gift')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">🎁 감사선물</button>
+<button onclick="mbApplyPreset('game')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">🎮 게임아이템</button>
+<button onclick="mbApplyPreset('clear')" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">↺ 초기화</button>
+</div>
+<div id="mb-grades-wrap">
+<div class="empty" style="font-size:12px">프리셋을 선택하거나 + 등급 추가로 직접 입력하세요</div>
+</div>
+<div class="doc-actions" style="margin-top:12px">
+<button class="doc-btn ghost" onclick="mbAddGrade()">+ 등급 추가</button>
+<button class="doc-btn gold" onclick="mbCreateBox()">🎁 박스 생성하기</button>
+</div>
+<div id="mb-create-status" style="font-size:12px;color:var(--dim);margin-top:8px;text-align:right"></div>
+</div>
+<!-- 박스 목록 -->
+<div style="margin-top:16px">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+<div class="doc-lbl">생성된 박스</div>
+<button class="tbtn" onclick="mbLoadBoxes()" style="font-size:11px">↻ 새로고침</button>
+</div>
+<div id="mb-box-list"><div class="empty">박스가 없습니다.</div></div>
+</div>
+</div>
+<!-- 수령 탭 -->
+<div class="doc-pane" id="mb-pane-user">
+<div class="doc-form-card">
+<div class="doc-lbl" style="margin-bottom:8px">박스 UUID 입력</div>
+<div style="display:flex;gap:8px;margin-bottom:14px">
+<input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;flex:1" id="mb-uuid-inp" placeholder="박스 UUID 또는 링크만 붙여넣기">
+<button class="doc-btn gold" onclick="mbClaimBox()">🎁 열기</button>
+</div>
+<div id="mb-claim-status" style="font-size:12px;color:var(--dim);margin-bottom:10px"></div>
+</div>
+<div style="margin-top:4px">
+<div class="doc-lbl" style="margin-bottom:10px">내 수령 목록</div>
+<div id="mb-vault"><div class="empty">수령한 박스가 없습니다.</div></div>
+</div>
+</div>
+<!-- 통계 탭 -->
+<div class="doc-pane" id="mb-pane-stats">
+<div id="mb-stats-body"><div class="spin-wrap"><div class="spin"></div><div class="spin-t">통계 불러오는 중…</div></div></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 개봉 오버레이 -->
+<div class="mb-open-overlay" id="mb-overlay" style="display:none">
+<div id="mb-anim-area" style="font-size:80px;animation:pulse 1s ease infinite">🎁</div>
+<button class="doc-btn gold" id="mb-open-btn" onclick="mbDoOpen()" style="font-size:16px;padding:14px 36px">🎁 지금 열기</button>
+<div class="mb-prize-card" id="mb-prize-card" style="display:none">
+<div id="mb-prize-grade" style="font-size:13px;margin-bottom:8px"></div>
+<div id="mb-prize-item" style="font-size:28px;font-weight:700;color:#fff;margin-bottom:6px"></div>
+<div id="mb-prize-label" style="font-size:13px;color:var(--dim)"></div>
+<button class="doc-btn ghost" onclick="mbCloseOverlay()" style="margin-top:18px">닫기</button>
+</div>
+</div>
 </div><!-- /main -->
 </div><!-- /app-body -->
 
@@ -1184,6 +1877,7 @@ if(page==='calendar') renderCalendar();
 if(page==='order')   initOrder();
 if(page==='expense') initExpense();
 if(page==='refund')  initRefund();
+if(page==='mb')      {initMB();mbCheckUrlParam();}
 // close sidebar on mobile
 closeSidebar();
 }
@@ -3384,151 +4078,136 @@ document.getElementById('ePreviewDoc').innerHTML=`<div class="doc-expense" id="p
 // ══════════════════════════════════════════════
 //  반환금 처리대장
 // ══════════════════════════════════════════════
-const RF_KEY = 'sv-docs-refund';
-const rfLoad = () => { try { return JSON.parse(localStorage.getItem(RF_KEY)||'[]'); } catch(_){ return []; } };
-const rfStore = l => localStorage.setItem(RF_KEY, JSON.stringify(l));
-// 반환금처리대장용 alias
+const RF_KEY='sv-docs-refund';
+const rfLoad=()=>{try{return JSON.parse(localStorage.getItem(RF_KEY)||'[]');}catch(_){return[];}};
+const rfStore=l=>localStorage.setItem(RF_KEY,JSON.stringify(l));
 const rfEsc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const rfFmtN=n=>Number(n||0).toLocaleString();
 const rfParseN=s=>parseInt((s||'').replace(/[^\d]/g,''))||0;
 const rfTodayISO=()=>new Date().toISOString().slice(0,10);
-const rfFmtDate=iso=>{if(!iso)return '';const d=new Date(iso+'T12:00');return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;};
+const rfFmtDate=iso=>{if(!iso)return'';const d=new Date(iso+'T12:00');return`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;};
+let rfRowCount=0;
 
-function showTab(n) {
-  ['write','list','preview'].forEach((t,i) => {
-    document.querySelectorAll('.tab')[i].classList.toggle('on', t===n);
-    document.querySelectorAll('.pane')[i].classList.toggle('on', t===n);
-  });
-  if(n==='list') rfRenderList();
-  if(n==='preview') rfRenderPreview(rfCollect());
+function initRefund(){
+  if(!document.getElementById('rf-date').value)
+    document.getElementById('rf-date').value=rfTodayISO();
+  if(!document.getElementById('rfRows').children.length){
+    rfRowCount=0;rfAddRow();rfAddRow();rfAddRow();
+  }
 }
 
-document.getElementById('rf-date').value = todayISO();
-// rf-date 초기값
-document.getElementById('rf-date').value = rfTodayISO();
-
-let rfRowCount = 0;
-function rfAddRow(ssn='',name='',bank='',acct='',owner='',amt='',note=''){
+function rfAddRow(name='',ssn='',bank='',acct='',owner='',amt='',note=''){
   const id=rfRowCount++;
   const d=document.createElement('div');
-  d.className='rf-detail-row';d.dataset.id=id;
-  d.style.cssText='display:grid;grid-template-columns:9% 18% 11% 26% 9% 14% 1fr 28px;gap:3px;margin-bottom:4px;align-items:center';
+  d.dataset.id=id;
+  d.style.cssText='display:grid;grid-template-columns:12% 17% 10% 21% 9% 11% 1fr 26px;gap:2px;margin-bottom:3px;align-items:center;overflow:hidden;width:100%;box-sizing:border-box';
   d.innerHTML=`
-    <input class="di" placeholder="성함" data-f="name" value="${rfEsc(name)}">
-    <input class="di" placeholder="000000-0000000" data-f="ssn" value="${rfEsc(ssn)}">
-    <input class="di" placeholder="은행명" data-f="bank" value="${rfEsc(bank)}">
-    <input class="di" placeholder="계좌번호" data-f="acct" value="${rfEsc(acct)}">
-    <input class="di" placeholder="예금주" data-f="owner" value="${rfEsc(owner)}">
-    <input class="di r" placeholder="0" data-f="amt" value="${rfEsc(amt)}" oninput="rfCalcTotal()">
-    <input class="di" placeholder="비고" data-f="note" value="${rfEsc(note)}">
-    <button class="rf-del-btn" onclick="rfDelRow(${id})">✕</button>`;
+    <input style="box-sizing:border-box;width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;outline:none" placeholder="성함" data-f="name" value="${rfEsc(name)}">
+    <input style="box-sizing:border-box;width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;outline:none" placeholder="000000-0000000" data-f="ssn" value="${rfEsc(ssn)}">
+    <input style="box-sizing:border-box;width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;outline:none" placeholder="은행명" data-f="bank" value="${rfEsc(bank)}">
+    <input style="box-sizing:border-box;width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;outline:none" placeholder="계좌번호" data-f="acct" value="${rfEsc(acct)}">
+    <input style="box-sizing:border-box;width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;outline:none" placeholder="예금주" data-f="owner" value="${rfEsc(owner)}">
+    <input style="box-sizing:border-box;width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;outline:none;text-align:right" placeholder="0" data-f="amt" value="${rfEsc(amt)}" oninput="rfCalcTotal()">
+    <input style="box-sizing:border-box;width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;outline:none" placeholder="비고" data-f="note" value="${rfEsc(note)}">
+    <button style="box-sizing:border-box;background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:#e05555;border-radius:6px;padding:5px 0;cursor:pointer;font-size:12px;width:100%" onclick="rfDelRow(${id})">✕</button>`;
   document.getElementById('rfRows').appendChild(d);
   rfCalcTotal();
 }
-function rfDelRow(id) { document.getElementById('rfRows')?.querySelector(`.rf-detail-row[data-id="${id}"]`)?.remove(); rfCalcTotal(); }
-function rfCalcTotal() {
-const rfRowsEl=document.getElementById('rfRows');
-const t = rfRowsEl?[...rfRowsEl.querySelectorAll('[data-f="amt"]')].reduce((s,e)=>s+rfParseN(e.value),0):0;
-document.getElementById('rfTotal').textContent = rfFmtN(t) + '원';
-}
-rfAddRow(); rfAddRow(); rfAddRow();
-
-function rfCollect() {
-const rfRowsEl2=document.getElementById('rfRows');
-const rows = [...(rfRowsEl2?rfRowsEl2.querySelectorAll('.rf-detail-row'):[])].map(r => ({
-ssn: r.querySelector('[data-f="ssn"]').value.trim(),
-name: r.querySelector('[data-f="name"]').value.trim(),
-bank: r.querySelector('[data-f="bank"]').value.trim(),
-acct: r.querySelector('[data-f="acct"]').value.trim(),
-owner: r.querySelector('[data-f="owner"]').value.trim(),
-amt: rfParseN(r.querySelector('[data-f="amt"]').value),
-note: r.querySelector('[data-f="note"]').value.trim(),
-}));
-const total = rows.reduce((s,r) => s + r.amt, 0);
-return {
-id: document.getElementById('rf-editId').value || (Date.now()+''),
-createdAt: new Date().toISOString(),
-manager: document.getElementById('rf-manager').value.trim(),
-date: document.getElementById('rf-date').value,
-total, rows
-};
+function rfDelRow(id){
+  document.getElementById('rfRows')?.querySelector(`.rf-row[data-id="${id}"]`)?.remove();
+  rfCalcTotal();
 }
 
-function rfFill(doc) {
-document.getElementById('rf-editId').value = doc.id;
-document.getElementById('rf-manager').value = doc.manager || '';
-document.getElementById('rf-date').value = doc.date || rfTodayISO();
-document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
-(doc.rows||[]).forEach(r => rfAddRow(r.ssn,r.name,r.bank,r.acct,r.owner,r.amt||'',r.note));
-if(!(doc.rows?.length)) { rfAddRow(); rfAddRow(); rfAddRow(); }
-rfCalcTotal();
+function rfCalcTotal(){
+  const el=document.getElementById('rfRows');
+  const t=el?[...el.querySelectorAll('[data-f="amt"]')].reduce((s,e)=>s+rfParseN(e.value),0):0;
+  const tot=document.getElementById('rfTotal');
+  if(tot)tot.textContent=rfFmtN(t)+'원';
 }
 
-function initRefund(){
-if(!document.getElementById('rf-date').value)
-document.getElementById('rf-date').value=docTodayISO();
-if(!document.getElementById('rfRows').children.length){
-rfRowCount=0; rfAddRow(); rfAddRow(); rfAddRow();
+function rfCollect(){
+  const el=document.getElementById('rfRows');
+  const rows=[...(el?el.querySelectorAll('.rf-row'):[])].map(r=>({
+    name:r.querySelector('[data-f="name"]').value.trim(),
+    ssn:r.querySelector('[data-f="ssn"]').value.trim(),
+    bank:r.querySelector('[data-f="bank"]').value.trim(),
+    acct:r.querySelector('[data-f="acct"]').value.trim(),
+    owner:r.querySelector('[data-f="owner"]').value.trim(),
+    amt:rfParseN(r.querySelector('[data-f="amt"]').value),
+    note:r.querySelector('[data-f="note"]').value.trim(),
+  }));
+  return{
+    id:document.getElementById('rf-editId').value||(Date.now()+''),
+    createdAt:new Date().toISOString(),
+    manager:document.getElementById('rf-manager').value.trim(),
+    date:document.getElementById('rf-date').value,
+    total:rows.reduce((s,r)=>s+r.amt,0),rows
+  };
 }
-}
-function rfReset() {
-document.getElementById('rf-editId').value = '';
-document.getElementById('rf-manager').value = '';
-document.getElementById('rf-date').value = rfTodayISO();
-document.getElementById('rfRows').innerHTML = ''; rfRowCount = 0;
-rfAddRow(); rfAddRow(); rfAddRow(); rfCalcTotal();
-}
-function rfSave() {
-const doc = rfCollect();
-if(!doc.manager) { alert('담당자를 입력해주세요.'); return; }
-const list = rfLoad(); const idx = list.findIndex(d => d.id === doc.id);
-if(idx >= 0) list[idx] = doc; else list.unshift(doc);
-if(list.length > 50) list.length = 50;
-rfStore(list);
-document.getElementById('rf-editId').value = doc.id;
-alert('저장 완료!');
-}
-function rfPreviewDo() { rfRenderPreview(rfCollect()); showTab('preview'); }
-function rfPreviewDo() { rfRenderPreview(rfCollect()); docTab('refund','preview'); }
 
-function rfRenderList() {
-const body = document.getElementById('rfListBody'); const list = rfLoad();
-if(!list.length) { body.innerHTML = '<div class="empty">저장된 처리대장이 없습니다.</div>'; return; }
-body.innerHTML = list.map((doc,i) => `
-    <div class="list-item" style="animation-delay:${i*.05}s">
-      <div class="list-title">${fmtDate(doc.date)} — ${esc(doc.manager)||'(담당자 없음)'} &nbsp;<span style="color:var(--gold)">${rfFmtN(doc.total)}원</span></div>
-      <div class="list-meta"><span>${doc.rows?.filter(r=>r.name).length||0}건</span></div>
-      <div class="list-acts">
-        <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px" onclick="rfEdit('${doc.id}')">✏️ 수정</button>
-        <button class="btn btn-blue" style="font-size:12px;padding:5px 11px" onclick="rfViewPreview('${doc.id}')">👁 출력</button>
-        <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px;color:var(--red);border-color:rgba(224,85,85,.3)" onclick="rfDel('${doc.id}')">🗑 삭제</button>
+function rfFill(doc){
+  document.getElementById('rf-editId').value=doc.id;
+  document.getElementById('rf-manager').value=doc.manager||'';
+  document.getElementById('rf-date').value=doc.date||rfTodayISO();
+  document.getElementById('rfRows').innerHTML='';rfRowCount=0;
+  (doc.rows||[]).forEach(r=>rfAddRow(r.name,r.ssn,r.bank,r.acct,r.owner,r.amt||'',r.note));
+  if(!(doc.rows?.length)){rfAddRow();rfAddRow();rfAddRow();}
+  rfCalcTotal();
+}
+
+function rfReset(){
+  document.getElementById('rf-editId').value='';
+  document.getElementById('rf-manager').value='';
+  document.getElementById('rf-date').value=rfTodayISO();
+  document.getElementById('rfRows').innerHTML='';rfRowCount=0;
+  rfAddRow();rfAddRow();rfAddRow();rfCalcTotal();
+}
+
+function rfSave(){
+  const doc=rfCollect();
+  if(!doc.manager){alert('기안자를 입력해주세요.');return;}
+  const list=rfLoad();const idx=list.findIndex(d=>d.id===doc.id);
+  if(idx>=0)list[idx]=doc;else list.unshift(doc);
+  if(list.length>50)list.length=50;
+  rfStore(list);
+  document.getElementById('rf-editId').value=doc.id;
+  alert('저장 완료!');
+}
+
+function rfPreviewDo(){rfRenderPreview(rfCollect());docTab('refund','preview');}
+
+function rfRenderList(){
+  const body=document.getElementById('rfListBody');const list=rfLoad();
+  if(!list.length){body.innerHTML='<div class="empty">저장된 처리대장이 없습니다.</div>';return;}
+  body.innerHTML=list.map((doc,i)=>`
     <div class="doc-list-item" style="animation-delay:${i*.05}s">
-      <div class="doc-list-title">${rfFmtDate(doc.date)} — ${rfEsc(doc.manager)||'(담당자 없음)'} &nbsp;<span style="color:var(--gold);font-size:14px">${rfFmtN(doc.total)}원</span></div>
+      <div class="doc-list-title">${rfFmtDate(doc.date)} — ${rfEsc(doc.manager)||'(기안자 없음)'} &nbsp;<span style="color:var(--gold)">${rfFmtN(doc.total)}원</span></div>
       <div class="doc-list-meta"><span>명세 ${doc.rows?.filter(r=>r.name).length||0}건</span></div>
       <div class="doc-list-actions">
         <button class="doc-btn ghost" style="font-size:12px;padding:5px 11px" onclick="rfEdit('${doc.id}')">✏️ 수정</button>
         <button class="doc-btn blue" style="font-size:12px;padding:5px 11px" onclick="rfViewPreview('${doc.id}')">👁 출력</button>
         <button class="doc-btn ghost" style="font-size:12px;padding:5px 11px;color:var(--red);border-color:rgba(224,85,85,.3)" onclick="rfDel('${doc.id}')">🗑 삭제</button>
-     </div>
-   </div>`).join('');
+      </div>
+    </div>`).join('');
 }
-function rfEdit(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfFill(doc);showTab('write');} }
-function rfEdit(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfFill(doc);docTab('refund','write');} }
-function rfViewPreview(id) { const doc = rfLoad().find(d=>d.id===id); if(doc){rfRenderPreview(doc);docTab('refund','preview');} }
-function rfDel(id) { if(!confirm('삭제하시겠습니까?')) return; rfStore(rfLoad().filter(d=>d.id!==id)); rfRenderList(); }
+
+function rfEdit(id){const doc=rfLoad().find(d=>d.id===id);if(doc){rfFill(doc);docTab('refund','write');}}
+function rfViewPreview(id){const doc=rfLoad().find(d=>d.id===id);if(doc){rfRenderPreview(doc);docTab('refund','preview');}}
+function rfDel(id){if(!confirm('삭제하시겠습니까?'))return;rfStore(rfLoad().filter(d=>d.id!==id));rfRenderList();}
 
 function rfRenderPreview(doc){
   const rows=[...(doc.rows||[])];
-  while(rows.length<20) rows.push({ssn:'',name:'',bank:'',acct:'',owner:'',amt:0,note:''});
+  while(rows.length<20)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
+  const TD='border:1px solid #555;vertical-align:middle;font-size:12px;padding:4px 5px;height:26px';
   const rowsHTML=rows.map(r=>`<tr>
-      <td class="td-name">${rfEsc(r.name)}</td>
-      <td class="td-ssn">${rfEsc(r.ssn)}</td>
-      <td class="td-bank">${rfEsc(r.bank)}</td>
-      <td class="td-acct">${rfEsc(r.acct)}</td>
-      <td class="td-owner">${rfEsc(r.owner)}</td>
-      <td class="td-amt">${r.amt?rfFmtN(r.amt):''}</td>
-      <td class="td-note">${rfEsc(r.note)}</td>
-    </tr>`).join('');
+    <td style="${TD};text-align:center">${rfEsc(r.name)}</td>
+    <td style="${TD};text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.ssn)}</td>
+    <td style="${TD};text-align:center">${rfEsc(r.bank)}</td>
+    <td style="${TD};text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.acct)}</td>
+    <td style="${TD};text-align:center">${rfEsc(r.owner)}</td>
+    <td style="${TD};text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
+    <td style="${TD}">${rfEsc(r.note)}</td>
+  </tr>`).join('');
   const el=document.getElementById('rfPreviewDoc');
   if(!el)return;
   el.innerHTML=`<div class="doc-refund" id="print-area">
@@ -3544,15 +4223,19 @@ function rfRenderPreview(doc){
       </tr>
     </table>
     <table class="dr-info">
-      <tr><td class="dr-lbl">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td><td class="dr-val">${rfEsc(doc.drafter)}</td></tr>
-      <tr><td class="dr-lbl">기&nbsp;안&nbsp;일&nbsp;자</td><td class="dr-val">${rfFmtDate(doc.date)}</td></tr>
-      <tr><td class="dr-lbl">반&nbsp;환&nbsp;금&nbsp;액</td><td class="dr-val" style="font-weight:700;color:#c00">₩ ${rfFmtN(doc.total||0)}</td></tr>
+      <tr><td class="lbl">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td><td class="val">${rfEsc(doc.manager)}</td></tr>
+      <tr><td class="lbl">기&nbsp;안&nbsp;일&nbsp;자</td><td class="val">${rfFmtDate(doc.date)}</td></tr>
+      <tr><td class="lbl">반&nbsp;환&nbsp;금&nbsp;액</td><td class="val bold">₩ ${rfFmtN(doc.total)}</td></tr>
     </table>
-    <table class="dr-detail">
+    <table style="margin-top:8px;width:100%;border-collapse:collapse;table-layout:fixed">
       <tr>
-        <th class="dr-th">성&nbsp;&nbsp;함</th><th class="dr-th">주민등록번호</th>
-        <th class="dr-th">은행명</th><th class="dr-th">계좌번호</th>
-        <th class="dr-th">예금주</th><th class="dr-th">금&nbsp;&nbsp;액</th><th class="dr-th">비&nbsp;&nbsp;고</th>
+        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:13%;-webkit-print-color-adjust:exact">성&nbsp;&nbsp;함</th>
+        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:18%;-webkit-print-color-adjust:exact">주민등록번호</th>
+        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:10%;-webkit-print-color-adjust:exact">은행명</th>
+        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:24%;-webkit-print-color-adjust:exact">계좌번호</th>
+        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:10%;-webkit-print-color-adjust:exact">예금주</th>
+        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:13%;-webkit-print-color-adjust:exact">금&nbsp;&nbsp;액</th>
+        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;-webkit-print-color-adjust:exact">비&nbsp;&nbsp;고</th>
       </tr>
       ${rowsHTML}
     </table>
@@ -3581,13 +4264,35 @@ btn.textContent=isHidden?'▲ 접기':'+ '+rows.length+'건 더 보기';
 //  전체 검색
 // ══════════════════════════════════════════════
 function openSearch(){
-document.getElementById('searchOverlay').classList.add('show');
-setTimeout(()=>document.getElementById('searchInp').focus(),100);
+  let ov=document.getElementById('searchOverlay');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='searchOverlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:none;align-items:center;justify-content:center';
+    ov.addEventListener('click',e=>{if(e.target===ov)closeSearch();});
+    const INP_STYLE="flex:1;background:none;border:none;outline:none;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px";
+    ov.innerHTML=`<div id="searchModal" style="width:90%;max-width:540px;max-height:85vh;background:#0f0f16;border:1px solid rgba(255,255,255,.12);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.8)">
+      <div style="background:rgba(201,169,110,.15);border-bottom:1px solid rgba(255,255,255,.08);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div style="font-family:'Playfair Display',serif;font-size:16px;color:#fff">🔍 데일리 <em style="color:#c9a96e;font-style:normal">검색</em></div>
+        <button onclick="closeSearch()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;width:28px;height:28px;color:rgba(255,255,255,.6);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      <div style="margin:14px 18px 0;display:flex;align-items:center;gap:10px;background:#0a0a0e;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:10px 14px;flex-shrink:0">
+        <span style="font-size:14px;color:rgba(255,255,255,.35)">🔍</span>
+        <input id="searchInp" placeholder="일정, 할일, 협찬, 발주서, 지출결의서…" oninput="runSearch(this.value)" autocomplete="off" style="${INP_STYLE}">
+        <button onclick="document.getElementById('searchInp').value='';runSearch('')" style="background:none;border:none;color:rgba(255,255,255,.2);font-size:16px;cursor:pointer;padding:0;line-height:1">✕</button>
+      </div>
+      <div id="searchBody" style="overflow-y:auto;padding:10px 0 14px;flex:1">
+        <div style="text-align:center;color:rgba(255,255,255,.35);font-size:13px;padding:32px 20px;font-style:italic;line-height:2">검색어를 입력하세요<br><span style="font-size:11px;opacity:.6">일정 · 할일 · 협찬 · 발주서 · 지출결의서</span></div>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+  }
+  ov.style.display='flex';
+  setTimeout(()=>document.getElementById('searchInp')?.focus(),80);
 }
 function closeSearch(){
-document.getElementById('searchOverlay').classList.remove('show');
-document.getElementById('searchInp').value='';
-document.getElementById('searchBody').innerHTML='<div class="search-empty">검색어를 입력하세요</div>';
+  const ov=document.getElementById('searchOverlay');
+  if(ov)ov.style.display='none';
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
 
@@ -3608,62 +4313,62 @@ let html='';
 // 일정
 const evRes=events.filter(e=>(e.title||'').toLowerCase().includes(ql)||(e.loc||'').toLowerCase().includes(ql));
 if(evRes.length){
-html+=`<div class="search-section-title">📅 일정 (${evRes.length})</div>`;
+html+=`<div style="font-size:9.5px;letter-spacing:1.2px;color:#c9a96e;font-weight:700;text-transform:uppercase;padding:12px 18px 5px;opacity:.8">📅 일정 (${evRes.length})</div>`;
 evRes.slice(0,5).forEach(e=>{
-html+=`<div class="search-item" onclick="closeSearch();nav('schedule',document.querySelector('[onclick*=\\'schedule\\']'))">
-       <div class="search-item-icon">📅</div>
-       <div class="search-item-body">
-         <div class="search-item-title">${hl(e.title,q)}</div>
-         <div class="search-item-meta">${e.date}${e.start?' · '+e.start:''}${e.loc?' · 📍'+esc(e.loc):''}</div>
+html+=`<div style="padding:9px 18px;display:flex;align-items:flex-start;gap:11px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''" onclick="closeSearch();nav('schedule',document.querySelector('[onclick*=\\'schedule\\']'))">
+       <div style="font-size:14px;flex-shrink:0;margin-top:2px;opacity:.5">📅</div>
+       <div style="flex:1;min-width:0">
+         <div style="font-size:13.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hl(e.title,q)}</div>
+         <div style="font-size:11.5px;color:rgba(255,255,255,.4);margin-top:2px">${e.date}${e.start?' · '+e.start:''}${e.loc?' · 📍'+esc(e.loc):''}</div>
        </div></div>`;
 });
-html+='<div class="search-divider"></div>';
+html+='<div style="height:1px;background:rgba(255,255,255,.07);margin:4px 18px"></div>';
 }
 
 // 할일
 const tdRes=todos.filter(t=>(t.text||'').toLowerCase().includes(ql));
 if(tdRes.length){
-html+=`<div class="search-section-title">✅ 할일 (${tdRes.length})</div>`;
+html+=`<div style="font-size:9.5px;letter-spacing:1.2px;color:#c9a96e;font-weight:700;text-transform:uppercase;padding:12px 18px 5px;opacity:.8">✅ 할일 (${tdRes.length})</div>`;
 const pl={high:'🔴',mid:'🟡',low:'🔵'};
 tdRes.slice(0,5).forEach(t=>{
-html+=`<div class="search-item" onclick="closeSearch();nav('todo',document.querySelector('[onclick*=\\'todo\\']'))">
-       <div class="search-item-icon">${pl[t.p]||'⚪'}</div>
-       <div class="search-item-body">
-         <div class="search-item-title">${hl(t.text,q)}</div>
-         <div class="search-item-meta">${t.done?'완료':'미완료'}</div>
+html+=`<div style="padding:9px 18px;display:flex;align-items:flex-start;gap:11px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''" onclick="closeSearch();nav('todo',document.querySelector('[onclick*=\\'todo\\']'))">
+       <div style="font-size:14px;flex-shrink:0;margin-top:2px;opacity:.5">${pl[t.p]||'⚪'}</div>
+       <div style="flex:1;min-width:0">
+         <div style="font-size:13.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hl(t.text,q)}</div>
+         <div style="font-size:11.5px;color:rgba(255,255,255,.4);margin-top:2px">${t.done?'완료':'미완료'}</div>
        </div></div>`;
 });
-html+='<div class="search-divider"></div>';
+html+='<div style="height:1px;background:rgba(255,255,255,.07);margin:4px 18px"></div>';
 }
 
 // 협찬
 const spRes=sponsors.filter(s=>((s.brand||'')+(s.content||'')).toLowerCase().includes(ql));
 if(spRes.length){
-html+=`<div class="search-section-title">🤝 협찬 (${spRes.length})</div>`;
+html+=`<div style="font-size:9.5px;letter-spacing:1.2px;color:#c9a96e;font-weight:700;text-transform:uppercase;padding:12px 18px 5px;opacity:.8">🤝 협찬 (${spRes.length})</div>`;
 spRes.slice(0,5).forEach(s=>{
-html+=`<div class="search-item" onclick="closeSearch();nav('sponsor',document.querySelector('[onclick*=\\'sponsor\\']'))">
-       <div class="search-item-icon">🤝</div>
-       <div class="search-item-body">
-         <div class="search-item-title">${hl((s.brand?s.brand+' · ':'')+s.content,q)}</div>
-         <div class="search-item-meta">${s.done?'발행완료':'진행중'}${s.deadline?' · '+new Date(s.deadline).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})+' 마감':''}</div>
+html+=`<div style="padding:9px 18px;display:flex;align-items:flex-start;gap:11px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''" onclick="closeSearch();nav('sponsor',document.querySelector('[onclick*=\\'sponsor\\']'))">
+       <div style="font-size:14px;flex-shrink:0;margin-top:2px;opacity:.5">🤝</div>
+       <div style="flex:1;min-width:0">
+         <div style="font-size:13.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hl((s.brand?s.brand+' · ':'')+s.content,q)}</div>
+         <div style="font-size:11.5px;color:rgba(255,255,255,.4);margin-top:2px">${s.done?'발행완료':'진행중'}${s.deadline?' · '+new Date(s.deadline).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})+' 마감':''}</div>
        </div></div>`;
 });
-html+='<div class="search-divider"></div>';
+html+='<div style="height:1px;background:rgba(255,255,255,.07);margin:4px 18px"></div>';
 }
 
 // 발주서
 const orRes=oLoad().filter(d=>((d.org||'')+(d.product||'')+(d.manager||'')).toLowerCase().includes(ql));
 if(orRes.length){
-html+=`<div class="search-section-title">📋 발주서 (${orRes.length})</div>`;
+html+=`<div style="font-size:9.5px;letter-spacing:1.2px;color:#c9a96e;font-weight:700;text-transform:uppercase;padding:12px 18px 5px;opacity:.8">📋 발주서 (${orRes.length})</div>`;
 orRes.slice(0,5).forEach(d=>{
-html+=`<div class="search-item" onclick="closeSearch();oEdit('${d.id}');nav('order',document.querySelector('[onclick*=\\'order\\']'))">
-       <div class="search-item-icon">📋</div>
-       <div class="search-item-body">
-         <div class="search-item-title">${hl((d.org||'')+(d.product?' · '+d.product:''),q)}</div>
-         <div class="search-item-meta">${d.reqdate||''}${d.manager?' · '+esc(d.manager):''}</div>
+html+=`<div style="padding:9px 18px;display:flex;align-items:flex-start;gap:11px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''" onclick="closeSearch();oEdit('${d.id}');nav('order',document.querySelector('[onclick*=\\'order\\']'))">
+       <div style="font-size:14px;flex-shrink:0;margin-top:2px;opacity:.5">📋</div>
+       <div style="flex:1;min-width:0">
+         <div style="font-size:13.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hl((d.org||'')+(d.product?' · '+d.product:''),q)}</div>
+         <div style="font-size:11.5px;color:rgba(255,255,255,.4);margin-top:2px">${d.reqdate||''}${d.manager?' · '+esc(d.manager):''}</div>
        </div></div>`;
 });
-html+='<div class="search-divider"></div>';
+html+='<div style="height:1px;background:rgba(255,255,255,.07);margin:4px 18px"></div>';
 }
 
 // 지출결의서
@@ -3672,18 +4377,18 @@ const rows=(d.rows||[]).map(r=>(r.cat||'')+(r.desc||'')).join('');
 return ((d.drafter||'')+rows+(d.memo||'')).toLowerCase().includes(ql);
 });
 if(exRes.length){
-html+=`<div class="search-section-title">💰 지출결의서 (${exRes.length})</div>`;
+html+=`<div style="font-size:9.5px;letter-spacing:1.2px;color:#c9a96e;font-weight:700;text-transform:uppercase;padding:12px 18px 5px;opacity:.8">💰 지출결의서 (${exRes.length})</div>`;
 exRes.slice(0,5).forEach(d=>{
-html+=`<div class="search-item" onclick="closeSearch();eEdit('${d.id}');nav('expense',document.querySelector('[onclick*=\\'expense\\']'))">
-       <div class="search-item-icon">💰</div>
-       <div class="search-item-body">
-         <div class="search-item-title">${hl(d.drafter||'(기안자 없음)',q)} · ${docFmtW(d.total)}원</div>
-         <div class="search-item-meta">${docFmtDateShort(d.date)}</div>
+html+=`<div style="padding:9px 18px;display:flex;align-items:flex-start;gap:11px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''" onclick="closeSearch();eEdit('${d.id}');nav('expense',document.querySelector('[onclick*=\\'expense\\']'))">
+       <div style="font-size:14px;flex-shrink:0;margin-top:2px;opacity:.5">💰</div>
+       <div style="flex:1;min-width:0">
+         <div style="font-size:13.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hl(d.drafter||'(기안자 없음)',q)} · ${docFmtW(d.total)}원</div>
+         <div style="font-size:11.5px;color:rgba(255,255,255,.4);margin-top:2px">${docFmtDateShort(d.date)}</div>
        </div></div>`;
 });
 }
 
-if(!html)html='<div class="search-empty">검색 결과가 없습니다</div>';
+if(!html)html='<div style="text-align:center;color:rgba(255,255,255,.35);font-size:13px;padding:28px;font-style:italic">검색 결과가 없습니다</div>';
 body.innerHTML=html;
 }
 
@@ -3880,6 +4585,365 @@ function closeHelp(){document.getElementById('helpOverlay').classList.remove('sh
 document.getElementById('evModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('helpOverlay').addEventListener('click',function(e){if(e.target===this)closeHelp();});
 
+
+
+// ══════════════════════════════════════════════
+//  미스테리 박스
+// ══════════════════════════════════════════════
+const MB_API = 'https://script.google.com/macros/s/AKfycbzFl9jYqi_KGTb3jtDqpXVV_yGGV-OnQA4574fXpKTy-znMr6E8cZWwxpy1V2ksUtfYhw/exec';
+const MB_GRADES = [
+  {grade:'SSS', pct:0.0001, label:'SSS'},
+  {grade:'SS',  pct:0.001,  label:'SS'},
+  {grade:'S',   pct:0.1,    label:'S'},
+  {grade:'A',   pct:1,      label:'A'},
+  {grade:'B',   pct:5,      label:'B'},
+  {grade:'C',   pct:15,     label:'C'},
+  {grade:'D',   pct:25,     label:'D'},
+  {grade:'E',   pct:30,     label:'E'},
+  {grade:'F',   pct:23.8989,label:'F (꽝)'},
+];
+const MB_PRESETS = {
+  coffee:[
+    {grade:'SSS',items:['자유롭게 음료 한 잔']},
+    {grade:'SS', items:['스무디급 음료 한 잔']},
+    {grade:'S',  items:['라떼급 음료 한 잔']},
+    {grade:'A',  items:['아메리카노 + 사이즈업']},
+    {grade:'B',  items:['아메리카노']},
+  ],
+  shopping:[
+    {grade:'SSS',items:['5만원 쿠폰']},
+    {grade:'SS', items:['3만원 쿠폰']},
+    {grade:'S',  items:['1만원 쿠폰']},
+    {grade:'A',  items:['5천원 쿠폰']},
+    {grade:'B',  items:['무료 배송 쿠폰']},
+  ],
+  gift:[
+    {grade:'SSS',items:['고급 선물세트']},
+    {grade:'SS', items:['케이크']},
+    {grade:'S',  items:['과일 바구니']},
+    {grade:'A',  items:['음료 세트']},
+    {grade:'B',  items:['간식 세트']},
+  ],
+  game:[
+    {grade:'SSS',items:['전설급 아이템']},
+    {grade:'SS', items:['영웅급 아이템']},
+    {grade:'S',  items:['희귀급 아이템']},
+    {grade:'A',  items:['고급 아이템']},
+    {grade:'B',  items:['일반 아이템']},
+  ],
+};
+let mbGradeCount = 0;
+let mbCurrentBox = null;
+let mbVault = [];
+try{mbVault = JSON.parse(localStorage.getItem('sv-mb-vault')||'[]');}catch(_){}
+
+function initMB(){
+  mbTab('admin');
+  mbLoadBoxes();
+  mbRenderVault();
+}
+
+function mbTab(name){
+  ['admin','user','stats'].forEach(t=>{
+    document.getElementById('mb-dt-'+t)?.classList.toggle('on', t===name);
+    document.getElementById('mb-pane-'+t)?.classList.toggle('on', t===name);
+  });
+  if(name==='stats') mbLoadStats();
+  if(name==='user') mbRenderVault();
+}
+
+// ── API 호출
+async function mbFetch(params){
+  const url = MB_API + '?' + Object.entries(params).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+  try{
+    const txt = await proxyFetch(url, 15000);
+    return JSON.parse(txt);
+  }catch(e){
+    console.warn('MB API 실패:', e.message);
+    return null;
+  }
+}
+async function mbPost(body){
+  const proxies = [
+    `https://corsproxy.io/?${encodeURIComponent(MB_API)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(MB_API)}`,
+  ];
+  for(const pu of proxies){
+    try{
+      const res = await fetch(pu, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+      const txt = await res.text();
+      return JSON.parse(txt);
+    }catch(_){}
+  }
+  try{
+    await fetch(MB_API, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body),mode:'no-cors'});
+    return {ok:true};
+  }catch(_){return null;}
+}
+
+// ── 관리자: 등급 추가
+function mbApplyPreset(key){
+  const wrap = document.getElementById('mb-grades-wrap');
+  wrap.innerHTML = '';
+  mbGradeCount = 0;
+  if(key==='clear'){
+    wrap.innerHTML = '<div class="empty" style="font-size:12px">프리셋을 선택하거나 + 등급 추가로 직접 입력하세요</div>';
+    return;
+  }
+  const rows = MB_PRESETS[key]||[];
+  rows.forEach(row=>{
+    mbAddGrade();
+    const lastRow = wrap.lastElementChild;
+    if(!lastRow) return;
+    const sel = lastRow.querySelector('[data-gf="grade"]');
+    if(sel) sel.value = row.grade;
+    // 상품 자동 추가
+    const gid = lastRow.dataset.gid;
+    row.items.forEach(item=>{
+      mbAddItem(parseInt(gid));
+      const container = document.getElementById('mb-items-'+gid);
+      if(container){
+        const lastInp = container.lastElementChild?.querySelector('[data-if="item"]');
+        if(lastInp) lastInp.value = item;
+      }
+    });
+  });
+}
+
+function mbAddGrade(){
+  const id = mbGradeCount++;
+  const wrap = document.getElementById('mb-grades-wrap');
+  if(wrap.querySelector('.empty')) wrap.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'mb-grade-row';
+  div.dataset.gid = id;
+  const gradeOpts = MB_GRADES.map(g=>`<option value="${g}">${g}</option>`).join('');
+  div.innerHTML = `
+    <select style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;box-sizing:border-box;cursor:pointer" data-gf="grade">
+      ${gradeOpts}
+    </select>
+    <input style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;box-sizing:border-box;width:90px" placeholder="확률%" type="number" min="0" max="100" data-gf="pct">
+    <div style="flex:1">
+      <div id="mb-items-${id}" style="margin-bottom:4px"></div>
+      <button onclick="mbAddItem(${id})" style="background:var(--s);border:1px solid var(--b);border-radius:6px;padding:3px 10px;color:var(--dim);font-size:11px;cursor:pointer">+ 상품 추가</button>
+    </div>
+    <button onclick="this.closest('.mb-grade-row').remove()" style="background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:var(--red);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px">✕</button>`;
+  wrap.appendChild(div);
+}
+
+function mbAddItem(gid){
+  const container = document.getElementById('mb-items-'+gid);
+  const div = document.createElement('div');
+  div.className = 'mb-item-row';
+  div.innerHTML = `<input style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;box-sizing:border-box;flex:1" placeholder="상품명" data-if="item">
+    <button onclick="this.closest('.mb-item-row').remove()" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>`;
+  container.appendChild(div);
+}
+
+function mbCollectGrades(){
+  const rows = [...document.querySelectorAll('#mb-grades-wrap .mb-grade-row')];
+  return rows.map(row=>{
+    const grade = row.querySelector('[data-gf="grade"]').value;
+    const gradeData = MB_GRADES.find(g=>g.grade===grade)||{pct:0};
+    const pct = gradeData.pct;
+    const items = [...row.querySelectorAll('[data-if="item"]')].map(i=>i.value.trim()).filter(Boolean);
+    return {grade, pct, items};
+  });
+}
+
+async function mbCreateBox(){
+  const name = document.getElementById('mb-name').value.trim();
+  const expire = document.getElementById('mb-expire').value;
+  const limit = parseInt(document.getElementById('mb-limit').value)||0;
+  const anim = document.getElementById('mb-anim').value;
+  const showList = document.getElementById('mb-showlist').checked;
+  const hasFail = document.getElementById('mb-hasfail').checked;
+  const grades = mbCollectGrades();
+  const st = document.getElementById('mb-create-status');
+
+  if(!name){alert('박스 이름을 입력해주세요.');return;}
+  if(!grades.length){alert('등급을 1개 이상 추가해주세요.');return;}
+
+  st.textContent = '생성 중…'; st.style.color = 'var(--dim)';
+  const res = await mbPost({action:'create', name, expire, limit, anim, showList, hasFail, grades});
+  if(res?.ok){
+    st.textContent = '✓ 박스 생성 완료!'; st.style.color = 'var(--green)';
+    mbLoadBoxes();
+  } else {
+    st.textContent = '✗ 생성 실패. API URL을 확인해주세요.'; st.style.color = 'var(--red)';
+  }
+}
+
+async function mbLoadBoxes(){
+  const list = document.getElementById('mb-box-list');
+  list.innerHTML = '<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
+  const res = await mbFetch({action:'list'});
+  if(!res?.ok||!res.boxes?.length){
+    list.innerHTML = '<div class="empty">생성된 박스가 없습니다.</div>'; return;
+  }
+  list.innerHTML = res.boxes.map(box=>{
+    const expired = box.expire && new Date(box.expire) < new Date();
+    const active = box.active!==false;
+    return `<div class="mb-box-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:4px">${esc(box.name)}
+            ${!active?'<span class="tag" style="background:rgba(255,255,255,.06);color:var(--dim);border:1px solid var(--b);font-size:10px">비활성화</span>':''}
+            ${expired?'<span class="tag r" style="font-size:10px">만료</span>':''}
+          </div>
+          <div style="font-size:12px;color:var(--dim)">개봉 ${box.openCount||0}/${box.limit||'∞'}회 · ${box.expire||'기간 무제한'} · ${box.anim||'box'}형</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px;word-break:break-all">UUID: ${box.uuid}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+          <button onclick="mbCopyLink('${box.uuid}')" class="doc-btn ghost" style="font-size:11px;padding:4px 10px">🔗 링크 복사</button>
+          ${active?`<button onclick="mbDeactivate('${box.uuid}')" class="doc-btn ghost" style="font-size:11px;padding:4px 10px;color:var(--red)">비활성화</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function mbCopyLink(uuid){
+  // GitHub Pages 배포 시 자동으로 올바른 URL 생성
+  // file:// 환경에서는 UUID만 복사
+  const base = location.protocol==='file:' ? '' : location.href.split('?')[0];
+  const val = base ? base+'?mb='+uuid : uuid;
+  const msg = base ? '링크가 복사됐습니다.' : 'UUID가 복사됐습니다.\n(GitHub Pages 배포 후 전체 링크 복사 가능)';
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(val).then(()=>alert(msg+'\n\n'+val));
+  } else {
+    prompt(msg, val);
+  }
+}
+
+async function mbDeactivate(uuid){
+  if(!confirm('비활성화하시겠습니까?')) return;
+  await mbPost({action:'deactivate', uuid});
+  mbLoadBoxes();
+}
+
+// ── 수령: 박스 열기
+async function mbClaimBox(){
+  let val = document.getElementById('mb-uuid-inp').value.trim();
+  // ?mb= 파라미터에서 UUID 추출
+  const mParam = val.match(/[?&]mb=([^&]+)/);
+  if(mParam) val = mParam[1];
+  const st = document.getElementById('mb-claim-status');
+  if(!val){st.textContent='UUID를 입력해주세요.';return;}
+  st.textContent='박스 확인 중…';
+
+  let res = null;
+  try{ res = await mbFetch({action:'get', uuid:val}); }catch(e){}
+  if(!res?.ok||!res.box){
+    st.style.color='var(--red)';
+    st.textContent = res===null
+      ? '✗ API 연결 실패. GitHub Pages 배포 환경에서 정상 작동합니다.'
+      : '✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';
+    return;
+  }
+  st.textContent = '';
+  mbCurrentBox = {...res.box, uuid:val};
+  mbShowOverlay();
+}
+
+function mbShowOverlay(){
+  const ov = document.getElementById('mb-overlay');
+  const prizeCard = document.getElementById('mb-prize-card');
+  const openBtn = document.getElementById('mb-open-btn');
+  const animArea = document.getElementById('mb-anim-area');
+  if(!ov) return;
+  const icons = {box:'📦', roulette:'🎰', capsule:'💊'};
+  animArea.textContent = icons[mbCurrentBox?.anim||'box'] || '🎁';
+  prizeCard.style.display = 'none';
+  openBtn.style.display = 'flex';
+  ov.classList.add('show');
+}
+
+async function mbDoOpen(){
+  const btn = document.getElementById('mb-open-btn');
+  btn.textContent = '두근두근…'; btn.disabled = true;
+  let res = null;
+  try{
+    res = await mbPost({action:'open', uuid:mbCurrentBox.uuid});
+  }catch(e){
+    console.warn('mbDoOpen error:', e);
+  }
+  if(!res?.ok){
+    btn.textContent = '🎁 지금 열기'; btn.disabled = false;
+    alert('개봉 실패.\n원인: 만료됐거나 수량 소진, 또는 API 연결 오류.\nGitHub Pages 배포 후 정상 작동합니다.');
+    return;
+  }
+  // 결과 표시
+  const prize = res.prize;
+  document.getElementById('mb-prize-grade').innerHTML = `<span class="mb-grade-badge mb-grade-${prize.grade}">${prize.grade}</span>`;
+  document.getElementById('mb-prize-item').textContent = prize.item;
+  document.getElementById('mb-prize-label').textContent = mbCurrentBox.name;
+  document.getElementById('mb-open-btn').style.display = 'none';
+  document.getElementById('mb-prize-card').style.display = 'block';
+  // vault 저장
+  mbVault.unshift({...prize, boxName:mbCurrentBox.name, date:new Date().toISOString().slice(0,10)});
+  try{localStorage.setItem('sv-mb-vault', JSON.stringify(mbVault.slice(0,50)));}catch(_){}
+  mbRenderVault();
+}
+
+function mbCloseOverlay(){
+  document.getElementById('mb-overlay')?.classList.remove('show');
+  mbCurrentBox = null;
+  document.getElementById('mb-uuid-inp').value = '';
+}
+
+function mbRenderVault(){
+  const el = document.getElementById('mb-vault');
+  if(!el) return;
+  if(!mbVault.length){el.innerHTML='<div class="empty">수령한 박스가 없습니다.</div>';return;}
+  el.innerHTML = mbVault.map(v=>`
+    <div class="mb-vault-item">
+      <span class="mb-grade-badge mb-grade-${v.grade}">${v.grade}</span>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;color:#fff">${esc(v.item)}</div>
+        <div style="font-size:11px;color:var(--dim)">${esc(v.boxName)} · ${v.date}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── 통계
+async function mbLoadStats(){
+  const el = document.getElementById('mb-stats-body');
+  if(!el) return;
+  el.innerHTML = '<div class="spin-wrap"><div class="spin"></div><div class="spin-t">통계 불러오는 중…</div></div>';
+  const res = await mbFetch({action:'stats'});
+  if(!res?.ok){el.innerHTML='<div class="empty">통계를 불러오지 못했습니다.</div>';return;}
+  const stats = res.stats||{};
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px">
+      <div class="kpi-card"><div class="kpi-label">총 개봉</div><div class="kpi-val">${stats.totalOpen||0}회</div></div>
+      <div class="kpi-card"><div class="kpi-label">활성 박스</div><div class="kpi-val ok">${stats.activeBoxes||0}개</div></div>
+      <div class="kpi-card"><div class="kpi-label">총 박스</div><div class="kpi-val">${stats.totalBoxes||0}개</div></div>
+    </div>
+    ${(res.logs||[]).length ? `
+    <div class="bcard">
+      <div class="bcardtitle">📋 최근 개봉 기록</div>
+      ${(res.logs||[]).slice(0,10).map(l=>`
+        <div class="brow">
+          <div class="brow-left">
+            <div class="bname"><span class="mb-grade-badge mb-grade-${l.grade}">${l.grade}</span> ${esc(l.item)}</div>
+            <div class="bsub-t">${esc(l.boxName)} · ${l.date}</div>
+          </div>
+        </div>`).join('')}
+    </div>` : '<div class="empty">개봉 기록이 없습니다.</div>'}`;
+}
+
+// URL 파라미터로 박스 자동 열기 (?mb=UUID)
+function mbCheckUrlParam(){
+  const p = new URLSearchParams(location.search).get('mb');
+  if(p){
+    mbCurrentBox = {uuid:p};
+    document.getElementById('mb-uuid-inp').value = p;
+    nav('mb', document.querySelector('.sb-item[onclick*=\'mb\']'));
+    setTimeout(()=>mbClaimBox(), 300);
+  }
+}
+
 // ── 초기화 (모든 함수 정의 후 실행)
 (function(){
 tick();setInterval(tick,30000);
@@ -3905,5 +4969,6 @@ loadNotice();
 }, 5000);
 })();
 </script>
+
 </body>
 </html>
