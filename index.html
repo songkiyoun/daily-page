@@ -4795,31 +4795,47 @@ function mbRenderBoxList(boxes){
   const list=document.getElementById('mb-box-list');
   const now=new Date();
   let filtered=boxes.filter(box=>{
-    const expired=box.expire&&new Date(box.expire)<now;
-    const active=box.active!==false;
-    if(mbBoxFilter==='active') return active&&!expired;
+    // API 실제 필드: expires(만료일), status('활성'/'비활성'), createdAt
+    const expired = box.expires && new Date(box.expires) < now;
+    const active = box.status === '활성';
+    if(mbBoxFilter==='active')   return active && !expired;
     if(mbBoxFilter==='inactive') return !active;
-    if(mbBoxFilter==='expired') return expired;
+    if(mbBoxFilter==='expired')  return expired;
     return true;
   });
-  // 최신순 (createdAt 내림차순, 없으면 원래 역순)
-  filtered = filtered.reverse();
+  // createdAt 기준 최신순
+  filtered.sort((a,b)=>{
+    const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
+    const db = b.createdAt ? new Date(b.createdAt) : new Date(0);
+    return db - da;
+  });
   if(!filtered.length){list.innerHTML='<div class="empty">해당 조건의 박스가 없습니다.</div>';return;}
   list.innerHTML=filtered.map(box=>{
-    const expired=box.expire&&new Date(box.expire)<now;
-    const active=box.active!==false;
+    const expired = box.expires && new Date(box.expires) < now;
+    const active  = box.status === '활성';
+    const statusTag = !active
+      ? '<span class="tag" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);font-size:10px">비활성화</span>'
+      : expired
+        ? '<span class="tag r" style="font-size:10px">만료</span>'
+        : '<span class="tag g" style="font-size:10px">활성</span>';
+    const openRatio = box.limit ? `${box.openCount||0}/${box.limit}` : `${box.openCount||0}/무제한`;
+    const expiresStr = box.expires
+      ? new Date(box.expires).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'})
+      : '기간 무제한';
     return `<div class="mb-box-card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-        <div>
-          <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:4px">${esc(box.name)}
-            ${!active?'<span class="tag" style="background:rgba(255,255,255,.06);color:var(--dim);border:1px solid var(--b);font-size:10px">비활성화</span>':''}
-            ${expired?'<span class="tag r" style="font-size:10px">만료</span>':''}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:5px">
+            ${esc(box.name)} ${statusTag}
           </div>
-          <div style="font-size:12px;color:var(--dim)">개봉 ${box.openCount||0}/${box.limit||'∞'}회 · ${box.expire||'기간 무제한'} · ${box.anim||'box'}형</div>
-          <div style="font-size:11px;color:var(--dim);margin-top:2px;word-break:break-all">UUID: ${box.uuid}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.4);line-height:1.7">
+            개봉 ${openRatio}회 · 만료 ${expiresStr}<br>
+            애니: ${box.animType||'box'}형 · 상품공개: ${box.showItems?'Y':'N'} · 꽝: ${box.allowBlank?'Y':'N'}
+          </div>
+          <div style="font-size:10.5px;color:rgba(255,255,255,.25);margin-top:4px;word-break:break-all">UUID: ${box.uuid}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
-          <button onclick="mbCopyLink('${box.uuid}')" class="doc-btn ghost" style="font-size:11px;padding:4px 10px">🔗 링크 복사</button>
+          <button onclick="mbCopyLink('${box.uuid}')" class="doc-btn ghost" style="font-size:11px;padding:4px 10px">📋 UUID 복사</button>
           ${active?`<button onclick="mbDeactivate('${box.uuid}')" class="doc-btn ghost" style="font-size:11px;padding:4px 10px;color:var(--red)">비활성화</button>`:''}
         </div>
       </div>
@@ -4827,14 +4843,6 @@ function mbRenderBoxList(boxes){
   }).join('');
 }
 
-function mbCopyLink(uuid){
-  // UUID만 복사 (수령자가 입력창에 붙여넣기 하면 됨)
-  if(navigator.clipboard&&window.isSecureContext){
-    navigator.clipboard.writeText(uuid).then(()=>alert('UUID 복사됨:\n'+uuid));
-  } else {
-    prompt('UUID를 복사하세요:', uuid);
-  }
-}
 
 async function mbLoadBoxes(){
   const list = document.getElementById('mb-box-list');
