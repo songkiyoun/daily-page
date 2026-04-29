@@ -1786,17 +1786,7 @@ width:297mm !important;height:210mm !important;
 </div>
 </div>
 
-<!-- 개봉 오버레이 -->
-<div class="mb-open-overlay" id="mb-overlay" style="display:none">
-<div id="mb-anim-area" style="font-size:80px;animation:pulse 1s ease infinite">🎁</div>
-<button class="doc-btn gold" id="mb-open-btn" onclick="mbDoOpen()" style="font-size:16px;padding:14px 36px">🎁 지금 열기</button>
-<div class="mb-prize-card" id="mb-prize-card" style="display:none">
-<div id="mb-prize-grade" style="font-size:13px;margin-bottom:8px"></div>
-<div id="mb-prize-item" style="font-size:28px;font-weight:700;color:#fff;margin-bottom:6px"></div>
-<div id="mb-prize-label" style="font-size:13px;color:var(--dim)"></div>
-<button class="doc-btn ghost" onclick="mbCloseOverlay()" style="margin-top:18px">닫기</button>
-</div>
-</div>
+
 </div><!-- /main -->
 </div><!-- /app-body -->
 
@@ -4072,90 +4062,62 @@ function rfDel(id){if(!confirm('삭제하시겠습니까?'))return;rfStore(rfLoa
 function rfRenderPreview(doc){
   const el=document.getElementById('rfPreviewDoc');
   if(!el)return;
-
-  // 반환금 데이터 준비 (빈 행 포함 최대 30행)
   const rows=[...(doc.rows||[])];
-  while(rows.length<30)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
-
-  const TH='background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;' +
-           'border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact';
-  const TD='border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111';
-  const LBL='background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;' +
-            'letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;' +
-            'border:1px solid #555;vertical-align:middle;' +
-            '-webkit-print-color-adjust:exact;print-color-adjust:exact';
-  const VAL='padding:6px 10px;font-size:13px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111';
+  while(rows.length<28)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
 
   const rowsHTML=rows.map(r=>`<tr>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.name)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center;font-size:11px">${rfEsc(r.ssn)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.bank)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center;font-size:11px">${rfEsc(r.acct)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.owner)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111">${rfEsc(r.note)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.name)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center;font-size:10px">${rfEsc(r.ssn)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.bank)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center;font-size:10px">${rfEsc(r.acct)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.owner)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111">${rfEsc(r.note)}</td>
   </tr>`).join('');
 
-  el.innerHTML=`<div class="doc-refund" id="print-area" style="display:flex;flex-direction:column">
-
+  el.innerHTML=`<div class="doc-refund" id="print-area">
     <!-- 결재란 + 제목 -->
-    <table style="width:100%;border-collapse:collapse;table-layout:fixed;flex-shrink:0">
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:6px">
       <colgroup>
         <col style="width:48%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%">
       </colgroup>
       <tr>
-        <td rowspan="2" style="border:none;font-size:22px;font-weight:900;letter-spacing:2px;color:#111;padding:10px 0 10px 4px;vertical-align:middle">반&nbsp;&nbsp;환&nbsp;&nbsp;금&nbsp;&nbsp;처&nbsp;&nbsp;리&nbsp;&nbsp;대&nbsp;&nbsp;장</td>
-        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">담당</td>
-        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">대리</td>
-        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">이사</td>
-        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">대표</td>
+        <td rowspan="2" style="border:none;font-size:20px;font-weight:900;letter-spacing:2px;color:#111;padding:8px 0 8px 4px;vertical-align:middle">반&nbsp;&nbsp;환&nbsp;&nbsp;금&nbsp;&nbsp;처&nbsp;&nbsp;리&nbsp;&nbsp;대&nbsp;&nbsp;장</td>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">담당</td><td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">대리</td>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">이사</td><td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">대표</td>
       </tr>
       <tr>
-        <td style="height:44px;border:1px solid #555"></td>
-        <td style="height:44px;border:1px solid #555"></td>
-        <td style="height:44px;border:1px solid #555"></td>
-        <td style="height:44px;border:1px solid #555"></td>
+        <td style="height:40px;border:1px solid #555"></td>
+        <td style="height:40px;border:1px solid #555"></td>
+        <td style="height:40px;border:1px solid #555"></td>
+        <td style="height:40px;border:1px solid #555"></td>
       </tr>
     </table>
-
     <!-- 기안 정보 -->
-    <table style="width:60%;border-collapse:collapse;margin-top:6px;flex-shrink:0">
-      <tr>
-        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td>
-        <td style="padding:6px 10px;font-size:13px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111">${rfEsc(doc.manager)}</td>
-      </tr>
-      <tr>
-        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">기&nbsp;안&nbsp;일&nbsp;자</td>
-        <td style="padding:6px 10px;font-size:13px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111">${rfFmtDate(doc.date)}</td>
-      </tr>
-      <tr>
-        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">반&nbsp;환&nbsp;금&nbsp;액</td>
-        <td style="padding:6px 10px;font-size:13px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111;font-weight:700;color:#c00">₩ ${rfFmtN(doc.total||0)}</td>
-      </tr>
+    <table style="width:55%;border-collapse:collapse;margin-bottom:6px">
+      <tr><td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;letter-spacing:1px;padding:5px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td><td style="padding:5px 10px;font-size:12px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111">${rfEsc(doc.manager)}</td></tr>
+      <tr><td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;letter-spacing:1px;padding:5px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">기&nbsp;안&nbsp;일&nbsp;자</td><td style="padding:5px 10px;font-size:12px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111">${rfFmtDate(doc.date)}</td></tr>
+      <tr><td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;letter-spacing:1px;padding:5px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">반&nbsp;환&nbsp;금&nbsp;액</td><td style="padding:5px 10px;font-size:12px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111;font-weight:700">₩ ${rfFmtN(doc.total||0)}</td></tr>
     </table>
-
-    <!-- 명세 테이블 (flex:1로 남은 공간 전부 채움) -->
-    <table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:6px;flex:1;height:100%">
+    <!-- 명세 테이블 -->
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed;flex:1">
       <colgroup>
-        <col style="width:13%"><col style="width:18%"><col style="width:10%">
-        <col style="width:22%"><col style="width:10%"><col style="width:14%"><col>
+        <col style="width:13%"><col style="width:17%"><col style="width:10%">
+        <col style="width:21%"><col style="width:10%"><col style="width:14%"><col>
       </colgroup>
       <thead>
         <tr>
-          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">성&nbsp;&nbsp;함</th>
-          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">주민등록번호</th>
-          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">은행명</th>
-          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">계좌번호</th>
-          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">예금주</th>
-          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">금&nbsp;&nbsp;액</th>
-          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">비&nbsp;&nbsp;고</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">성&nbsp;&nbsp;함</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">주민등록번호</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">은행명</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">계좌번호</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">예금주</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">금&nbsp;&nbsp;액</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:11px;border:1px solid #555;padding:4px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">비&nbsp;&nbsp;고</th>
         </tr>
       </thead>
-      <tbody>
-        ${rowsHTML}
-      </tbody>
+      <tbody>${rowsHTML}</tbody>
     </table>
-
   </div>`;
 }
 
@@ -4810,23 +4772,44 @@ async function mbClaimBox(){
     return;
   }
   st.style.color='var(--green)';
-  st.textContent='✓ 박스 확인 완료!';
+  st.textContent='✓ 박스 확인 완료! 아래 수령 목록에서 열어보세요.';
   mbCurrentBox = {...res.box, uuid:val};
-  setTimeout(()=>{st.textContent='';}, 1500);
-  mbShowOverlay();
+  // 수령 대기 항목을 vault에 추가 (pending 상태)
+  const pending = {
+    grade:'?', item:'개봉 대기', boxName:res.box.name||'',
+    date:new Date().toISOString().slice(0,10),
+    uuid:val, pending:true
+  };
+  mbVault.unshift(pending);
+  try{localStorage.setItem('sv-mb-vault',JSON.stringify(mbVault.slice(0,50)));}catch(_){}
+  mbRenderVault();
+  document.getElementById('mb-uuid-inp').value='';
+  setTimeout(()=>{st.textContent='';},3000);
 }
 
 function mbShowOverlay(){
-  const ov = document.getElementById('mb-overlay');
-  const prizeCard = document.getElementById('mb-prize-card');
-  const openBtn = document.getElementById('mb-open-btn');
-  const animArea = document.getElementById('mb-anim-area');
-  if(!ov) return;
+  // 동적 생성 (정적 HTML에 항상 떠있는 문제 방지)
+  let ov = document.getElementById('mb-overlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'mb-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px';
+    ov.innerHTML = `
+      <div id="mb-anim-area" style="font-size:80px">🎁</div>
+      <button id="mb-open-btn" onclick="mbDoOpen()" style="background:#c9a96e;border:none;border-radius:8px;padding:14px 36px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;cursor:pointer">🎁 지금 열기</button>
+      <div id="mb-prize-card" style="display:none;background:linear-gradient(135deg,rgba(201,169,110,.16),rgba(201,169,110,.05));border:2px solid rgba(201,169,110,.32);border-radius:16px;padding:32px 40px;text-align:center">
+        <div id="mb-prize-grade" style="font-size:13px;margin-bottom:8px"></div>
+        <div id="mb-prize-item" style="font-size:28px;font-weight:700;color:#fff;margin-bottom:6px"></div>
+        <div id="mb-prize-label" style="font-size:13px;color:rgba(255,255,255,.45)"></div>
+        <button onclick="mbCloseOverlay()" style="margin-top:18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:9px 20px;color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;cursor:pointer">닫기</button>
+      </div>`;
+    document.body.appendChild(ov);
+  }
   const icons = {box:'📦', roulette:'🎰', capsule:'💊'};
-  animArea.textContent = icons[mbCurrentBox?.animType||mbCurrentBox?.anim||'box'] || '🎁';
-  prizeCard.style.display = 'none';
-  openBtn.style.display = 'flex';
-  ov.style.display = 'flex';  // inline style로 강제 (classList.show가 inline style에 묻히는 문제 방지)
+  document.getElementById('mb-anim-area').textContent = icons[mbCurrentBox?.animType||'box']||'🎁';
+  document.getElementById('mb-prize-card').style.display = 'none';
+  document.getElementById('mb-open-btn').style.display = 'block';
+  ov.style.display = 'flex';
 }
 
 async function mbDoOpen(){
@@ -4884,9 +4867,24 @@ async function mbDoOpen(){
   document.getElementById('mb-prize-card').style.display = 'block';
 
   // vault 저장
-  mbVault.unshift({grade:prize.grade, item:prize.item, boxName:box.name||'', date:new Date().toISOString().slice(0,10)});
+  // pending 항목을 실제 결과로 교체
+  const pendingIdx = mbVault.findIndex(v=>v.pending && v.uuid===box.uuid);
+  const result = {grade:prize.grade, item:prize.item, boxName:box.name||'', date:new Date().toISOString().slice(0,10)};
+  if(pendingIdx>=0) mbVault[pendingIdx]=result;
+  else mbVault.unshift(result);
   try{localStorage.setItem('sv-mb-vault', JSON.stringify(mbVault.slice(0,50)));}catch(_){}
-  mbRenderVault();  // vault 즉시 갱신 (탭 무관하게 DOM 업데이트)
+  mbRenderVault();
+}
+
+function mbOpenPending(idx){
+  const item = mbVault[idx];
+  if(!item||!item.pending||!item.uuid) return;
+  mbCurrentBox = {uuid:item.uuid, name:item.boxName, animType:'box', items:[]};
+  // 박스 상세 정보 다시 가져오기
+  mbFetch({action:'get', uuid:item.uuid}).then(res=>{
+    if(res?.ok&&res.box) mbCurrentBox = {...res.box, uuid:item.uuid};
+    mbShowOverlay();
+  }).catch(()=>mbShowOverlay());
 }
 
 function mbCloseOverlay(){
@@ -4900,13 +4898,18 @@ function mbRenderVault(){
   const el = document.getElementById('mb-vault');
   if(!el) return;
   if(!mbVault.length){el.innerHTML='<div class="empty">수령한 박스가 없습니다.</div>';return;}
-  el.innerHTML = mbVault.map(v=>`
-    <div class="mb-vault-item">
-      <span class="mb-grade-badge mb-grade-${v.grade}">${v.grade}</span>
-      <div style="flex:1">
-        <div style="font-size:14px;font-weight:700;color:#fff">${esc(v.item)}</div>
-        <div style="font-size:11px;color:var(--dim)">${esc(v.boxName)} · ${v.date}</div>
+  el.innerHTML = mbVault.map((v,idx)=>`
+    <div class="mb-vault-item" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <span class="mb-grade-badge mb-grade-${v.pending?'?':v.grade}" style="${v.pending?'background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.15)':''}">${v.pending?'?':v.grade}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:${v.pending?'rgba(255,255,255,.5)':'#fff'}">${esc(v.item)}</div>
+          <div style="font-size:11px;color:var(--dim)">${esc(v.boxName)} · ${v.date}</div>
+        </div>
       </div>
+      ${v.pending
+        ? `<button onclick="mbOpenPending(${idx})" style="background:var(--gold);border:none;border-radius:7px;padding:7px 14px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">🎁 열기</button>`
+        : ''}
     </div>`).join('');
 }
 
