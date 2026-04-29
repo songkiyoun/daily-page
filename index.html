@@ -4862,66 +4862,74 @@ function mbShowOverlay(){
     document.body.appendChild(ov);
   }
   const box = mbCurrentBox;
-  const anim = box?.animType || 'box';
-  // GAS가 'TRUE'/'FALSE' 문자열로 반환할 수 있음 → 다양한 형태 처리
+  const anim = box?.animType || box?.anim || 'box';
   const rawShowItems = box?.showItems ?? box?.showList;
   const showItemsFlag = rawShowItems === true || rawShowItems === 'TRUE' || rawShowItems === 'true' || rawShowItems === 1 || rawShowItems === '1';
-  // items가 JSON 문자열로 올 수 있음
   let boxItems = box?.items || [];
-  if(typeof boxItems === 'string'){try{boxItems = JSON.parse(boxItems);}catch(_){boxItems=[];}}
+  if(typeof boxItems === 'string'){try{boxItems=JSON.parse(boxItems);}catch(_){boxItems=[];}}
   const showItems = showItemsFlag && Array.isArray(boxItems) && boxItems.length > 0;
 
-  // Items preview HTML
+  // 상품 목록 미리보기 (인라인 스타일)
   let itemsHTML = '';
   if(showItems){
-    const rows = boxItems.flatMap(g=>(g.items||g.names||[]).map(item=>`
-      <div class="mb-items-preview-row">
-        <span class="mb-grade-badge mb-grade-${g.grade}" style="font-size:10px;padding:1px 6px">${g.grade}</span>
-        <span>${esc(item)}</span>
-      </div>`)).join('');
-    itemsHTML = `<div class="mb-items-preview" id="mb-items-preview-panel">
-      <div class="mb-items-preview-title">📋 이 박스에 들어있는 상품 목록</div>
-      <div class="mb-items-preview-list">${rows}</div>
-      <button onclick="mbHideItemsPreview()" style="margin-top:14px;width:100%;background:var(--gold);border:none;border-radius:9px;padding:12px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">확인했습니다 → 열기 진행</button>
+    const rows = boxItems.flatMap(g=>{
+      const gc={SSS:'#ffd700',SS:'#ff6464',S:'#c9a96e',A:'#a78bfa',B:'#5b9bd5',C:'#5fcf85',D:'#e8923a',E:'rgba(255,255,255,.45)',F:'rgba(255,255,255,.3)'};
+      return (g.items||g.names||[]).map(item=>`
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.72);padding:3px 0">
+          <span style="display:inline-block;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:700;background:rgba(255,255,255,.08);color:${gc[g.grade]||'#fff'};border:1px solid rgba(255,255,255,.15)">${g.grade}</span>
+          <span>${esc(item)}</span>
+        </div>`);
+    }).join('');
+    itemsHTML = `<div id="mb-items-preview-panel" style="max-width:340px;background:rgba(255,255,255,.04);border:1px solid rgba(201,169,110,.32);border-radius:12px;padding:16px 20px;width:90vw">
+      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#c9a96e;font-weight:700;margin-bottom:12px">📋 이 박스에 들어있는 상품 목록</div>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;margin-bottom:4px">${rows}</div>
+      <button onclick="mbHideItemsPreview()" style="margin-top:14px;width:100%;background:#c9a96e;border:none;border-radius:9px;padding:12px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">확인했습니다 → 열기 진행</button>
     </div>`;
   }
 
-  // Animation HTML by type
+  // 애니메이션 HTML (모두 인라인 스타일)
   let animHTML = '';
   if(anim === 'box'){
-    animHTML = `<div class="mb-box-scene" id="mb-anim-area">
-      <div class="mb-box-lid-wrap" id="mb-box-lid-wrap"><div class="mb-box-lid" id="mb-box-lid"></div></div>
-      <div class="mb-box-body" id="mb-box-body"><span class="mb-box-qmark">?</span></div>
+    animHTML = `<div id="mb-anim-area" style="display:flex;flex-direction:column;align-items:center;user-select:none">
+      <div id="mb-box-lid-wrap" style="z-index:2">
+        <div style="width:158px;height:38px;background:#000;border:4px solid #fff;border-radius:6px 6px 2px 2px;position:relative">
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:8px;background:rgba(255,255,255,.18);border-radius:4px"></div>
+        </div>
+      </div>
+      <div id="mb-box-body" style="width:148px;height:120px;background:#000;border:4px solid #fff;border-top:none;border-radius:0 0 10px 10px;display:flex;align-items:center;justify-content:center">
+        <span style="font-size:72px;font-weight:900;color:#fff;font-family:'DM Sans',sans-serif;line-height:1;text-shadow:0 0 20px rgba(255,255,255,.3)">?</span>
+      </div>
     </div>`;
   } else if(anim === 'roulette'){
-    const grades = ['SSS','SS','S','A','B','C','D','E','F'];
-    const gColors = {SSS:'#ffd700',SS:'#ff6464',S:'#c9a96e',A:'#a78bfa',B:'#5b9bd5',C:'#5fcf85',D:'#e8923a',E:'rgba(255,255,255,.5)',F:'rgba(255,255,255,.25)'};
-    const itemsRow = grades.map(g=>`<div class="mb-reel-item" data-grade="${g}" style="color:${gColors[g]||'#fff'}">${g}</div>`).join('');
-    animHTML = `<div class="mb-roulette-machine" id="mb-anim-area">
-      <div class="mb-roulette-header">🎰 🎰 🎰</div>
-      <div class="mb-roulette-body">
-        ${[0,1,2].map(i=>`<div class="mb-roulette-reel" id="mb-reel-${i}">
-          <div class="mb-roulette-window-bar"></div>
-          <div class="mb-reel-strip" id="mb-strip-${i}">${itemsRow.repeat(8)}</div>
+    const gOrd = ['SSS','SS','S','A','B','C','D','E','F'];
+    const gC = {SSS:'#ffd700',SS:'#ff6464',S:'#c9a96e',A:'#a78bfa',B:'#5b9bd5',C:'#5fcf85',D:'#e8923a',E:'rgba(255,255,255,.5)',F:'rgba(255,255,255,.25)'};
+    const strip = gOrd.map(g=>`<div style="height:36px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;width:100%;flex-shrink:0;color:${gC[g]||'#fff'}">${g}</div>`).join('');
+    animHTML = `<div id="mb-anim-area" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+      <div style="font-size:28px;letter-spacing:6px">🎰 🎰 🎰</div>
+      <div style="background:#111;border:3px solid #666;border-radius:12px;padding:8px 10px;display:flex;gap:6px;box-shadow:0 0 30px rgba(0,0,0,.9)">
+        ${[0,1,2].map(i=>`<div id="mb-reel-${i}" style="width:72px;height:108px;overflow:hidden;position:relative;border:2px solid #444;border-radius:7px;background:#0a0a0a">
+          <div style="position:absolute;top:0;left:0;right:0;height:34px;background:linear-gradient(to bottom,#0a0a0a 40%,transparent);z-index:2;pointer-events:none"></div>
+          <div style="position:absolute;bottom:0;left:0;right:0;height:34px;background:linear-gradient(to top,#0a0a0a 40%,transparent);z-index:2;pointer-events:none"></div>
+          <div style="position:absolute;top:50%;left:-4px;right:-4px;height:38px;transform:translateY(-50%);border-top:2px solid rgba(201,169,110,.7);border-bottom:2px solid rgba(201,169,110,.7);z-index:3;background:rgba(201,169,110,.04);pointer-events:none"></div>
+          <div id="mb-strip-${i}" style="display:flex;flex-direction:column;align-items:center;position:absolute;width:100%;will-change:transform">${strip.repeat(8)}</div>
         </div>`).join('')}
       </div>
     </div>`;
   } else {
-    // capsule / 뽑기알
-    animHTML = `<div class="mb-capsule-scene" id="mb-anim-area">
-      <div class="mb-capsule-top" id="mb-capsule-top" style="background:radial-gradient(ellipse at 50% 25%,#ffe566,#c49a00);border:3px solid #fff;box-shadow:inset 0 4px 12px rgba(255,255,255,.35)">
-        <div class="mb-capsule-qmark">?</div>
+    animHTML = `<div id="mb-anim-area" style="position:relative;width:130px;height:130px;margin:0 auto">
+      <div id="mb-capsule-top" style="width:110px;height:60px;border-radius:55px 55px 0 0;position:absolute;top:5px;left:10px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;background:radial-gradient(ellipse at 50% 25%,#ffe566,#c49a00);border:3px solid #fff;box-shadow:inset 0 4px 12px rgba(255,255,255,.35)">
+        <span style="font-size:36px;font-weight:900;color:rgba(255,255,255,.9);text-shadow:0 2px 8px rgba(0,0,0,.6);line-height:1">?</span>
       </div>
-      <div class="mb-capsule-bot" id="mb-capsule-bot" style="background:radial-gradient(ellipse at 50% 75%,#ff7070,#900);border:3px solid #fff;box-shadow:inset 0 -4px 12px rgba(0,0,0,.4)"></div>
+      <div id="mb-capsule-bot" style="width:110px;height:60px;border-radius:0 0 55px 55px;position:absolute;bottom:5px;left:10px;background:radial-gradient(ellipse at 50% 75%,#ff7070,#900);border:3px solid #fff;box-shadow:inset 0 -4px 12px rgba(0,0,0,.4)"></div>
     </div>`;
   }
 
-  const wrapStyle = showItems ? 'display:none;flex-direction:column;align-items:center;gap:22px' : 'display:flex;flex-direction:column;align-items:center;gap:22px';
+  const wrapDisplay = showItems ? 'none' : 'flex';
   ov.innerHTML = `
     ${itemsHTML}
-    <div id="mb-anim-wrap" style="${wrapStyle}">
+    <div id="mb-anim-wrap" style="display:${wrapDisplay};flex-direction:column;align-items:center;gap:22px">
       ${animHTML}
-      <button id="mb-open-btn" onclick="mbDoOpen()" style="background:#c9a96e;border:none;border-radius:10px;padding:14px 40px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 20px rgba(201,169,110,.35)">🎁 지금 열기</button>
+      <button id="mb-open-btn" onclick="mbDoOpen()" style="background:#c9a96e;border:none;border-radius:10px;padding:14px 40px;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(201,169,110,.35)">🎁 지금 열기</button>
     </div>
     <div id="mb-prize-card" style="display:none;background:linear-gradient(135deg,rgba(201,169,110,.16),rgba(201,169,110,.05));border:2px solid rgba(201,169,110,.32);border-radius:16px;padding:32px 40px;text-align:center;max-width:320px;width:90vw">
       <div id="mb-prize-grade" style="font-size:13px;margin-bottom:10px"></div>
@@ -4931,9 +4939,8 @@ function mbShowOverlay(){
     </div>`;
   ov.style.display = 'flex';
 
-  // Start idle animation
   if(anim === 'roulette') mbRouletteIdleStart();
-  else if(anim === 'capsule') mbCapsuleIdleStart();
+  else if(anim !== 'box') mbCapsuleIdleStart();
 }
 
 function mbHideItemsPreview(){
@@ -4943,7 +4950,7 @@ function mbHideItemsPreview(){
   if(aw){ aw.style.display='flex'; aw.style.flexDirection='column'; aw.style.alignItems='center'; aw.style.gap='22px'; }
 }
 
-// ── Roulette idle
+// ── Roulette idle (RAF 기반)
 let _mbRouletteIdleRafs = [];
 function mbRouletteIdleStart(){
   _mbRouletteIdleRafs.forEach(id=>cancelAnimationFrame(id));
@@ -4951,14 +4958,13 @@ function mbRouletteIdleStart(){
   [0,1,2].forEach((i)=>{
     const strip = document.getElementById('mb-strip-'+i);
     if(!strip) return;
-    const itemH = 36, grades = 9, cycleH = grades * itemH;
-    let pos = i * itemH * 3;
+    const cycleH = 9 * 36;
+    let pos = i * 36 * 3;
     const speed = [1.0, 1.3, 1.6][i];
     const tick = ()=>{
       pos = (pos + speed) % (cycleH * 8);
       strip.style.transform = `translateY(-${pos}px)`;
-      const raf = requestAnimationFrame(tick);
-      _mbRouletteIdleRafs[i] = raf;
+      _mbRouletteIdleRafs[i] = requestAnimationFrame(tick);
     };
     _mbRouletteIdleRafs[i] = requestAnimationFrame(tick);
   });
@@ -4968,75 +4974,90 @@ function mbRouletteIdleStop(){
   _mbRouletteIdleRafs = [];
 }
 
-// ── Capsule idle
-let _mbCapsuleIdleRaf = null;
+// ── Capsule idle (JS 기반 float — CSS keyframe 불필요)
+let _mbCapsuleFloatRaf = null;
 function mbCapsuleIdleStart(){
   const scene = document.getElementById('mb-anim-area');
   if(!scene) return;
-  scene.style.animation = 'mb-capsule-float 2.5s ease-in-out infinite';
+  let t = 0;
+  const float = ()=>{
+    t += 0.04;
+    scene.style.transform = `translateY(${Math.sin(t) * 7}px)`;
+    _mbCapsuleFloatRaf = requestAnimationFrame(float);
+  };
+  _mbCapsuleFloatRaf = requestAnimationFrame(float);
 }
 function mbCapsuleIdleStop(){
+  if(_mbCapsuleFloatRaf) cancelAnimationFrame(_mbCapsuleFloatRaf);
+  _mbCapsuleFloatRaf = null;
   const scene = document.getElementById('mb-anim-area');
-  if(scene) scene.style.animation = '';
+  if(scene) scene.style.transform = '';
 }
 
-// ── Box open animation
+// ── Box open (JS 기반 — CSS @keyframes 불필요)
 function mbBoxOpenAnim(){
   return new Promise(resolve=>{
     const scene = document.getElementById('mb-anim-area');
     const lidWrap = document.getElementById('mb-box-lid-wrap');
-    const body = document.getElementById('mb-box-body');
-    if(!scene||!lidWrap||!body){resolve();return;}
+    if(!scene||!lidWrap){resolve();return;}
     // Shake
-    scene.style.animation = 'mb-shake .65s ease';
-    setTimeout(()=>{
-      scene.style.animation = '';
-      // Lid flies off
-      lidWrap.style.animation = 'mb-lid-fly .75s ease forwards';
-      body.style.animation = 'mb-box-flash .35s ease 3';
-      setTimeout(resolve, 1100);
-    }, 700);
+    const shakes = [0,-6,6,-5,5,-3,3,-1,1,0];
+    let si = 0;
+    const shake = ()=>{
+      if(si >= shakes.length){
+        scene.style.transform = '';
+        // Lid fly
+        let p = 0;
+        const fly = setInterval(()=>{
+          p = Math.min(p + 0.05, 1);
+          lidWrap.style.transform = `translateY(${-p*130}px) rotate(${-p*40}deg)`;
+          lidWrap.style.opacity = String(Math.max(0, 1 - p * 1.4));
+          if(p >= 1){ clearInterval(fly); setTimeout(resolve, 200); }
+        }, 18);
+        return;
+      }
+      scene.style.transform = `translateX(${shakes[si]}px) rotate(${shakes[si]*0.35}deg)`;
+      si++;
+      setTimeout(shake, 70);
+    };
+    shake();
   });
 }
 
-// ── Roulette spin animation
+// ── Roulette spin (RAF 기반)
 function mbRouletteSpinAnim(prize){
   return new Promise(resolve=>{
     const gradeOrder = ['SSS','SS','S','A','B','C','D','E','F'];
     const prizeIdx = Math.max(0, gradeOrder.indexOf(prize.grade));
-    const itemH = 36, grades = 9, cycleH = grades * itemH;
+    const itemH = 36, cycleH = gradeOrder.length * itemH;
     mbRouletteIdleStop();
-
     const durations = [2200, 2900, 3600];
     const extraCycles = [10, 13, 16];
-    // Target: prizeIdx item centered in window (window center offset = 54px - 18px = 36px)
-    const targetBase = prizeIdx * itemH; // approximate center
-
-    [0,1,2].forEach((i)=>{
+    const targetBase = prizeIdx * itemH;
+    [0,1,2].forEach(i=>{
       const strip = document.getElementById('mb-strip-'+i);
       if(!strip) return;
-      const currentMatch = (strip.style.transform||'').match(/translateY\(-?(\d+\.?\d*)px\)/);
-      const currentPos = currentMatch ? parseFloat(currentMatch[1]) : 0;
+      const m = (strip.style.transform||'').match(/translateY\(-?(\d+\.?\d*)px\)/);
+      const startPos = m ? parseFloat(m[1]) : 0;
       const finalTarget = targetBase + extraCycles[i] * cycleH;
-      const duration = durations[i];
-      let startTime = null;
-      const startPos = currentPos;
-      const animate = (ts)=>{
-        if(!startTime) startTime = ts;
-        const t = Math.min((ts - startTime) / duration, 1);
-        const eased = 1 - Math.pow(1 - t, 3);
-        const pos = startPos + (finalTarget - startPos) * eased;
-        strip.style.transform = `translateY(-${pos % (cycleH * 8)}px)`;
-        if(t < 1){ requestAnimationFrame(animate); }
-        else { strip.style.transform = `translateY(-${targetBase % cycleH || 0}px)`; }
+      const dur = durations[i];
+      let t0 = null;
+      const anim = (ts)=>{
+        if(!t0) t0 = ts;
+        const t = Math.min((ts-t0)/dur, 1);
+        const e = 1 - Math.pow(1-t, 3);
+        const pos = startPos + (finalTarget - startPos) * e;
+        strip.style.transform = `translateY(-${pos % (cycleH*8)}px)`;
+        if(t < 1) requestAnimationFrame(anim);
+        else strip.style.transform = `translateY(-${targetBase % cycleH}px)`;
       };
-      requestAnimationFrame(animate);
+      requestAnimationFrame(anim);
     });
     setTimeout(resolve, durations[2] + 400);
   });
 }
 
-// ── Capsule open animation
+// ── Capsule open (JS 기반)
 function mbCapsuleOpenAnim(){
   return new Promise(resolve=>{
     const scene = document.getElementById('mb-anim-area');
@@ -5045,13 +5066,27 @@ function mbCapsuleOpenAnim(){
     mbCapsuleIdleStop();
     if(!scene||!top||!bot){resolve();return;}
     // Shake
-    scene.style.animation = 'mb-capsule-shake .65s ease';
-    setTimeout(()=>{
-      scene.style.animation = '';
-      top.style.animation = 'mb-capsule-top-open .85s ease forwards';
-      bot.style.animation = 'mb-capsule-bot-open .85s ease forwards';
-      setTimeout(resolve, 1000);
-    }, 700);
+    const shakes = [0,-8,8,-7,7,-4,4,0];
+    let si = 0;
+    const shake = ()=>{
+      if(si >= shakes.length){
+        scene.style.transform = '';
+        let p = 0;
+        const split = setInterval(()=>{
+          p = Math.min(p + 0.04, 1);
+          top.style.transform = `translateY(${-p*90}px) rotate(${-p*20}deg)`;
+          top.style.opacity = String(Math.max(0, 1 - p*1.2));
+          bot.style.transform = `translateY(${p*70}px) rotate(${p*10}deg)`;
+          bot.style.opacity = String(Math.max(0, 1 - p*1.2));
+          if(p >= 1){ clearInterval(split); setTimeout(resolve, 150); }
+        }, 18);
+        return;
+      }
+      scene.style.transform = `rotate(${shakes[si]}deg)`;
+      si++;
+      setTimeout(shake, 70);
+    };
+    shake();
   });
 }
 
@@ -5088,10 +5123,14 @@ async function mbDoOpen(){
 
   const prize = mbDraw();
 
-  // ── 애니메이션 실행 (서버 응답 대기 없이)
-  if(anim === 'box') await mbBoxOpenAnim();
-  else if(anim === 'roulette') await mbRouletteSpinAnim(prize);
-  else await mbCapsuleOpenAnim();
+  // ── 애니메이션 실행 (오류 발생해도 결과는 반드시 표시)
+  try {
+    if(anim === 'box') await mbBoxOpenAnim();
+    else if(anim === 'roulette') await mbRouletteSpinAnim(prize);
+    else await mbCapsuleOpenAnim();
+  } catch(animErr) {
+    console.warn('Animation error (skipped):', animErr);
+  }
 
   // ── 결과 표시 (애니메이션 완료 후 즉시)
   document.getElementById('mb-prize-grade').innerHTML =
@@ -5141,25 +5180,32 @@ function mbRenderVault(){
   const el = document.getElementById('mb-vault');
   if(!el) return;
   if(!mbVault.length){el.innerHTML='<div class="empty">수령한 박스가 없습니다.</div>';return;}
-  el.innerHTML = `<div class="mb-vault-chips">` + mbVault.map((v,i)=>{
+  // 인라인 스타일로 그리드 적용 (CSS 클래스 미로드 대비)
+  const gradeColors={SSS:'rgba(255,215,0,.2)',SS:'rgba(255,100,100,.2)',S:'rgba(201,169,110,.2)',A:'rgba(167,139,250,.2)',B:'rgba(91,155,213,.2)',C:'rgba(95,207,133,.2)',D:'rgba(232,146,58,.15)',E:'rgba(255,255,255,.06)',F:'rgba(255,255,255,.06)'};
+  const gradeText={SSS:'#ffd700',SS:'#ff6464',S:'#c9a96e',A:'#a78bfa',B:'#5b9bd5',C:'#5fcf85',D:'#e8923a',E:'rgba(255,255,255,.45)',F:'rgba(255,255,255,.3)'};
+  const gradeBorder={SSS:'rgba(255,215,0,.4)',SS:'rgba(255,100,100,.4)',S:'rgba(201,169,110,.32)',A:'rgba(167,139,250,.4)',B:'rgba(91,155,213,.4)',C:'rgba(95,207,133,.4)',D:'rgba(232,146,58,.35)',E:'rgba(255,255,255,.1)',F:'rgba(255,255,255,.09)'};
+
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:9px;padding:4px 0">` + mbVault.map((v,i)=>{
     const isPending = !!v.pending;
-    const gradeHTML = isPending
-      ? `<span class="mb-grade-badge" style="background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.14);font-size:11px;padding:2px 8px">?</span>`
-      : `<span class="mb-grade-badge mb-grade-${v.grade}" style="font-size:11px;padding:2px 8px">${v.grade}</span>`;
+    const g = v.grade||'F';
+    const gradeSpan = isPending
+      ? `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.14)">?</span>`
+      : `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:${gradeColors[g]||'rgba(255,255,255,.06)'};color:${gradeText[g]||'#fff'};border:1px solid ${gradeBorder[g]||'rgba(255,255,255,.09)'}">${g}</span>`;
+    const statusSpan = isPending
+      ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;background:rgba(232,146,58,.12);color:#e8923a;border:1px solid rgba(232,146,58,.25)">미개봉</span>`
+      : `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;background:rgba(95,207,133,.12);color:#5fcf85;border:1px solid rgba(95,207,133,.25)">개봉완료</span>`;
     const itemName = isPending ? '개봉 대기 중' : esc(v.item);
-    const statusHTML = isPending
-      ? `<span class="mb-chip-status pending-s">미개봉</span>`
-      : `<span class="mb-chip-status opened">개봉완료</span>`;
     const openBtn = isPending
-      ? `<button onclick="mbOpenPending(${i})" style="display:block;width:100%;background:var(--gold);border:none;border-radius:6px;padding:6px 0;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;margin-top:6px">🎁 열기</button>`
+      ? `<button onclick="mbOpenPending(${i})" style="display:block;width:100%;background:#c9a96e;border:none;border-radius:6px;padding:6px 0;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;margin-top:4px">🎁 열기</button>`
       : '';
-    return `<div class="mb-chip${isPending?' mb-chip-pending':''}">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-        ${gradeHTML}${statusHTML}
+    const borderStyle = isPending ? 'border:1px dashed rgba(255,255,255,.2)' : 'border:1px solid rgba(255,255,255,.09)';
+    return `<div style="display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.05);${borderStyle};border-radius:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap">
+        ${gradeSpan}${statusSpan}
       </div>
-      <div class="mb-chip-body">
-        <div class="mb-chip-item">${itemName}</div>
-        <div class="mb-chip-meta">${esc(v.boxName)} · ${v.date}</div>
+      <div style="min-width:0">
+        <div style="font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${itemName}</div>
+        <div style="font-size:10.5px;color:rgba(255,255,255,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${esc(v.boxName||'')} · ${v.date||''}</div>
       </div>
       ${openBtn}
     </div>`;
