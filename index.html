@@ -1867,7 +1867,7 @@ width:297mm !important;height:210mm !important;
 // ══════════════════════════════════════════════
 //  CONFIG & STATE
 // ══════════════════════════════════════════════
-const APP_VERSION='v3.3';
+const APP_VERSION='v3.4';
 const PROXIES=[
 u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
 u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
@@ -4534,15 +4534,15 @@ function closeHelp(){document.getElementById('helpOverlay').classList.remove('sh
 // ══════════════════════════════════════════════
 const MB_API = 'https://script.google.com/macros/s/AKfycbzsMJwkkGwzHWyY-Krwu63Is0BqEvnLLy8dyNRUcnTQIt5AjlWRaz-cWjqbnvdvYClMUA/exec';
 const MB_GRADES = [
-  {grade:'SSS', pct:0.0001, label:'SSS'},
-  {grade:'SS',  pct:0.001,  label:'SS'},
-  {grade:'S',   pct:0.1,    label:'S'},
-  {grade:'A',   pct:1,      label:'A'},
-  {grade:'B',   pct:5,      label:'B'},
-  {grade:'C',   pct:15,     label:'C'},
-  {grade:'D',   pct:25,     label:'D'},
-  {grade:'E',   pct:30,     label:'E'},
-  {grade:'F',   pct:23.8989,label:'F (꽝)'},
+  {grade:'SSS', pct:0.0001,  label:'SSS'},
+  {grade:'SS',  pct:0.001,   label:'SS'},
+  {grade:'S',   pct:0.1,     label:'S'},
+  {grade:'A',   pct:1,       label:'A'},
+  {grade:'B',   pct:3,       label:'B'},
+  {grade:'C',   pct:10,      label:'C'},
+  {grade:'D',   pct:20,      label:'D'},
+  {grade:'E',   pct:30,      label:'E'},
+  {grade:'F',   pct:35.8989, label:'F (꽝)'},
 ];
 const MB_PRESETS = {
   coffee:[
@@ -5222,6 +5222,12 @@ async function mbDoOpen(){
       const grade = MB_GRADES.find(x=>x.grade===g.grade);
       if(grade) pool.push({grade:g.grade, pct:grade.pct, list:g.items||g.names||[]});
     });
+    // 꽝포함 체크 시 F등급이 상품 목록에 없으면 자동 추가
+    const hasF = pool.some(g=>g.grade==='F');
+    if(!hasF && box?.allowBlank){
+      const fGrade = MB_GRADES.find(x=>x.grade==='F');
+      if(fGrade) pool.push({grade:'F', pct:fGrade.pct, list:['꽝']});
+    }
     if(!pool.length) return {grade:'F', item:'꽝'};
     const total = pool.reduce((s,g)=>s+g.pct, 0);
     let r = Math.random()*total;
