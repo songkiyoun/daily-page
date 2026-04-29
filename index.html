@@ -501,7 +501,7 @@ font-size:12px;padding:4px 2px;height:22px;
 }
 
 /* 기안 정보 테이블 */
-.dr-info{margin-top:8px;border-collapse:collapse;width:50%}
+.dr-info{margin-top:8px;border-collapse:collapse;width:60%}
 .dr-info td{border:1px solid #555;padding:0;vertical-align:middle}
 .dr-info .lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .dr-info .val{padding:6px 10px;font-size:13px;text-align:center;height:28px;color:#111}
@@ -1048,7 +1048,7 @@ font-size:12px;padding:4px 2px;height:22px;
 }
 
 /* 기안 정보 테이블 */
-.dr-info{margin-top:8px;border-collapse:collapse;width:50%}
+.dr-info{margin-top:8px;border-collapse:collapse;width:60%}
 .dr-info td{border:1px solid #555;padding:0;vertical-align:middle}
 .dr-info .lbl{background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .dr-info .val{padding:6px 10px;font-size:13px;text-align:center;height:28px;color:#111}
@@ -4204,8 +4204,8 @@ function rfDel(id){if(!confirm('삭제하시겠습니까?'))return;rfStore(rfLoa
 
 function rfRenderPreview(doc){
   const rows=[...(doc.rows||[])];
-  while(rows.length<20)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
-  const TD='border:1px solid #555;vertical-align:middle;font-size:12px;padding:4px 5px;height:26px';
+  while(rows.length<22)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
+  const TD='border:1px solid #555;vertical-align:middle;font-size:12px;padding:5px 5px;height:30px';
   const rowsHTML=rows.map(r=>`<tr>
     <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center">${rfEsc(r.name)}</td>
     <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.ssn)}</td>
@@ -4242,7 +4242,7 @@ function rfRenderPreview(doc){
         <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:24%;-webkit-print-color-adjust:exact">계좌번호</th>
         <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:10%;-webkit-print-color-adjust:exact">예금주</th>
         <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:13%;-webkit-print-color-adjust:exact">금&nbsp;&nbsp;액</th>
-        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;-webkit-print-color-adjust:exact">비&nbsp;&nbsp;고</th>
+        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:7px 2px;height:32px;-webkit-print-color-adjust:exact">비&nbsp;&nbsp;고</th>
       </tr>
       ${rowsHTML}
     </table>
@@ -4804,11 +4804,8 @@ function mbRenderBoxList(boxes){
     if(mbBoxFilter==='expired')  return expired;
     return true;
   });
-  // createdAt 기준 최신순 (구글시트 날짜 형식 대응)
-  filtered.sort((a,b)=>{
-    const toD=s=>s?new Date(String(s).replace(' ','T')):new Date(0);
-    return toD(b.createdAt)-toD(a.createdAt);
-  });
+  // 원본 배열 역순 = 최신순 (구글시트는 아래로 추가되므로)
+  filtered.reverse();
   if(!filtered.length){list.innerHTML='<div class="empty">해당 조건의 박스가 없습니다.</div>';return;}
   list.innerHTML=filtered.map(box=>{
     const expired = box.expires && new Date(box.expires) < now;
@@ -4925,26 +4922,59 @@ function mbShowOverlay(){
 async function mbDoOpen(){
   const btn = document.getElementById('mb-open-btn');
   btn.textContent = '두근두근…'; btn.disabled = true;
+
+  // ── 클라이언트 추첨 (서버는 기록만 담당)
+  const box = mbCurrentBox;
+  const items = box.items || [];
+
+  // 상품 풀에서 등급별 추첨
+  function mbDraw(){
+    if(!items.length) return {grade:'F', item:'꽝'};
+    // 등급별 확률 기반 추첨
+    const pool = [];
+    items.forEach(g=>{
+      const grade = MB_GRADES.find(x=>x.grade===g.grade);
+      if(grade) pool.push({grade:g.grade, pct:grade.pct, list:g.items||[]});
+    });
+    if(!pool.length) return {grade:'F', item:'꽝'};
+    const total = pool.reduce((s,g)=>s+g.pct, 0);
+    let r = Math.random()*total;
+    for(const g of pool){
+      r -= g.pct;
+      if(r<=0){
+        const item = g.list[Math.floor(Math.random()*g.list.length)]||'꽝';
+        return {grade:g.grade, item};
+      }
+    }
+    // fallback: 마지막 등급
+    const last = pool[pool.length-1];
+    return {grade:last.grade, item:last.list[0]||'꽝'};
+  }
+
+  const prize = mbDraw();
+
+  // 서버에 개봉 기록 (grade, item 포함)
   let res = null;
   try{
-    res = await mbPost({action:'open', uuid:mbCurrentBox.uuid});
-  }catch(e){
-    console.warn('mbDoOpen error:', e);
-  }
+    res = await mbPost({action:'open', uuid:box.uuid, grade:prize.grade, item:prize.item});
+  }catch(e){ console.warn('mbDoOpen error:', e); }
+
   if(!res?.ok){
     btn.textContent = '🎁 지금 열기'; btn.disabled = false;
-    alert('개봉 실패.\n원인: 만료됐거나 수량 소진, 또는 API 연결 오류.\nGitHub Pages 배포 후 정상 작동합니다.');
+    alert('개봉 실패.\n만료됐거나 수량 소진, 또는 API 연결 오류입니다.');
     return;
   }
+
   // 결과 표시
-  const prize = res.prize;
-  document.getElementById('mb-prize-grade').innerHTML = `<span class="mb-grade-badge mb-grade-${prize.grade}">${prize.grade}</span>`;
+  document.getElementById('mb-prize-grade').innerHTML =
+    `<span class="mb-grade-badge mb-grade-${prize.grade}">${prize.grade}</span>`;
   document.getElementById('mb-prize-item').textContent = prize.item;
-  document.getElementById('mb-prize-label').textContent = mbCurrentBox.name;
+  document.getElementById('mb-prize-label').textContent = box.name||'';
   document.getElementById('mb-open-btn').style.display = 'none';
   document.getElementById('mb-prize-card').style.display = 'block';
+
   // vault 저장
-  mbVault.unshift({...prize, boxName:mbCurrentBox.name, date:new Date().toISOString().slice(0,10)});
+  mbVault.unshift({grade:prize.grade, item:prize.item, boxName:box.name||'', date:new Date().toISOString().slice(0,10)});
   try{localStorage.setItem('sv-mb-vault', JSON.stringify(mbVault.slice(0,50)));}catch(_){}
   mbRenderVault();
 }
