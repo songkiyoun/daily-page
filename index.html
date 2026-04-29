@@ -1814,13 +1814,29 @@ width:297mm !important;height:210mm !important;
 <div class="doc-pane" id="mb-pane-user">
 <div class="doc-form-card">
 <div class="doc-lbl" style="margin-bottom:6px">수령자 이름 <span style="color:var(--red);font-size:11px">* 필수</span></div>
-<input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;margin-bottom:10px;transition:border-color .16s" id="mb-name-inp" placeholder="이름을 입력하세요" onkeydown="if(event.key==='Enter')document.getElementById('mb-uuid-inp').focus()">
+<select id="mb-name-sel" onchange="mbOnNameSelect()" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:9px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;margin-bottom:10px;cursor:pointer;background:#13131a">
+  <option value="">-- 이름을 선택하세요 --</option>
+</select>
 <div class="doc-lbl" style="margin-bottom:6px">박스 UUID 입력</div>
 <div style="display:flex;gap:8px;margin-bottom:10px">
 <input style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;box-sizing:border-box;flex:1;transition:border-color .16s" id="mb-uuid-inp" placeholder="박스 UUID 또는 링크만 붙여넣기" onkeydown="if(event.key==='Enter')mbClaimBox()">
 <button class="doc-btn gold" onclick="mbClaimBox()">🎁 받기</button>
 </div>
 <div id="mb-claim-status" style="font-size:12px;color:var(--dim);margin-bottom:10px"></div>
+</div>
+<!-- 꽝 합성 섹션 -->
+<div id="mb-synthesis-wrap" style="display:none;margin-bottom:14px">
+  <div style="background:rgba(201,169,110,.07);border:1px solid rgba(201,169,110,.25);border-radius:10px;padding:14px 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:700;color:#c9a96e">🔮 꽝 합성</div>
+      <div id="mb-fail-badge" style="font-size:12px;color:rgba(255,255,255,.55)">꽝 0 / 10개</div>
+    </div>
+    <div style="font-size:11.5px;color:rgba(255,255,255,.45);margin-bottom:8px;line-height:1.6">꽝 10개 모으면 커피쿠폰 박스 1회 추첨 가능</div>
+    <div style="height:5px;background:rgba(255,255,255,.08);border-radius:3px;margin-bottom:10px;overflow:hidden">
+      <div id="mb-fail-bar" style="height:100%;width:0%;background:#c9a96e;border-radius:3px;transition:width .4s ease"></div>
+    </div>
+    <button id="mb-synthesize-btn" onclick="mbSynthesize()" disabled style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px;color:rgba(255,255,255,.3);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:not-allowed;transition:all .2s">🔮 합성하기 (10개 필요)</button>
+  </div>
 </div>
 <div style="margin-top:4px">
 <div class="doc-lbl" style="margin-bottom:10px">내 수령 목록</div>
@@ -4516,7 +4532,7 @@ function closeHelp(){document.getElementById('helpOverlay').classList.remove('sh
 // ══════════════════════════════════════════════
 //  미스테리 박스
 // ══════════════════════════════════════════════
-const MB_API = 'https://script.google.com/macros/s/AKfycbwPU97wZCYa1OEwEAtrzkZnPH6QjPhUe4UIputaEu7caxKH5dDmuIpnpYTmnV3C5-Ggxg/exec';
+const MB_API = 'https://script.google.com/macros/s/AKfycbzd0uMyL_DE0PI77cSJf5vJ0xdalQfjU9Ocv6lYas8HZPEe1OEyIlyFw_i4aaR4oP0GjA/exec';
 const MB_GRADES = [
   {grade:'SSS', pct:0.0001, label:'SSS'},
   {grade:'SS',  pct:0.001,  label:'SS'},
@@ -4575,7 +4591,110 @@ function mbTab(name){
     document.getElementById('mb-pane-'+t)?.classList.toggle('on', t===name);
   });
   if(name==='stats') mbLoadStats();
-  if(name==='user') mbRenderVault();
+  if(name==='user'){ mbLoadMembers(); mbRenderVault(); }
+}
+
+// ── 멤버 목록 로드 (members 시트)
+async function mbLoadMembers(){
+  const sel = document.getElementById('mb-name-sel');
+  if(!sel) return;
+  if(sel.options.length > 1) return; // 이미 로드됨
+  const res = await mbFetch({action:'members'}).catch(()=>null);
+  if(res?.ok && res.members?.length){
+    res.members.forEach(name=>{
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+// ── 이름 선택 시 꽝 카운트 조회
+async function mbOnNameSelect(){
+  const name = document.getElementById('mb-name-sel').value;
+  const wrap = document.getElementById('mb-synthesis-wrap');
+  if(!name){ if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display='block';
+  // 꽝 카운트 조회
+  const res = await mbFetch({action:'failCount', recipientName:name}).catch(()=>null);
+  const count = res?.count ?? 0;
+  mbUpdateFailUI(count);
+}
+
+function mbUpdateFailUI(count){
+  const badge = document.getElementById('mb-fail-badge');
+  const bar = document.getElementById('mb-fail-bar');
+  const btn = document.getElementById('mb-synthesize-btn');
+  if(badge) badge.textContent = `꽝 ${count} / 10개`;
+  if(bar) bar.style.width = `${Math.min(count/10*100,100)}%`;
+  if(btn){
+    if(count >= 10){
+      btn.disabled = false;
+      btn.style.cssText = 'width:100%;background:#c9a96e;border:none;border-radius:8px;padding:9px;color:#0c0c11;font-family:\'DM Sans\',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s';
+      btn.textContent = '🔮 합성하기';
+    } else {
+      btn.disabled = true;
+      btn.style.cssText = 'width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px;color:rgba(255,255,255,.3);font-family:\'DM Sans\',sans-serif;font-size:13px;font-weight:700;cursor:not-allowed;transition:all .2s';
+      btn.textContent = `🔮 합성하기 (${count}/10개)`;
+    }
+  }
+}
+
+// ── 꽝 합성 실행
+async function mbSynthesize(){
+  const name = document.getElementById('mb-name-sel')?.value;
+  if(!name) return;
+  if(!confirm(`[${name}]의 꽝 10개를 소모해서 커피쿠폰 박스를 돌리시겠습니까?`)) return;
+
+  const btn = document.getElementById('mb-synthesize-btn');
+  btn.disabled = true; btn.textContent = '합성 중…';
+
+  // 커피쿠폰 프리셋으로 추첨 (클라이언트)
+  const coffeePool = [
+    {grade:'SSS',pct:0.0001,list:['자유롭게 음료 한 잔']},
+    {grade:'SS', pct:0.001, list:['스무디급 음료 한 잔']},
+    {grade:'S',  pct:0.1,   list:['라떼급 음료 한 잔']},
+    {grade:'A',  pct:1,     list:['아메리카노 + 사이즈업']},
+    {grade:'B',  pct:98.9,  list:['아메리카노']},
+  ];
+  const total = coffeePool.reduce((s,g)=>s+g.pct,0);
+  let r = Math.random()*total;
+  let prize = {grade:'B', item:'아메리카노'};
+  for(const g of coffeePool){ r-=g.pct; if(r<=0){prize={grade:g.grade,item:g.list[0]};break;} }
+
+  // 서버에 합성 기록 + 꽝 10개 소모
+  const res = await mbPost({action:'synthesize', recipientName:name, grade:prize.grade, item:prize.item}).catch(()=>null);
+  if(!res?.ok){
+    alert('합성 실패: ' + (res?.error||'서버 오류'));
+    btn.disabled=false; btn.textContent='🔮 합성하기'; return;
+  }
+
+  // 결과 vault에 저장 (꽝 아니므로 저장)
+  mbVault.unshift({grade:prize.grade, item:prize.item, boxName:'🔮 꽝 합성', date:new Date().toISOString().slice(0,10)});
+  try{localStorage.setItem('sv-mb-vault',JSON.stringify(mbVault.slice(0,50)));}catch(_){}
+  mbRenderVault();
+
+  // 꽝 카운트 갱신
+  const countRes = await mbFetch({action:'failCount', recipientName:name}).catch(()=>null);
+  mbUpdateFailUI(countRes?.count ?? 0);
+
+  alert(`합성 성공! 🎉\n등급: ${prize.grade}\n상품: ${prize.item}`);
+}
+
+// ── 박스 삭제 (관리자)
+async function mbDeleteBox(uuid){
+  if(!confirm('이 박스를 삭제하시겠습니까?\n삭제 시 복구되지 않습니다.')) return;
+  const res = await mbPost({action:'delete', uuid});
+  if(res?.ok){ mbLoadBoxes(); }
+  else alert('삭제 실패: ' + (res?.error||'서버 오류'));
+}
+
+// ── 수령 목록 아이템 삭제
+function mbVaultDelete(i){
+  if(!confirm('이 항목을 삭제하시겠습니까?\n삭제 시 복구되지 않습니다.')) return;
+  mbVault.splice(i,1);
+  try{localStorage.setItem('sv-mb-vault',JSON.stringify(mbVault));}catch(_){}
+  mbRenderVault();
 }
 
 // ── API 호출
@@ -4765,6 +4884,7 @@ function mbRenderBoxList(boxes){
         <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
           <button onclick="mbCopyLink('${box.uuid}')" class="doc-btn ghost" style="font-size:11px;padding:4px 10px">📋 UUID 복사</button>
           ${active?`<button onclick="mbDeactivate('${box.uuid}')" class="doc-btn ghost" style="font-size:11px;padding:4px 10px;color:var(--red)">비활성화</button>`:''}
+          <button onclick="mbDeleteBox('${box.uuid}')" class="doc-btn ghost" style="font-size:11px;padding:4px 10px;color:var(--red);border-color:rgba(224,85,85,.3)">✕ 삭제</button>
         </div>
       </div>
     </div>`;
@@ -4803,18 +4923,17 @@ async function mbDeactivate(uuid){
 // ── 수령: 박스 열기
 async function mbClaimBox(){
   let val = document.getElementById('mb-uuid-inp').value.trim();
-  const nameInp = document.getElementById('mb-name-inp');
-  const name = (nameInp?.value||'').trim();
+  const sel = document.getElementById('mb-name-sel');
+  const name = sel?.value || '';
   const mParam = val.match(/[?&]mb=([^&]+)/);
   if(mParam) val = mParam[1];
   const st = document.getElementById('mb-claim-status');
-  const niEl = document.getElementById('mb-name-inp');
   if(!name){
-    st.style.color='var(--red)';st.textContent='✗ 이름을 먼저 입력해주세요.';
-    if(niEl){niEl.style.borderColor='var(--red)';niEl.focus();}
+    st.style.color='var(--red)';st.textContent='✗ 이름을 먼저 선택해주세요.';
+    if(sel) sel.style.borderColor='var(--red)';
     return;
   }
-  if(niEl) niEl.style.borderColor='';
+  if(sel) sel.style.borderColor='';
   if(!val){st.style.color='var(--red)';st.textContent='✗ UUID를 입력해주세요.';return;}
   st.style.color='var(--dim)';st.textContent='박스 확인 중…';
   if(location.protocol==='file:'){
@@ -4824,21 +4943,11 @@ async function mbClaimBox(){
   }
   let res = null;
   try{ res = await mbFetch({action:'get', uuid:val}); }catch(e){}
-  if(!res){
-    st.style.color='var(--red)';st.textContent='✗ API 연결 실패. 잠시 후 다시 시도해주세요.';return;
-  }
-  if(!res.box){
-    st.style.color='var(--red)';st.textContent='✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';return;
-  }
-  if(res.box.isExpired){
-    st.style.color='var(--red)';st.textContent='✗ 유효기간이 만료된 박스입니다.';return;
-  }
-  if(res.box.isExhausted||res.box.isOpened){
-    st.style.color='var(--red)';st.textContent='✗ 발급 수량이 모두 소진된 박스입니다.';return;
-  }
-  if(res.box.status==='비활성'){
-    st.style.color='var(--red)';st.textContent='✗ 비활성화된 박스입니다.';return;
-  }
+  if(!res){st.style.color='var(--red)';st.textContent='✗ API 연결 실패. 잠시 후 다시 시도해주세요.';return;}
+  if(!res.box){st.style.color='var(--red)';st.textContent='✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';return;}
+  if(res.box.isExpired){st.style.color='var(--red)';st.textContent='✗ 유효기간이 만료된 박스입니다.';return;}
+  if(res.box.isExhausted||res.box.isOpened){st.style.color='var(--red)';st.textContent='✗ 발급 수량이 모두 소진된 박스입니다.';return;}
+  if(res.box.status==='비활성'){st.style.color='var(--red)';st.textContent='✗ 비활성화된 박스입니다.';return;}
   st.style.color='var(--green)';st.textContent='✓ 박스 확인 완료! 아래 목록의 열기 버튼을 눌러주세요.';
   mbCurrentBox = {...res.box, uuid:val, recipientName:name};
   const pending = {
@@ -5033,7 +5142,10 @@ function mbRouletteSpinAnim(prize){
     mbRouletteIdleStop();
     const durations = [2200, 2900, 3600];
     const extraCycles = [10, 13, 16];
-    const targetBase = prizeIdx * itemH;
+    // 룰렛 창 중앙(54px)에 해당 등급이 오도록 offset 계산
+    // 창 중앙 = strip offset + 54 → strip position = prizeIdx*36 + 18(아이템 중심)
+    // → strip offset = prizeIdx*36 + 18 - 54 = prizeIdx*36 - 36
+    const targetBase = ((prizeIdx * itemH - itemH) % cycleH + cycleH) % cycleH;
     [0,1,2].forEach(i=>{
       const strip = document.getElementById('mb-strip-'+i);
       if(!strip) return;
@@ -5141,19 +5253,20 @@ async function mbDoOpen(){
   if(animWrap) animWrap.style.display = 'none';
   document.getElementById('mb-prize-card').style.display = 'block';
 
-  // ── 서버 기록 (백그라운드, UX 차단 안 함)
-  mbPost({
-    action:'open', uuid:box.uuid, grade:prize.grade, item:prize.item,
-    recipientName:box.recipientName||''
-  }).then(res=>{
-    if(!res?.ok) console.warn('MB 서버 기록 실패 (결과는 정상 표시됨)');
-  }).catch(()=>{});
+  // ── 서버 기록 (백그라운드)
+  mbPost({action:'open', uuid:box.uuid, grade:prize.grade, item:prize.item, recipientName:box.recipientName||''}).catch(()=>{});
 
-  // ── vault 저장
+  // ── vault 저장 (꽝은 저장 안 함)
+  const isFail = prize.grade === 'F' || prize.item === '꽝';
   const pendingIdx = mbVault.findIndex(v=>v.pending && v.uuid===box.uuid);
-  const result = {grade:prize.grade, item:prize.item, boxName:box.name||'', date:new Date().toISOString().slice(0,10)};
-  if(pendingIdx>=0) mbVault[pendingIdx]=result;
-  else mbVault.unshift(result);
+  if(isFail){
+    // 꽝: pending 항목만 제거, 저장 안 함
+    if(pendingIdx>=0) mbVault.splice(pendingIdx,1);
+  } else {
+    const result = {grade:prize.grade, item:prize.item, boxName:box.name||'', date:new Date().toISOString().slice(0,10)};
+    if(pendingIdx>=0) mbVault[pendingIdx]=result;
+    else mbVault.unshift(result);
+  }
   try{localStorage.setItem('sv-mb-vault', JSON.stringify(mbVault.slice(0,50)));}catch(_){}
   mbRenderVault();
 }
@@ -5197,7 +5310,7 @@ function mbRenderVault(){
     const itemName = isPending ? '개봉 대기 중' : esc(v.item);
     const openBtn = isPending
       ? `<button onclick="mbOpenPending(${i})" style="display:block;width:100%;background:#c9a96e;border:none;border-radius:6px;padding:6px 0;color:#0c0c11;font-family:'DM Sans',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;margin-top:4px">🎁 열기</button>`
-      : '';
+      : `<button onclick="mbVaultDelete(${i})" style="display:block;width:100%;background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.25);border-radius:6px;padding:5px 0;color:#e05555;font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;margin-top:4px">✕ 삭제</button>`;
     const borderStyle = isPending ? 'border:1px dashed rgba(255,255,255,.2)' : 'border:1px solid rgba(255,255,255,.09)';
     return `<div style="display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.05);${borderStyle};border-radius:10px;padding:10px 12px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap">
