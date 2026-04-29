@@ -4836,6 +4836,20 @@ function mbCopyLink(uuid){
   }
 }
 
+async function mbLoadBoxes(){
+  const list = document.getElementById('mb-box-list');
+  list.innerHTML = '<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
+  if(location.protocol==='file:'){
+    list.innerHTML='<div class="empty" style="color:rgba(232,146,58,.8)">⚠ GitHub Pages 배포 후 이용 가능합니다.</div>'; return;
+  }
+  const res = await mbFetch({action:'list'});
+  if(!res?.ok||!res.boxes?.length){
+    list.innerHTML = '<div class="empty">생성된 박스가 없습니다.</div>'; return;
+  }
+  window._mbBoxCache = res.boxes;
+  mbRenderBoxList(res.boxes);
+}
+
 async function mbDeactivate(uuid){
   if(!confirm('비활성화하시겠습니까?')) return;
   await mbPost({action:'deactivate', uuid});
