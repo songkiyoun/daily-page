@@ -465,6 +465,7 @@ padding:15mm 15mm 10mm 15mm;
 border:1px solid #bbb;
 box-sizing:border-box;
 overflow:hidden;
+display:flex;flex-direction:column;
 }
 .doc-refund table{width:100%;border-collapse:collapse;table-layout:fixed}
 .doc-refund td,.doc-refund th{border:1px solid #555;vertical-align:middle;padding:0}
@@ -1012,6 +1013,7 @@ padding:15mm 15mm 10mm 15mm;
 border:1px solid #bbb;
 box-sizing:border-box;
 overflow:hidden;
+display:flex;flex-direction:column;
 }
 .doc-refund table{width:100%;border-collapse:collapse;table-layout:fixed}
 .doc-refund td,.doc-refund th{border:1px solid #555;vertical-align:middle;padding:0}
@@ -1347,9 +1349,6 @@ width:297mm !important;height:210mm !important;
 <button class="sb-item" onclick="nav('sponsor',this)">
 <span class="icon">🤝</span><span class="label">협찬 포스팅</span>
 </button>
-<button class="sb-item" onclick="nav('youtube',this)">
-<span class="icon">📺</span><span class="label">방구석총잡이씨</span>
-</button>
 </div>
 </div>
 
@@ -1488,20 +1487,7 @@ width:297mm !important;height:210mm !important;
 </div>
 </div>
 
-<!-- 📺 방구석총잡이씨 (4단계) -->
-<div class="page" id="page-youtube">
-<div class="page-header">
-<div><div class="page-title">📺 방구석총잡이씨</div><div class="page-sub">YouTube 채널 현황</div></div>
-<button class="tbtn" onclick="loadYT()" style="font-size:11px">↻ 새로고침</button>
-</div>
-<div class="page-body" id="ytBody">
-<div class="coming-soon">
-<div class="cs-icon">📺</div>
-<div class="cs-title">방구석총잡이씨</div>
-<div class="cs-desc">유튜브 채널 현황 기능이 곧 추가됩니다.</div>
-</div>
-</div>
-</div>
+
 
 <!-- 📨 절기문자 (4단계) -->
 <div class="page" id="page-jolgimun">
@@ -1833,14 +1819,10 @@ u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
 u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
 u=>`https://thingproxy.freeboard.io/fetch/${u}`,
 ];
-const YT_RSS='https://www.youtube.com/feeds/videos.xml?channel_id=UCEftmElUZRmdDk_WFlWUiiQ';
 // rss2json.com API — CORS 없음, 무료 사용 가능
-const YT_RSS2JSON=`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(YT_RSS)}&api_key=&count=10`;
-let ytGoal=parseInt(localStorage.getItem('ytGoal')||'7');
 
 let scriptUrl='',syncBusy=false,syncTimer=null,editId=null;
 let events=[],todos=[];
-let ytData=null;
 let sponsors=[];
 try{sponsors=JSON.parse(localStorage.getItem('sv-sponsors')||'[]')}catch(_){}
 let blogClients=[], blogTimeline=[], blogLoaded=false, activeClient=null;
@@ -1876,7 +1858,6 @@ curPage=page;
 // on-demand loads
 if(page==='blog') loadBlog();
 if(page==='sponsor') initSponsor();
-if(page==='youtube') loadYT();
 if(page==='jolgimun') loadJolgimun();
 if(page==='daigeo') loadDaigeo();
 if(page==='aimoving') loadAimoving();
@@ -1919,7 +1900,7 @@ err.style.display='none';
 scriptUrl=v;localStorage.setItem('sv-script-url',v);
 document.getElementById('setupScreen').style.display='none';
 document.getElementById('syncBadge').style.display='flex';
-syncFromSheet();loadYT();
+syncFromSheet();
 }
 function resetUrl(){
 if(!confirm('URL을 변경하시겠습니까?'))return;
@@ -2032,8 +2013,8 @@ const{mon,sun}=wkRange();
 const wkEvs=events.filter(e=>e.date>=mon&&e.date<=sun).sort((a,b)=>a.date!==b.date?a.date.localeCompare(b.date):(a.start||'99').localeCompare(b.start||'99'));
 const acTodos=todos.filter(t=>!t.done);
 const hiTodos=acTodos.filter(t=>t.p==='high');
-const ytDays=ytData?daysDiff(today,ytData.pub):null;
-const ytOver=ytDays!==null&&ytDays>ytGoal;
+const ytDays=null;
+const ytOver=false;
 
 // 협찬 마감 임박
 const spUrgent=sponsors.filter(s=>!s.done&&s.deadline&&daysDiff(new Date(s.deadline),today)<=2&&daysDiff(new Date(s.deadline),today)>=-1);
@@ -2069,8 +2050,6 @@ html+=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;marg
      <div class="kpi-val ${hiTodos.length?'danger':acTodos.length?'warn':''}">${acTodos.length}건</div>
      <div class="kpi-sub">🔴 높음 ${hiTodos.length}건 포함</div>
    </div>
-   <div class="kpi-card" onclick="nav('youtube',document.querySelector('[onclick*=\\'youtube\\']'))" style="cursor:pointer">
-     <div class="kpi-icon">📺</div><div class="kpi-label">유튜브 업로드</div>
      <div class="kpi-val ${ytOver?'danger':ytDays!==null?'ok':'dim'}">${ytDays!==null?ytDays+'일 전':'—'}</div>
      <div class="kpi-sub">${ytOver?'⚠ 업로드 필요':'정상'}</div>
    </div>
@@ -2160,19 +2139,7 @@ html+=`<div class="brow">
        <div class="bval" style="font-size:11px;color:${d<=1?'var(--orange)':'var(--mid)'}">${fmtDate(t.date)}</div>
      </div>`;
 });
-html+=`</div>`;
-}
 
-// ── 유튜브 현황
-if(ytData){
-html+=`<div class="bcard ${ytOver?'alert':''}"><div class="bcardtitle">📺 유튜브 현황</div>
-     <div class="brow">
-       <div class="brow-left"><div class="bname">${esc(ytData.title)}</div><div class="bsub-t">${fmtDate(ytData.pub)} 업로드</div></div>
-       <div style="text-align:right"><div class="bval" style="color:${ytOver?'var(--red)':'var(--green)'}">${ytDays}일 전</div><span class="tag ${ytOver?'r':'g'}">${ytOver?'⚠ 업로드 필요':'✓ 정상'}</span></div>
-     </div>
-     ${ytOver?`<div class="warn-box">목표 주기(${ytGoal}일)를 <strong>${ytDays-ytGoal}일</strong> 초과했습니다.</div>`:''}
-   </div>`;
-}
 
 // ── 절기문자 임박 현황 (jolgiDatesGlobal 로드된 경우)
 if(jolgiDatesGlobal&&jolgiDatesGlobal.length){
@@ -2209,6 +2176,7 @@ const adv=h<10?'오전 집중 타임입니다. 중요한 업무부터 처리하�
 html+=`<div class="advice-box"><div class="advice-title">💡 오늘의 조언</div><div class="advice-text">${adv}</div></div>`;
 
 body.innerHTML=html;
+}
 }
 
 // ══════════════════════════════════════════════
@@ -2583,107 +2551,6 @@ return `<div class="titem"><div class="cb ${t.done?'done':''}" onclick="toggleTo
 // ══════════════════════════════════════════════
 //  YOUTUBE (기본)
 // ══════════════════════════════════════════════
-async function loadYT(){
-const body=document.getElementById('ytBody');
-if(body&&body.querySelector('.coming-soon')){
-body.innerHTML=`<div class="spin-wrap"><div class="spin"></div><div class="spin-t">유튜브 데이터 불러오는 중…</div></div>`;
-}
-try{
-const to=t=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),t));
-let json=null;
-
-// 1차: rss2json.com (CORS 없음)
-try{
-const res=await Promise.race([fetch(YT_RSS2JSON),to(10000)]);
-if(res.ok){
-const j=await res.json();
-if(j.status==='ok'&&j.items?.length)json=j;
-}
-}catch(_){}
-
-// 2차: allorigins → XML 직접 파싱
-if(!json){
-try{
-const url=`https://api.allorigins.win/raw?url=${encodeURIComponent(YT_RSS)}`;
-const res=await Promise.race([fetch(url),to(10000)]);
-if(res.ok){
-const xml=await res.text();
-if(xml.includes('<entry>')){
-const doc=new DOMParser().parseFromString(xml,'text/xml');
-const entries=[...doc.querySelectorAll('entry')].slice(0,10);
-json={status:'ok',items:entries.map(e=>({
-title:e.querySelector('title')?.textContent||'',
-link:e.querySelector('link')?.getAttribute('href')||'',
-pubDate:e.querySelector('published')?.textContent||''
-}))};
-}
-}
-}catch(_){}
-}
-
-if(!json)throw new Error('all failed');
-const items=json.items;
-const first=items[0];
-ytData={
-pub:new Date(first.pubDate),
-title:first.title,
-link:first.link
-};
-if(body){
-const today=todayD();
-const days=daysDiff(today,ytData.pub);
-const over=days>ytGoal;
-let html=`<div class="bcard"><div class="bcardtitle">📺 채널 현황
-       <div style="display:flex;align-items:center;gap:7px;margin-left:auto;font-size:11px;color:var(--dim)">
-         업로드 목표
-         <select onchange="ytGoal=+this.value;localStorage.setItem('ytGoal',ytGoal);loadYT()" style="background:var(--s);border:1px solid var(--b);border-radius:5px;padding:2px 7px;color:var(--mid);font-family:'DM Sans',sans-serif;font-size:11px;outline:none">
-           ${[[3,'3일'],[7,'주 1회'],[14,'2주 1회'],[30,'월 1회']].map(([v,l])=>`<option value="${v}"${ytGoal===+v?' selected':''}>${l}</option>`).join('')}
-         </select>
-       </div>
-     </div>`;
-html+=`<div class="brow">
-       <div class="brow-left">
-         <div class="bname">${esc(ytData.title)}</div>
-         <div class="bsub-t">${fmtDate(ytData.pub)} 업로드</div>
-       </div>
-       <div style="text-align:right">
-         <div class="bval" style="color:${over?'var(--red)':'var(--green)'}">${days}일 전</div>
-         <span class="tag ${over?'r':'g'}">${over?'⚠ 지연':'✓ 정상'}</span>
-       </div>
-     </div>`;
-if(over)html+=`<div class="warn-box">목표 주기(${ytGoal}일)를 <strong>${days-ytGoal}일</strong> 초과했습니다.</div>`;
-html+=`</div>`;
-html+=`<div class="bcard"><div class="bcardtitle">📋 최근 영상</div>`;
-items.slice(0,5).forEach((item,i)=>{
-const t=item.title;
-const pub=new Date(item.pubDate);
-const link=item.link;
-const d=daysDiff(today,pub);
-html+=`<div class="brow">
-         <div class="brow-left">
-           <div class="bname" style="font-size:13px"><a href="${link}" target="_blank" style="color:#fff;text-decoration:none">${esc(t)}</a></div>
-           <div class="bsub-t">${fmtDate(pub)}</div>
-         </div>
-         <div class="bval" style="font-size:12px;color:var(--dim)">${d}일 전</div>
-       </div>`;
-});
-html+=`</div>`;
-body.innerHTML=html;
-}
-renderBrief();
-}catch(e){
-// file:// 환경에서는 조용히 실패 처리 (콘솔 warn 제거)
-ytData=null;
-if(body&&!body.querySelector('.bcard')){
-body.innerHTML=`<div class="bcard"><div class="bcardtitle">📺 유튜브 현황</div>
-       <div class="brow"><div class="brow-left">
-         <div class="bsub-t" style="color:var(--orange)">⚠ 데이터를 불러오지 못했습니다.</div>
-         <div class="bsub-t" style="margin-top:4px">GitHub Pages 배포 후 정상 작동합니다.</div>
-       </div></div>
-     </div>`;
-}
-}
-}
 
 // ══════════════════════════════════════════════
 //  BLOG 관리대행
@@ -4203,49 +4070,92 @@ function rfViewPreview(id){const doc=rfLoad().find(d=>d.id===id);if(doc){rfRende
 function rfDel(id){if(!confirm('삭제하시겠습니까?'))return;rfStore(rfLoad().filter(d=>d.id!==id));rfRenderList();}
 
 function rfRenderPreview(doc){
-  const rows=[...(doc.rows||[])];
-  while(rows.length<22)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
-  const TD='border:1px solid #555;vertical-align:middle;font-size:12px;padding:5px 5px;height:30px';
-  const rowsHTML=rows.map(r=>`<tr>
-    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center">${rfEsc(r.name)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.ssn)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center">${rfEsc(r.bank)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.acct)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:center">${rfEsc(r.owner)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111;text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
-    <td style="border:1px solid #555;vertical-align:middle;padding:4px 3px;font-size:12px;color:#111">${rfEsc(r.note)}</td>
-  </tr>`).join('');
   const el=document.getElementById('rfPreviewDoc');
   if(!el)return;
-  el.innerHTML=`<div class="doc-refund" id="print-area">
-    <table class="dr-top">
+
+  // 반환금 데이터 준비 (빈 행 포함 최대 30행)
+  const rows=[...(doc.rows||[])];
+  while(rows.length<30)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
+
+  const TH='background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;' +
+           'border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact';
+  const TD='border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111';
+  const LBL='background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;' +
+            'letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;' +
+            'border:1px solid #555;vertical-align:middle;' +
+            '-webkit-print-color-adjust:exact;print-color-adjust:exact';
+  const VAL='padding:6px 10px;font-size:13px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111';
+
+  const rowsHTML=rows.map(r=>`<tr>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.name)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center;font-size:11px">${rfEsc(r.ssn)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.bank)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center;font-size:11px">${rfEsc(r.acct)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.owner)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111;text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:12px;padding:3px 4px;color:#111">${rfEsc(r.note)}</td>
+  </tr>`).join('');
+
+  el.innerHTML=`<div class="doc-refund" id="print-area" style="display:flex;flex-direction:column">
+
+    <!-- 결재란 + 제목 -->
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed;flex-shrink:0">
+      <colgroup>
+        <col style="width:48%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%">
+      </colgroup>
       <tr>
-        <td class="dr-title" rowspan="2" style="border:none">반&nbsp;&nbsp;환&nbsp;&nbsp;금&nbsp;&nbsp;처&nbsp;&nbsp;리&nbsp;&nbsp;대&nbsp;&nbsp;장</td>
-        <td class="dr-ap-head">담당</td><td class="dr-ap-head">대리</td>
-        <td class="dr-ap-head">이사</td><td class="dr-ap-head">대표</td>
+        <td rowspan="2" style="border:none;font-size:22px;font-weight:900;letter-spacing:2px;color:#111;padding:10px 0 10px 4px;vertical-align:middle">반&nbsp;&nbsp;환&nbsp;&nbsp;금&nbsp;&nbsp;처&nbsp;&nbsp;리&nbsp;&nbsp;대&nbsp;&nbsp;장</td>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">담당</td>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">대리</td>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">이사</td>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">대표</td>
       </tr>
       <tr>
-        <td class="dr-ap-sign"></td><td class="dr-ap-sign"></td>
-        <td class="dr-ap-sign"></td><td class="dr-ap-sign"></td>
+        <td style="height:44px;border:1px solid #555"></td>
+        <td style="height:44px;border:1px solid #555"></td>
+        <td style="height:44px;border:1px solid #555"></td>
+        <td style="height:44px;border:1px solid #555"></td>
       </tr>
     </table>
-    <table class="dr-info">
-      <tr><td class="lbl">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td><td class="val">${rfEsc(doc.manager)}</td></tr>
-      <tr><td class="lbl">기&nbsp;안&nbsp;일&nbsp;자</td><td class="val">${rfFmtDate(doc.date)}</td></tr>
-      <tr><td class="lbl">반&nbsp;환&nbsp;금&nbsp;액</td><td class="val bold">₩ ${rfFmtN(doc.total)}</td></tr>
-    </table>
-    <table style="margin-top:8px;width:100%;border-collapse:collapse;table-layout:fixed">
+
+    <!-- 기안 정보 -->
+    <table style="width:60%;border-collapse:collapse;margin-top:6px;flex-shrink:0">
       <tr>
-        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:13%;-webkit-print-color-adjust:exact">성&nbsp;&nbsp;함</th>
-        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:18%;-webkit-print-color-adjust:exact">주민등록번호</th>
-        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:10%;-webkit-print-color-adjust:exact">은행명</th>
-        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:24%;-webkit-print-color-adjust:exact">계좌번호</th>
-        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:10%;-webkit-print-color-adjust:exact">예금주</th>
-        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:6px 2px;width:13%;-webkit-print-color-adjust:exact">금&nbsp;&nbsp;액</th>
-        <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:7px 2px;height:32px;-webkit-print-color-adjust:exact">비&nbsp;&nbsp;고</th>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">기&nbsp;&nbsp;안&nbsp;&nbsp;자</td>
+        <td style="padding:6px 10px;font-size:13px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111">${rfEsc(doc.manager)}</td>
       </tr>
-      ${rowsHTML}
+      <tr>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">기&nbsp;안&nbsp;일&nbsp;자</td>
+        <td style="padding:6px 10px;font-size:13px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111">${rfFmtDate(doc.date)}</td>
+      </tr>
+      <tr>
+        <td style="background:#f0f0f0;font-weight:700;text-align:center;font-size:13px;letter-spacing:1px;padding:6px 4px;white-space:nowrap;width:40%;color:#111;border:1px solid #555;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact">반&nbsp;환&nbsp;금&nbsp;액</td>
+        <td style="padding:6px 10px;font-size:13px;text-align:center;border:1px solid #555;vertical-align:middle;color:#111;font-weight:700;color:#c00">₩ ${rfFmtN(doc.total||0)}</td>
+      </tr>
     </table>
+
+    <!-- 명세 테이블 (flex:1로 남은 공간 전부 채움) -->
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:6px;flex:1;height:100%">
+      <colgroup>
+        <col style="width:13%"><col style="width:18%"><col style="width:10%">
+        <col style="width:22%"><col style="width:10%"><col style="width:14%"><col>
+      </colgroup>
+      <thead>
+        <tr>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">성&nbsp;&nbsp;함</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">주민등록번호</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">은행명</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">계좌번호</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">예금주</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">금&nbsp;&nbsp;액</th>
+          <th style="background:#f0f0f0;font-weight:700;text-align:center;font-size:12px;border:1px solid #555;padding:5px 2px;-webkit-print-color-adjust:exact;print-color-adjust:exact">비&nbsp;&nbsp;고</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHTML}
+      </tbody>
+    </table>
+
   </div>`;
 }
 
@@ -4913,10 +4823,10 @@ function mbShowOverlay(){
   const animArea = document.getElementById('mb-anim-area');
   if(!ov) return;
   const icons = {box:'📦', roulette:'🎰', capsule:'💊'};
-  animArea.textContent = icons[mbCurrentBox?.anim||'box'] || '🎁';
+  animArea.textContent = icons[mbCurrentBox?.animType||mbCurrentBox?.anim||'box'] || '🎁';
   prizeCard.style.display = 'none';
   openBtn.style.display = 'flex';
-  ov.classList.add('show');
+  ov.style.display = 'flex';  // inline style로 강제 (classList.show가 inline style에 묻히는 문제 방지)
 }
 
 async function mbDoOpen(){
@@ -4976,11 +4886,12 @@ async function mbDoOpen(){
   // vault 저장
   mbVault.unshift({grade:prize.grade, item:prize.item, boxName:box.name||'', date:new Date().toISOString().slice(0,10)});
   try{localStorage.setItem('sv-mb-vault', JSON.stringify(mbVault.slice(0,50)));}catch(_){}
-  mbRenderVault();
+  mbRenderVault();  // vault 즉시 갱신 (탭 무관하게 DOM 업데이트)
 }
 
 function mbCloseOverlay(){
-  document.getElementById('mb-overlay')?.classList.remove('show');
+  const _ov=document.getElementById('mb-overlay');
+  if(_ov)_ov.style.display='none';
   mbCurrentBox = null;
   document.getElementById('mb-uuid-inp').value = '';
 }
@@ -5048,7 +4959,6 @@ if(scriptUrl){
 document.getElementById('setupScreen').style.display='none';
 document.getElementById('syncBadge').style.display='flex';
 syncFromSheet();
-loadYT();
 }
 renderBrief();
 renderSched();
