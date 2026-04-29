@@ -4998,32 +4998,40 @@ async function mbDeactivate(uuid){
 
 // ── 수령: 박스 열기
 async function mbClaimBox(){
+  const btn = document.querySelector('#mb-pane-user .doc-btn.gold');
+  if(btn){ btn.disabled=true; btn.textContent='처리 중…'; }
+
   let val = document.getElementById('mb-uuid-inp').value.trim();
   const sel = document.getElementById('mb-name-sel');
   const name = sel?.value || '';
   const mParam = val.match(/[?&]mb=([^&]+)/);
   if(mParam) val = mParam[1];
   const st = document.getElementById('mb-claim-status');
+
+  const restore = ()=>{
+    if(btn){ btn.disabled=false; btn.textContent='🎁 받기'; }
+  };
+
   if(!name){
     st.style.color='var(--red)';st.textContent='✗ 이름을 먼저 선택해주세요.';
     if(sel) sel.style.borderColor='var(--red)';
-    return;
+    restore(); return;
   }
   if(sel) sel.style.borderColor='';
-  if(!val){st.style.color='var(--red)';st.textContent='✗ UUID를 입력해주세요.';return;}
+  if(!val){st.style.color='var(--red)';st.textContent='✗ UUID를 입력해주세요.';restore();return;}
   st.style.color='var(--dim)';st.textContent='박스 확인 중…';
   if(location.protocol==='file:'){
     st.style.color='var(--orange)';
-    st.textContent='⚠ 로컬 파일에서는 API 연결이 불가합니다. GitHub Pages에 배포 후 이용해주세요.';
-    return;
+    st.textContent='⚠ 로컬 파일에서는 API 연결이 불가합니다.';
+    restore(); return;
   }
   let res = null;
   try{ res = await mbFetch({action:'get', uuid:val}); }catch(e){}
-  if(!res){st.style.color='var(--red)';st.textContent='✗ API 연결 실패. 잠시 후 다시 시도해주세요.';return;}
-  if(!res.box){st.style.color='var(--red)';st.textContent='✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';return;}
-  if(res.box.isExpired){st.style.color='var(--red)';st.textContent='✗ 유효기간이 만료된 박스입니다.';return;}
-  if(res.box.isExhausted||res.box.isOpened){st.style.color='var(--red)';st.textContent='✗ 발급 수량이 모두 소진된 박스입니다.';return;}
-  if(res.box.status==='비활성'){st.style.color='var(--red)';st.textContent='✗ 비활성화된 박스입니다.';return;}
+  if(!res){st.style.color='var(--red)';st.textContent='✗ API 연결 실패. 잠시 후 다시 시도해주세요.';restore();return;}
+  if(!res.box){st.style.color='var(--red)';st.textContent='✗ 박스를 찾을 수 없습니다. UUID를 확인해주세요.';restore();return;}
+  if(res.box.isExpired){st.style.color='var(--red)';st.textContent='✗ 유효기간이 만료된 박스입니다.';restore();return;}
+  if(res.box.isExhausted||res.box.isOpened){st.style.color='var(--red)';st.textContent='✗ 발급 수량이 모두 소진된 박스입니다.';restore();return;}
+  if(res.box.status==='비활성'){st.style.color='var(--red)';st.textContent='✗ 비활성화된 박스입니다.';restore();return;}
   st.style.color='var(--green)';st.textContent='✓ 박스 확인 완료! 아래 목록의 열기 버튼을 눌러주세요.';
   mbCurrentBox = {...res.box, uuid:val, recipientName:name};
   const pending = {
@@ -5035,6 +5043,7 @@ async function mbClaimBox(){
   try{localStorage.setItem('sv-mb-vault',JSON.stringify(mbVault.slice(0,50)));}catch(_){}
   mbRenderVault();
   document.getElementById('mb-uuid-inp').value='';
+  restore();
   setTimeout(()=>{st.textContent='';},3500);
 }
 
