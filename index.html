@@ -1266,6 +1266,33 @@ width:297mm !important;height:210mm !important;
 </div>
 </div>
 
+
+<!-- 마음의소리 MODAL -->
+<div class="help-overlay" id="mapeonOverlay" onclick="if(event.target===this)closeMapeon()">
+<div class="help-modal" style="max-width:480px">
+<div class="help-hdr">
+<div class="help-ttl">💬 <em>마음의소리</em></div>
+<button class="help-close" onclick="closeMapeon()">✕</button>
+</div>
+<div class="help-body" style="padding:22px 24px">
+<p style="font-size:13px;color:var(--dim);line-height:1.75;margin-bottom:18px">임원진에게 익명으로 의견을 전달할 수 있습니다. 제출 후 내용은 수정·삭제되지 않습니다.</p>
+<div class="field" style="margin-bottom:13px">
+<label style="display:block;font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;font-weight:700">제목</label>
+<input id="mapeon-title" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;box-sizing:border-box;transition:border-color .16s" placeholder="제목을 입력하세요" maxlength="100">
+</div>
+<div class="field" style="margin-bottom:18px">
+<label style="display:block;font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;font-weight:700">내용</label>
+<textarea id="mapeon-body" style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:9px 13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;box-sizing:border-box;resize:vertical;min-height:130px;line-height:1.7;transition:border-color .16s" placeholder="내용을 자유롭게 작성하세요"></textarea>
+</div>
+<div id="mapeon-status" style="font-size:12px;color:var(--dim);margin-bottom:10px;min-height:18px"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end">
+<button class="mbtn cancel" onclick="closeMapeon()">취소</button>
+<button class="mbtn save" onclick="submitMapeon()">✉ 보내기</button>
+</div>
+</div>
+</div>
+</div>
+
 <!-- HELP MODAL -->
 <div class="help-overlay" id="helpOverlay">
 <div class="help-modal">
@@ -1437,6 +1464,15 @@ width:297mm !important;height:210mm !important;
 <div class="sb-sub">
 <button class="sb-item" onclick="nav('mb',this)">
 <span class="icon">🎁</span><span class="label">미스테리 박스</span>
+</button>
+</div>
+</div>
+
+<!-- 마음의소리 -->
+<div class="sb-section">
+<div class="sb-sub">
+<button class="sb-item" onclick="openMapeon()">
+<span class="icon">💬</span><span class="label">마음의소리</span>
 </button>
 </div>
 </div>
@@ -4433,7 +4469,7 @@ document.getElementById('noticeBanner')?.remove();
 }
 
 // 공지 작성 (개인형 전용)
-let noticeScriptUrl = localStorage.getItem('sv-notice-url') || 'https://script.google.com/macros/s/AKfycbwJn8ZSbXxB7XvF6_rlRFFdWLhwn7rGr83D7Ww3YJp7f7OvNRvP3pbbwLUq7xW3fCpE/exec';
+let noticeScriptUrl = localStorage.getItem('sv-notice-url') || 'https://script.google.com/macros/s/AKfycbwVlLzi8VVtEiinUXI4wk75DRHXPR6x-xDfrCRWE5-0_5UBdEsO4f6Hfbn-mgEtniGd/exec';
 
 function openNoticeEditor(){
 const overlay = document.getElementById('noticeEditorOverlay');
@@ -4526,6 +4562,43 @@ status.textContent='✗ 실패';
 
 function openHelp(){document.getElementById('helpOverlay').classList.add('show');}
 function closeHelp(){document.getElementById('helpOverlay').classList.remove('show');}
+
+// ── 마음의소리
+function openMapeon(){
+  document.getElementById('mapeon-title').value='';
+  document.getElementById('mapeon-body').value='';
+  document.getElementById('mapeon-status').textContent='';
+  document.getElementById('mapeonOverlay').classList.add('show');
+  closeSidebar();
+}
+function closeMapeon(){
+  document.getElementById('mapeonOverlay').classList.remove('show');
+}
+async function submitMapeon(){
+  const title = document.getElementById('mapeon-title').value.trim();
+  const body  = document.getElementById('mapeon-body').value.trim();
+  const st    = document.getElementById('mapeon-status');
+  if(!title && !body){ st.style.color='var(--red)'; st.textContent='제목 또는 내용을 입력해주세요.'; return; }
+  if(!title){ st.style.color='var(--red)'; st.textContent='제목을 입력해주세요.'; return; }
+  if(!body){  st.style.color='var(--red)'; st.textContent='내용을 입력해주세요.'; return; }
+  st.style.color='var(--dim)'; st.textContent='전송 중…';
+  const btn = document.querySelector('#mapeonOverlay .mbtn.save');
+  if(btn){ btn.disabled=true; btn.textContent='전송 중…'; }
+  try{
+    await fetch(noticeScriptUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'mapeon', title, body}),
+      mode:'no-cors'
+    });
+    if(btn){ btn.disabled=false; btn.textContent='✉ 보내기'; }
+    closeMapeon();
+    alert('마음의소리가 접수되었습니다.');
+  }catch(e){
+    st.style.color='var(--red)'; st.textContent='전송 실패. 잠시 후 다시 시도해주세요.';
+    if(btn){ btn.disabled=false; btn.textContent='✉ 보내기'; }
+  }
+}
 
 
 
