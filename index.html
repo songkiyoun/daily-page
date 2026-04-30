@@ -4206,14 +4206,14 @@ function rfRenderPreview(doc){
   const rows=[...(doc.rows||[])];
   while(rows.length<28)rows.push({name:'',ssn:'',bank:'',acct:'',owner:'',amt:0,note:''});
 
-  const rowsHTML=rows.map(r=>`<tr>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.name)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center;font-size:10px">${rfEsc(r.ssn)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.bank)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center;font-size:10px">${rfEsc(r.acct)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.owner)}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111"><div style="line-height:1.3;white-space:normal;word-break:keep-all;overflow-wrap:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-height:2.6em;overflow:hidden">${rfEsc(r.note)}</div></td>
+  const rowsHTML=rows.map(r=>`<tr style="height:24px">
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:2px 4px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:24px">${rfEsc(r.name)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:10px;padding:2px 4px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:24px">${rfEsc(r.ssn)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:2px 4px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:24px">${rfEsc(r.bank)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:10px;padding:2px 4px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:24px">${rfEsc(r.acct)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:2px 4px;color:#111;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:24px">${rfEsc(r.owner)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:2px 4px;color:#111;text-align:right;white-space:nowrap;overflow:hidden;height:24px">${r.amt?rfFmtN(r.amt):''}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:2px 4px;color:#111;height:24px"><div style="line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rfEsc(r.note)}</div></td>
   </tr>`).join('');
 
   el.innerHTML=`<div class="doc-refund" id="print-area">
