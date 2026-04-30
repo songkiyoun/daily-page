@@ -4212,7 +4212,7 @@ function rfRenderPreview(doc){
     <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center;font-size:10px">${rfEsc(r.acct)}</td>
     <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.owner)}</td>
     <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111">${rfEsc(r.note)}</td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;white-space:normal;word-break:break-all;overflow-wrap:anywhere">${rfEsc(r.note)}</td>
   </tr>`).join('');
 
   el.innerHTML=`<div class="doc-refund" id="print-area">
