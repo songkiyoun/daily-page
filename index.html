@@ -1751,7 +1751,10 @@ width:297mm !important;height:210mm !important;
 <div style="box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:5px 4px;font-size:10px;color:rgba(255,255,255,.45);text-align:center;font-weight:700;overflow:hidden"></div>
 </div>
 <div id="rfRows"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
 <button class="doc-add-btn" onclick="rfAddRow()">+ 행 추가</button>
+<button class="doc-add-btn" style="background:rgba(91,155,213,.16);border-color:rgba(91,155,213,.35);color:#8fc0e8" onclick="rfImportFromSheet()">⇣ 시트 불러오기</button>
+</div>
 <div class="doc-actions">
 <button class="doc-btn ghost" onclick="rfReset()">↺ 초기화</button>
 <button class="doc-btn blue" onclick="rfPreviewDo()">👁 미리보기</button>
@@ -4052,6 +4055,8 @@ const rfFmtN=n=>Number(n||0).toLocaleString();
 const rfParseN=s=>parseInt((s||'').replace(/[^\d]/g,''))||0;
 const rfTodayISO=()=>new Date().toISOString().slice(0,10);
 const rfFmtDate=iso=>{if(!iso)return'';const d=new Date(iso+'T12:00');return`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;};
+const RF_IMPORT_SHEET_ID='1ah27xYBbHYZV4117jIpTkrlmzcxwv7adzErYz63Oymw';
+const RF_IMPORT_GID='0';
 let rfRowCount=0;
 
 function initRefund(){
@@ -4065,6 +4070,7 @@ function initRefund(){
 function rfAddRow(name='',ssn='',bank='',acct='',owner='',amt='',note=''){
   const id=rfRowCount++;
   const d=document.createElement('div');
+    d.className='rf-row';
   d.dataset.id=id;
   d.style.cssText='display:grid;grid-template-columns:12% 17% 10% 21% 9% 11% 1fr 26px;gap:2px;margin-bottom:3px;align-items:center;overflow:hidden;width:100%;box-sizing:border-box';
   d.innerHTML=`
@@ -4142,6 +4148,38 @@ function rfSave(){
 
 function rfPreviewDo(){rfRenderPreview(rfCollect());docTab('refund','preview');}
 
+async function rfImportFromSheet(){
+  const btn=event?.currentTarget;
+  const old=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='불러오는 중...';}
+  try{
+    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${RF_IMPORT_SHEET_ID}/export?format=csv&gid=${RF_IMPORT_GID}`);
+    const rows=csvParse(csv);
+    if(!rows.length){alert('시트 데이터가 비어 있습니다.');return;}
+    const reqRows=rows.filter(r=>String(r[11]||'').trim()==='반환요청');
+    if(!reqRows.length){alert('L열이 "반환요청"인 행이 없습니다.');return;}
+
+    if(!document.getElementById('rfRows').children.length)rfAddRow();
+    reqRows.forEach(r=>{
+      rfAddRow(
+        String(r[3]||'').trim(),  // D 성함
+        String(r[4]||'').trim(),  // E 주민번호
+        String(r[5]||'').trim(),  // F 은행명
+        String(r[6]||'').trim(),  // G 입금계좌
+        String(r[7]||'').trim(),  // H 예금주
+        rfParseN(String(r[8]||'')), // I 금액
+        String(r[9]||'').trim()   // J 이메일 -> 비고
+      );
+    });
+    rfCalcTotal();
+    alert(`불러오기 완료: ${reqRows.length}건 추가`);
+  }catch(e){
+    alert('시트 불러오기에 실패했습니다. 공유 상태/네트워크를 확인해주세요.');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=old;}
+  }
+}
+  
 function rfRenderList(){
   const body=document.getElementById('rfListBody');const list=rfLoad();
   if(!list.length){body.innerHTML='<div class="empty">저장된 처리대장이 없습니다.</div>';return;}
