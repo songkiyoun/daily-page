@@ -4212,7 +4212,7 @@ function rfRenderPreview(doc){
     <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center;font-size:10px">${rfEsc(r.acct)}</td>
     <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:center">${rfEsc(r.owner)}</td>
     <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111;text-align:right">${r.amt?rfFmtN(r.amt):''}</td>
-    <td style="border:1px solid #555;vertical-align:middle;font-size:11px;padding:3px 4px;color:#111"><div style="line-height:1.3;white-space:normal;word-break:keep-all;overflow-wrap:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-height:2.6em;overflow:hidden">${rfEsc(r.note)}</div></td>
+    <td style="border:1px solid #555;vertical-align:middle;font-size:9px;padding:3px 4px;color:#111"><div style="line-height:1.3;white-space:normal;word-break:keep-all;overflow-wrap:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-height:2.6em;overflow:hidden">${rfEsc(r.note)}</div></td>
   </tr>`).join('');
 
   el.innerHTML=`<div class="doc-refund" id="print-area">
