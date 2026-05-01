@@ -4157,7 +4157,7 @@ async function rfImportFromSheet(){
     const rows=csvParse(csv);
     if(!rows.length){alert('시트 데이터가 비어 있습니다.');return;}
     const reqRows=rows.filter(r=>String(r[11]||'').trim()==='반환요청');
-    if(!reqRows.length){alert('L열이 "반환요청"인 행이 없습니다.');return;}
+    if(!reqRows.length){alert('반환할 건이 없습니다.');return;}
 
     if(!document.getElementById('rfRows').children.length)rfAddRow();
     reqRows.forEach(r=>{
