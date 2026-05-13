@@ -64,6 +64,9 @@ function tickTimers(unit) {
   if (unit.clashCooldown > 0) unit.clashCooldown -= 1;
   if (unit.flankPressureTimer > 0) unit.flankPressureTimer -= 1;
   if (unit.daggerBurstCooldown > 0) unit.daggerBurstCooldown -= 1;
+  if (unit.parryCooldown > 0) unit.parryCooldown -= 1;
+  if (unit.parryFlashTimer > 0) unit.parryFlashTimer -= 1;
+  if (unit.counterTimer > 0) unit.counterTimer -= 1;
 }
 
 function updateRetreatState(unit, movement) {
@@ -106,6 +109,7 @@ function getTurnSpeed(unit) {
   if (unit.attackState === 'recovery') scale *= weapon.recoveryTurnScale;
   if (unit.postureRecoveryDelay > 0) scale *= 0.78;
   if (unit.flankPressureTimer > 0) scale *= POSTURE_RULES.daggerFlankTurnScale;
+  if (unit.parryFlashTimer > 0) scale *= 0.72;
   if (unit.posture < unit.maxPosture * 0.35) scale *= 0.86;
   if (unit.staggerTimer > 0) scale *= POSTURE_RULES.staggerMoveScale;
 
@@ -371,6 +375,8 @@ function resolveAttack(attacker, defender, state) {
   if (dist < weapon.minRange) return false;
   if (angleGap > hitArc) return false;
 
+  if (resolveParry(defender, attacker, weapon)) return true;
+
   const evaded = defender.staggerTimer <= 0 && Math.random() < defender.evasion;
   if (evaded) {
     defender.lastAction = '회피';
@@ -383,7 +389,8 @@ function resolveAttack(attacker, defender, state) {
   const aggressionBonus = 1 + personality.aggression * 0.08;
   const lowHpAttackBonus = attacker.hp / attacker.maxHp < 0.35 && attacker.skills?.includes('survival') ? 1.06 : 1;
   const staggerDamageBonus = defender.staggerTimer > 0 ? POSTURE_RULES.staggerDamageTakenBonus : 1;
-  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * (crit ? attacker.critDamage : 1);
+  const counterBonus = attacker.counterTimer > 0 ? POSTURE_RULES.counterDamageBonus : 1;
+  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * (crit ? attacker.critDamage : 1);
   const effectiveDefense = getEffectiveDefense(defender);
   const damage = Math.max(2, rawDamage * (1 - effectiveDefense));
 
@@ -397,6 +404,7 @@ function resolveAttack(attacker, defender, state) {
   applyPostureDamage(attacker, defender, postureDamage);
   applyKnockback(attacker, defender, weapon.knockback);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
+  attacker.counterTimer = 0;
 
   if (defender.hp <= 0) {
     defender.isDead = true;
@@ -404,6 +412,107 @@ function resolveAttack(attacker, defender, state) {
   }
 
   return true;
+}
+
+function resolveParry(defender, attacker, incomingWeapon) {
+  if (!canTryParry(defender, attacker, incomingWeapon)) return false;
+
+  const chance = getParryChance(defender, attacker, incomingWeapon);
+  defender.parryCooldown = Math.max(defender.parryCooldown || 0, Math.floor(POSTURE_RULES.parryCooldownFrames * 0.55));
+
+  if (Math.random() > chance) {
+    defender.lastAction = '패링 실패';
+    return false;
+  }
+
+  performParry(defender, attacker, incomingWeapon);
+  return true;
+}
+
+function canTryParry(defender, attacker, incomingWeapon) {
+  if (defender.isDead || attacker.isDead) return false;
+  if (defender.staggerTimer > 0 || defender.parryCooldown > 0) return false;
+  if (defender.posture < defender.maxPosture * 0.18) return false;
+  if (attacker.weaponId === 'dagger' && getPositionalBonus(attacker, defender) > 1.05) return false;
+
+  const incomingDirection = angleTo(defender, attacker);
+  const frontGap = Math.abs(angleDiff(defender.facing, incomingDirection));
+  if (frontGap > POSTURE_RULES.parryFrontArc) return false;
+
+  const dist = distance(defender, attacker);
+  const defenderWeapon = WEAPONS[defender.weaponId];
+  const parryReach = Math.max(defender.radius + attacker.radius + 24, defenderWeapon.range * 0.72 + attacker.radius);
+  if (dist > parryReach + getReachBonus(attacker, incomingWeapon)) return false;
+
+  if (defender.attackState === 'recovery' && defender.attackTimer > 8) return false;
+  return true;
+}
+
+function getParryChance(defender, attacker, incomingWeapon) {
+  const defenderWeapon = WEAPONS[defender.weaponId];
+  const personality = PERSONALITIES[defender.personalityId];
+  const postureRatio = clamp(defender.posture / defender.maxPosture, 0, 1);
+  const timingBonus = defender.attackState === 'windup'
+    ? 0.07
+    : defender.attackState === 'active'
+      ? 0.04
+      : defender.cooldownTimer <= 6
+        ? 0.03
+        : 0;
+  const pressurePenalty = attacker.weaponId === 'spear' && distance(defender, attacker) > defenderWeapon.range * 0.72 ? 0.035 : 0;
+
+  return clamp(
+    POSTURE_RULES.parryBaseChance +
+    (defenderWeapon.parryEfficiency || 0.3) * 0.52 +
+    (personality.parryBonus || 0) +
+    defender.stats.def * 0.005 +
+    defender.stats.agi * 0.003 +
+    defender.stats.luck * 0.0015 +
+    postureRatio * 0.055 +
+    timingBonus -
+    (incomingWeapon.parryBreak || 0) -
+    pressurePenalty,
+    0,
+    POSTURE_RULES.parryMaxChance
+  );
+}
+
+function performParry(defender, attacker, incomingWeapon) {
+  const defenderWeapon = WEAPONS[defender.weaponId];
+  const parryPower = getParryPower(defender, defenderWeapon, incomingWeapon);
+  const impactAngle = angleTo(defender, attacker);
+  const sideAngle = impactAngle + Math.PI / 2 * defender.orbitDir;
+
+  applyPostureDamage(defender, attacker, parryPower);
+  twistBodyOnImpact(attacker, defender, parryPower, defenderWeapon);
+
+  attacker.attackState = 'recovery';
+  attacker.attackTimer = Math.max(attacker.attackTimer, incomingWeapon.recovery + POSTURE_RULES.parryRecoveryAddFrames);
+  attacker.cooldownTimer = Math.max(attacker.cooldownTimer, Math.floor(incomingWeapon.cooldown * 0.32));
+  attacker.vx += Math.cos(impactAngle) * POSTURE_RULES.parryKnockback + Math.cos(sideAngle) * 0.45;
+  attacker.vy += Math.sin(impactAngle) * POSTURE_RULES.parryKnockback + Math.sin(sideAngle) * 0.45;
+
+  defender.vx -= Math.cos(impactAngle) * 0.62;
+  defender.vy -= Math.sin(impactAngle) * 0.62;
+  defender.parryCooldown = POSTURE_RULES.parryCooldownFrames;
+  defender.parryFlashTimer = POSTURE_RULES.parryFlashFrames;
+  defender.counterTimer = POSTURE_RULES.counterWindowFrames;
+  defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay, Math.floor(POSTURE_RULES.recoveryDelayFrames * 0.38));
+  defender.lastAction = '패링 성공';
+  attacker.lastAction = '패링당함';
+}
+
+function getParryPower(defender, defenderWeapon, incomingWeapon) {
+  const weaponScale = 0.82 + (defenderWeapon.parryEfficiency || 0.3);
+  const statScale = 1 + defender.stats.def * 0.018 + defender.stats.agi * 0.006 + defender.mastery * 0.035;
+  const incomingScale = incomingWeapon.id === 'western'
+    ? 1.08
+    : incomingWeapon.id === 'spear'
+      ? 1.02
+      : incomingWeapon.id === 'dagger'
+        ? 0.82
+        : 0.94;
+  return POSTURE_RULES.parryPostureDamage * weaponScale * statScale * incomingScale;
 }
 
 function getHitArc(attacker, weapon) {
@@ -470,13 +579,14 @@ function getPositionalBonus(attacker, defender) {
 function getPostureDamage(attacker, defender, weapon, positionalBonus, crit) {
   const attackStateBonus = defender.attackState === 'windup' || defender.attackState === 'active' ? 1.18 : 1;
   const critBonus = crit ? 1.22 : 1;
+  const counterPostureBonus = attacker.counterTimer > 0 ? POSTURE_RULES.counterPostureBonus : 1;
   const daggerPostureBonus = weapon.id === 'dagger'
     ? getDaggerPostureBonus(attacker, defender, weapon)
     : 1;
   const defenseReduction = clamp(1 - defender.defense * 0.38, 0.72, 1);
   return Math.max(
     POSTURE_RULES.minPostureDamage,
-    weapon.postureDamage * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * defenseReduction
+    weapon.postureDamage * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * defenseReduction
   );
 }
 

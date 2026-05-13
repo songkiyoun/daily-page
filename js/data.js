@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.4.8';
+export const VERSION = '0.4.9';
 
 export const WEAPONS = {
   spear: {
@@ -22,6 +22,8 @@ export const WEAPONS = {
     activeTurnScale: 0.22,
     recoveryTurnScale: 0.28,
     postureDamage: 22,
+    parryEfficiency: 0.36,
+    parryBreak: 0.1,
     moveSpeed: 2.55,
     knockback: 15,
     crit: 0.03,
@@ -50,6 +52,8 @@ export const WEAPONS = {
     activeTurnScale: 0.28,
     recoveryTurnScale: 0.34,
     postureDamage: 20,
+    parryEfficiency: 0.46,
+    parryBreak: 0.08,
     moveSpeed: 2.72,
     knockback: 11,
     crit: 0.06,
@@ -78,6 +82,8 @@ export const WEAPONS = {
     activeTurnScale: 0.42,
     recoveryTurnScale: 0.52,
     postureDamage: 13,
+    parryEfficiency: 0.42,
+    parryBreak: 0.02,
     moveSpeed: 3.08,
     knockback: 7,
     crit: 0.1,
@@ -106,6 +112,8 @@ export const WEAPONS = {
     activeTurnScale: 0.52,
     recoveryTurnScale: 0.62,
     postureDamage: 10,
+    parryEfficiency: 0.24,
+    parryBreak: -0.03,
     flankPostureBonus: 1.65,
     backPostureBonus: 2.25,
     moveSpeed: 3.38,
@@ -134,6 +142,7 @@ export const PERSONALITIES = {
     retreatHpRatio: 0.28,
     flankPreference: 0.52,
     pressure: 0.55,
+    parryBonus: 0.04,
     defenseBonus: 0.01,
     description: '거리 조절과 공격을 적당히 섞습니다.'
   },
@@ -147,6 +156,7 @@ export const PERSONALITIES = {
     retreatHpRatio: 0.16,
     flankPreference: 0.34,
     pressure: 0.86,
+    parryBonus: -0.03,
     attackBonus: 0.06,
     description: '적을 빠르게 압박하고 먼저 공격하려 합니다.'
   },
@@ -160,6 +170,7 @@ export const PERSONALITIES = {
     retreatHpRatio: 0.44,
     flankPreference: 0.44,
     pressure: 0.32,
+    parryBonus: 0.13,
     defenseBonus: 0.04,
     description: '낮은 체력에서는 거리를 재정렬하고, 오래 밀리면 측면 견제와 반격으로 전환합니다.'
   },
@@ -173,6 +184,7 @@ export const PERSONALITIES = {
     retreatHpRatio: 0.26,
     flankPreference: 1,
     pressure: 0.58,
+    parryBonus: 0.02,
     evasionBonus: 0.035,
     critBonus: 0.04,
     description: '정면 교전보다 측후방 진입을 노립니다.'
@@ -240,7 +252,18 @@ export const POSTURE_RULES = {
   weaponClashPostureDamage: 11,
   daggerFlankPressureFrames: 14,
   daggerFlankTurnScale: 0.46,
-  daggerBurstCooldownFrames: 22
+  daggerBurstCooldownFrames: 22,
+  parryBaseChance: 0.08,
+  parryMaxChance: 0.62,
+  parryFrontArc: 0.82,
+  parryCooldownFrames: 36,
+  parryFlashFrames: 14,
+  parryPostureDamage: 21,
+  parryRecoveryAddFrames: 12,
+  parryKnockback: 2.4,
+  counterWindowFrames: 34,
+  counterDamageBonus: 1.08,
+  counterPostureBonus: 1.16
 };
 
 export const SKILLS = {

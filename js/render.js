@@ -113,6 +113,15 @@ function drawUnit(ctx, unit) {
     ctx.setLineDash([]);
   }
 
+  if (unit.parryFlashTimer > 0) {
+    const pulse = unit.radius + 12 + (unit.parryFlashTimer % 4);
+    ctx.beginPath();
+    ctx.arc(0, 0, pulse, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(90,232,255,0.82)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
   ctx.rotate(unit.facing);
   ctx.beginPath();
   ctx.moveTo(unit.radius + 3, 0);
