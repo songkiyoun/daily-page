@@ -36,17 +36,21 @@ const controls = {
   resultTitle: document.getElementById('resultTitle'),
   resultText: document.getElementById('resultText'),
   enemyPreview: document.getElementById('enemyPreview'),
+  simPlayerWeapon: document.getElementById('simPlayerWeapon'),
+  simPlayerPersonality: document.getElementById('simPlayerPersonality'),
   simEnemyWeapon: document.getElementById('simEnemyWeapon'),
   simEnemyPersonality: document.getElementById('simEnemyPersonality'),
   simCount: document.getElementById('simCount'),
   simRunBtn: document.getElementById('simRunBtn'),
   simMatrixBtn: document.getElementById('simMatrixBtn'),
+  simCopyBtn: document.getElementById('simCopyBtn'),
   simResultBox: document.getElementById('simResultBox'),
   version: document.getElementById('versionBadge')
 };
 
 let state = null;
 let run = null;
+let lastSimulationText = '아직 복사할 시뮬레이션 결과가 없습니다.';
 let panelKeys = {
   player: '',
   tower: '',
@@ -60,8 +64,10 @@ requestAnimationFrame(loop);
 function init() {
   populateSelect(controls.playerWeapon, WEAPONS, 'eastern');
   populateSelect(controls.playerPersonality, PERSONALITIES, 'balanced');
-  populateSelect(controls.simEnemyWeapon, WEAPONS, 'spear');
-  populateSelect(controls.simEnemyPersonality, PERSONALITIES, 'balanced');
+  populateSelect(controls.simPlayerWeapon, WEAPONS, 'spear');
+  populateSelect(controls.simPlayerPersonality, PERSONALITIES, 'balanced');
+  populateSelect(controls.simEnemyWeapon, WEAPONS, 'dagger');
+  populateSelect(controls.simEnemyPersonality, PERSONALITIES, 'assassin');
   controls.version.textContent = `v${VERSION}`;
 
   controls.startBtn.addEventListener('click', handleMainButton);
@@ -78,6 +84,7 @@ function init() {
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
   controls.simRunBtn.addEventListener('click', handleSimulationRun);
   controls.simMatrixBtn.addEventListener('click', handleSimulationMatrix);
+  controls.simCopyBtn.addEventListener('click', handleSimulationCopy);
 
   run = createRun(readConfig());
   state = createBattleState(run);
@@ -220,10 +227,10 @@ function handleRewardClick(event) {
 
 
 function handleSimulationRun() {
-  const count = readSimulationCount(50);
+  const count = readSimulationCount(10);
   const result = simulateMatchSet({
-    playerWeapon: controls.playerWeapon.value,
-    playerPersonality: controls.playerPersonality.value,
+    playerWeapon: controls.simPlayerWeapon.value,
+    playerPersonality: controls.simPlayerPersonality.value,
     enemyWeapon: controls.simEnemyWeapon.value,
     enemyPersonality: controls.simEnemyPersonality.value,
     count
@@ -232,15 +239,15 @@ function handleSimulationRun() {
 }
 
 function handleSimulationMatrix() {
-  const count = Math.min(readSimulationCount(20), 30);
+  const count = readSimulationCount(10);
   const rows = [];
-  Object.values(WEAPONS).forEach((weapon) => {
-    Object.values(PERSONALITIES).forEach((personality) => {
+  getAllCombatantConfigs().forEach((playerConfig) => {
+    getAllCombatantConfigs().forEach((enemyConfig) => {
       rows.push(simulateMatchSet({
-        playerWeapon: controls.playerWeapon.value,
-        playerPersonality: controls.playerPersonality.value,
-        enemyWeapon: weapon.id,
-        enemyPersonality: personality.id,
+        playerWeapon: playerConfig.weaponId,
+        playerPersonality: playerConfig.personalityId,
+        enemyWeapon: enemyConfig.weaponId,
+        enemyPersonality: enemyConfig.personalityId,
         count
       }));
     });
@@ -248,10 +255,49 @@ function handleSimulationMatrix() {
   renderSimulationMatrix(rows, count);
 }
 
+function handleSimulationCopy() {
+  if (!lastSimulationText) return;
+  copyTextToClipboard(lastSimulationText);
+  controls.simCopyBtn.textContent = '복사 완료';
+  window.setTimeout(() => {
+    controls.simCopyBtn.textContent = '결과 복사';
+  }, 900);
+}
+
+function copyTextToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopyText(text));
+    return;
+  }
+  fallbackCopyText(text);
+}
+
+function fallbackCopyText(text) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  textarea.remove();
+}
+
+function getAllCombatantConfigs() {
+  const configs = [];
+  Object.values(WEAPONS).forEach((weapon) => {
+    Object.values(PERSONALITIES).forEach((personality) => {
+      configs.push({ weaponId: weapon.id, personalityId: personality.id });
+    });
+  });
+  return configs;
+}
+
 function readSimulationCount(defaultCount) {
   const value = Number.parseInt(controls.simCount.value, 10);
   if (!Number.isFinite(value)) return defaultCount;
-  return Math.max(1, Math.min(120, value));
+  return Math.max(1, Math.min(50, value));
 }
 
 function simulateMatchSet({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality, count }) {
@@ -331,13 +377,13 @@ function simulateSingleMatch({ playerWeapon, playerPersonality, enemyWeapon, ene
 }
 
 function renderSimulationResult(result) {
-  const playerWeapon = WEAPONS[result.playerWeapon].name;
-  const playerPersonality = PERSONALITIES[result.playerPersonality].name;
-  const enemyWeapon = WEAPONS[result.enemyWeapon].name;
-  const enemyPersonality = PERSONALITIES[result.enemyPersonality].name;
+  const playerLabel = combatantLabel(result.playerWeapon, result.playerPersonality);
+  const enemyLabel = combatantLabel(result.enemyWeapon, result.enemyPersonality);
+  lastSimulationText = buildSingleSimulationText(result);
+
   controls.simResultBox.innerHTML = `
     <div class="sim-summary">
-      <strong>${playerWeapon} ${playerPersonality} vs ${enemyWeapon} ${enemyPersonality}</strong>
+      <strong>${playerLabel} vs ${enemyLabel}</strong>
       <span>${result.count}회 시뮬레이션 · 승률 ${Math.round(result.winRate * 100)}%</span>
     </div>
     <div class="sim-stat-grid">
@@ -346,30 +392,99 @@ function renderSimulationResult(result) {
       <div><span>평균 시간</span><strong>${result.avgTime.toFixed(1)}초</strong></div>
       <div><span>잔여 체력</span><strong>${result.avgPlayerHp.toFixed(0)} : ${result.avgEnemyHp.toFixed(0)}</strong></div>
     </div>
+    <textarea class="sim-copy-text" readonly>${escapeTextarea(lastSimulationText)}</textarea>
   `;
 }
 
 function renderSimulationMatrix(rows, count) {
+  lastSimulationText = buildMatrixSimulationText(rows, count);
   const table = rows.map((row) => `
     <tr>
+      <td>${WEAPONS[row.playerWeapon].name}</td>
+      <td>${PERSONALITIES[row.playerPersonality].name}</td>
       <td>${WEAPONS[row.enemyWeapon].name}</td>
       <td>${PERSONALITIES[row.enemyPersonality].name}</td>
       <td>${Math.round(row.winRate * 100)}%</td>
       <td>${row.avgPlayerHits.toFixed(1)} : ${row.avgEnemyHits.toFixed(1)}</td>
+      <td>${row.avgTime.toFixed(1)}초</td>
     </tr>
   `).join('');
 
   controls.simResultBox.innerHTML = `
     <div class="sim-summary">
-      <strong>전체 상대 비교</strong>
-      <span>상대 16조합 · 각 ${count}회 · 1층 기본 스탯 5 기준</span>
+      <strong>전체 조합 비교</strong>
+      <span>내 16조합 × 상대 16조합 · 총 ${rows.length}매치업 · 각 ${count}회 · 미러전 포함</span>
     </div>
     <table class="sim-table">
-      <thead><tr><th>상대 무기</th><th>상대 성격</th><th>승률</th><th>평균 명중</th></tr></thead>
+      <thead>
+        <tr>
+          <th>내 무기</th>
+          <th>내 성격</th>
+          <th>상대 무기</th>
+          <th>상대 성격</th>
+          <th>승률</th>
+          <th>평균 명중</th>
+          <th>평균 시간</th>
+        </tr>
+      </thead>
       <tbody>${table}</tbody>
     </table>
+    <textarea class="sim-copy-text" readonly>${escapeTextarea(lastSimulationText)}</textarea>
   `;
 }
+
+function combatantLabel(weaponId, personalityId) {
+  return `${WEAPONS[weaponId].name} ${PERSONALITIES[personalityId].name}`;
+}
+
+function buildSingleSimulationText(result) {
+  return [
+    '[시뮬레이션 결과]',
+    `버전: v${VERSION}`,
+    `반복: ${result.count}회`,
+    `내 세팅: ${combatantLabel(result.playerWeapon, result.playerPersonality)} / 스탯 5-5-5-5-5`,
+    `상대 세팅: ${combatantLabel(result.enemyWeapon, result.enemyPersonality)} / 스탯 5-5-5-5-5`,
+    '',
+    `승패: 내 승리 ${result.wins}회 / 상대 승리 ${result.losses}회 / 무승부 ${result.draws}회`,
+    `승률: ${Math.round(result.winRate * 100)}%`,
+    `평균 명중: 내 ${result.avgPlayerHits.toFixed(1)}회 / 상대 ${result.avgEnemyHits.toFixed(1)}회`,
+    `평균 전투 시간: ${result.avgTime.toFixed(1)}초`,
+    `평균 잔여 체력: 내 ${result.avgPlayerHp.toFixed(0)} / 상대 ${result.avgEnemyHp.toFixed(0)}`
+  ].join('\n');
+}
+
+function buildMatrixSimulationText(rows, count) {
+  const lines = [
+    '[전체 조합 시뮬레이션 결과]',
+    `버전: v${VERSION}`,
+    `반복: 각 ${count}회`,
+    '기준: 1층 / 양쪽 스탯 5-5-5-5-5 / 미러전 포함',
+    '',
+    '내무기\t내성격\t상대무기\t상대성격\t승률\t내평균명중\t상대평균명중\t평균시간\t내잔여체력\t상대잔여체력'
+  ];
+
+  rows.forEach((row) => {
+    lines.push([
+      WEAPONS[row.playerWeapon].name,
+      PERSONALITIES[row.playerPersonality].name,
+      WEAPONS[row.enemyWeapon].name,
+      PERSONALITIES[row.enemyPersonality].name,
+      `${Math.round(row.winRate * 100)}%`,
+      row.avgPlayerHits.toFixed(1),
+      row.avgEnemyHits.toFixed(1),
+      row.avgTime.toFixed(1),
+      row.avgPlayerHp.toFixed(0),
+      row.avgEnemyHp.toFixed(0)
+    ].join('\t'));
+  });
+
+  return lines.join('\n');
+}
+
+function escapeTextarea(text) {
+  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
 
 function loop() {
   if (state) {
