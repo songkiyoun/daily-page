@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.4.7';
+export const VERSION = '0.4.8';
 
 export const WEAPONS = {
   spear: {
@@ -101,14 +101,14 @@ export const WEAPONS = {
     cooldown: 22,
     windup: 4,
     recovery: 8,
-    turnSpeed: 0.148,
+    turnSpeed: 0.162,
     windupTurnScale: 0.82,
     activeTurnScale: 0.52,
     recoveryTurnScale: 0.62,
     postureDamage: 10,
     flankPostureBonus: 1.65,
     backPostureBonus: 2.25,
-    moveSpeed: 3.28,
+    moveSpeed: 3.38,
     knockback: 5,
     crit: 0.18,
     backBonus: 2.25,
@@ -117,8 +117,8 @@ export const WEAPONS = {
     movementStyle: 'flank',
     strafeWeight: 1.08,
     approachOffset: 1.25,
-    flankBias: 1,
-    lungePower: 0.82,
+    flankBias: 1.18,
+    lungePower: 0.92,
     recoveryBackstep: 0.34
   }
 };
@@ -237,7 +237,10 @@ export const POSTURE_RULES = {
   closeResetCooldown: 30,
   closeResetPostureDamage: 17,
   weaponClashCooldown: 24,
-  weaponClashPostureDamage: 11
+  weaponClashPostureDamage: 11,
+  daggerFlankPressureFrames: 14,
+  daggerFlankTurnScale: 0.46,
+  daggerBurstCooldownFrames: 22
 };
 
 export const SKILLS = {

@@ -44,7 +44,7 @@ function updateUnit(unit, enemy, state) {
   updateOrbitDirection(unit, enemy);
 
   if (unit.attackState === 'idle') {
-    applyMovement(unit, movement, weapon);
+    applyMovement(unit, movement, weapon, enemy);
     if (tryCloseRangeReset(unit, enemy, movement)) return;
     if (unit.cooldownTimer <= 0 && canStartAttack(unit, enemy)) {
       beginAttack(unit, enemy);
@@ -62,6 +62,8 @@ function tickTimers(unit) {
   if (unit.retreatLockout > 0) unit.retreatLockout -= 1;
   if (unit.resetMoveCooldown > 0) unit.resetMoveCooldown -= 1;
   if (unit.clashCooldown > 0) unit.clashCooldown -= 1;
+  if (unit.flankPressureTimer > 0) unit.flankPressureTimer -= 1;
+  if (unit.daggerBurstCooldown > 0) unit.daggerBurstCooldown -= 1;
 }
 
 function updateRetreatState(unit, movement) {
@@ -103,6 +105,7 @@ function getTurnSpeed(unit) {
   if (unit.attackState === 'active') scale *= weapon.activeTurnScale;
   if (unit.attackState === 'recovery') scale *= weapon.recoveryTurnScale;
   if (unit.postureRecoveryDelay > 0) scale *= 0.78;
+  if (unit.flankPressureTimer > 0) scale *= POSTURE_RULES.daggerFlankTurnScale;
   if (unit.posture < unit.maxPosture * 0.35) scale *= 0.86;
   if (unit.staggerTimer > 0) scale *= POSTURE_RULES.staggerMoveScale;
 
@@ -123,10 +126,10 @@ function updateOrbitDirection(unit, enemy) {
   }
 }
 
-function applyMovement(unit, movement, weapon) {
+function applyMovement(unit, movement, weapon, enemy = null) {
   const acceleration = getAcceleration(unit, movement);
   const friction = 0.865;
-  const burstScale = unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label) ? 1.24 : 1;
+  const burstScale = unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label) ? 1.46 : 1;
   const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1) * burstScale;
 
   unit.vx += movement.ax * acceleration;
@@ -147,6 +150,14 @@ function applyMovement(unit, movement, weapon) {
 
   unit.x += unit.vx;
   unit.y += unit.vy;
+
+  if (enemy && unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label)) {
+    const dist = distance(unit, enemy);
+    if (dist < WEAPONS[unit.weaponId].range + enemy.radius + 46) {
+      enemy.flankPressureTimer = Math.max(enemy.flankPressureTimer || 0, POSTURE_RULES.daggerFlankPressureFrames);
+      unit.daggerBurstCooldown = Math.max(unit.daggerBurstCooldown || 0, POSTURE_RULES.daggerBurstCooldownFrames);
+    }
+  }
 }
 
 function getAcceleration(unit, movement) {
@@ -155,7 +166,7 @@ function getAcceleration(unit, movement) {
   if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.25;
   if (unit.weaponId === 'spear' && movement.label.includes('측면')) value = 0.29;
   if (unit.weaponId === 'eastern') value = 0.25;
-  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.38 : 0.29;
+  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.48 : 0.31;
   if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.015;
   if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.045;
   if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
@@ -163,7 +174,7 @@ function getAcceleration(unit, movement) {
 }
 
 function isDaggerBurstLabel(label = '') {
-  return label.includes('순간') || label.includes('침투') || label.includes('후방') || label.includes('미러 짧은 교전');
+  return label.includes('순간') || label.includes('침투') || label.includes('후방') || label.includes('돌파') || label.includes('빠른') || label.includes('미러 짧은 교전');
 }
 
 function tryCloseRangeReset(unit, enemy, movement) {
@@ -226,7 +237,7 @@ function canStartAttack(attacker, defender) {
     return true;
   }
 
-  if (dist > weapon.range + defender.radius) return false;
+  if (dist > weapon.range + defender.radius + getReachBonus(attacker, weapon)) return false;
   if (dist < weapon.minRange) return false;
   if (angleGap > startTolerance) return false;
 
@@ -234,7 +245,7 @@ function canStartAttack(attacker, defender) {
     return false;
   }
 
-  const committedToAngle = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방') || attacker.lastAction.includes('미러');
+  const committedToAngle = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방') || attacker.lastAction.includes('미러') || attacker.lastAction.includes('돌파') || attacker.lastAction.includes('침투');
   if (personality.id === 'assassin' && attacker.weaponId !== 'spear' && isDirectlyInFrontOf(defender, attacker) && !committedToAngle) {
     return false;
   }
@@ -421,9 +432,11 @@ function hasDaggerAttackAngle(attacker, defender) {
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
   const defenderLowHp = defender.hp / defender.maxHp < 0.22;
-  const daggerMirrorCommit = defender.weaponId === 'dagger' && dist < WEAPONS.dagger.range + defender.radius + 6 && frontGap < 1.52;
+  const committedBurst = isDaggerBurstLabel(attacker.lastAction) && dist < WEAPONS.dagger.range + defender.radius + 12;
+  const defenderBusy = defender.attackState !== 'idle' || defender.cooldownTimer > 10 || defender.flankPressureTimer > 0;
+  const daggerMirrorCommit = defender.weaponId === 'dagger' && dist < WEAPONS.dagger.range + defender.radius + 8 && frontGap < 1.62;
 
-  return backGap < 1.12 || sideGap < 0.9 || defenderLowHp || daggerMirrorCommit;
+  return backGap < 1.32 || sideGap < 1.04 || defenderLowHp || committedBurst || (defenderBusy && sideGap < 1.22) || daggerMirrorCommit;
 }
 
 function isDirectlyInFrontOf(observer, target) {
@@ -446,9 +459,11 @@ function getPositionalBonus(attacker, defender) {
   const backGap = Math.abs(angleDiff(defender.facing + Math.PI, attackerFromDefender));
   const sideGap = Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender));
   const otherSideGap = Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender));
+  const flankGap = Math.min(sideGap, otherSideGap);
 
-  if (backGap < 0.95) return weapon.backBonus;
-  if (sideGap < 0.82 || otherSideGap < 0.82) return weapon.flankBonus;
+  if (backGap < 1.12) return weapon.backBonus;
+  if (flankGap < 1.02) return weapon.flankBonus;
+  if (defender.flankPressureTimer > 0 && flankGap < 1.18) return (weapon.flankBonus + 1) / 2;
   return 1;
 }
 
@@ -473,8 +488,9 @@ function getDaggerPostureBonus(attacker, defender, weapon) {
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
 
-  if (backGap < 0.95) return weapon.backPostureBonus || 1;
-  if (sideGap < 0.82) return weapon.flankPostureBonus || 1;
+  if (backGap < 1.12) return weapon.backPostureBonus || 1;
+  if (sideGap < 1.02) return weapon.flankPostureBonus || 1;
+  if (defender.flankPressureTimer > 0 && sideGap < 1.18) return Math.max(1.18, (weapon.flankPostureBonus || 1));
   return 1;
 }
 

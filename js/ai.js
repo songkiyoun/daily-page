@@ -84,20 +84,27 @@ function spearMovement(self, enemy, desired, toEnemy, fromEnemy, dist, weapon, p
   const pressure = personality.pressure;
   const retreatLimited = shouldLimitRetreat(self, state);
   const mirrorSpear = enemy.weaponId === 'spear';
+  const defensiveMirror = mirrorSpear && self.personalityId === 'defensive' && enemy.personalityId === 'defensive';
 
-  if (dist < weapon.minRange + 18) {
-    if (retreatLimited || (self.retreatFrames || 0) > 12 || dist < weapon.minRange + 4) {
+  if (dist < weapon.minRange + 14) {
+    if (retreatLimited || (self.retreatFrames || 0) > 10 || dist < weapon.minRange + 2) {
       return resetAngleMovement(self, enemy, desired, toEnemy, dist, personality, '창 측면 재정렬');
     }
-    return blendAngles(sideAngle(toEnemy, self.orbitDir), fromEnemy, 0.26, 0.88, toEnemy, '창 짧은 거리 확보');
+    return blendAngles(sideAngle(toEnemy, self.orbitDir), fromEnemy, 0.18, 0.84, toEnemy, '창 짧은 거리 확보');
   }
 
-  if (mirrorSpear && dist >= weapon.minRange + 18 && dist <= weapon.range + 10) {
-    const orbit = sideAngle(toEnemy, self.orbitDir);
-    return blendAngles(orbit, toEnemy, 0.28 + pressure * 0.24, 0.78 + pressure * 0.16, toEnemy, '창 미러 견제 진입');
+  if (mirrorSpear) {
+    const fightBand = weapon.idealRange - (defensiveMirror ? 12 : 8);
+    if (dist > fightBand) {
+      return blendAngles(toEnemy, sideAngle(toEnemy, self.orbitDir), 0.16, defensiveMirror ? 0.92 : 0.84 + pressure * 0.14, toEnemy, '창 미러 교전 압축');
+    }
+    if (dist <= weapon.range + 8) {
+      const orbit = sideAngle(toEnemy, self.orbitDir);
+      return blendAngles(orbit, toEnemy, 0.38 + pressure * 0.22, 0.76 + pressure * 0.14, toEnemy, '창 미러 찌르기 각도');
+    }
   }
 
-  if (dist > desired + 12) {
+  if (dist > desired + 10) {
     const entryAngle = angleToRingPoint(self, enemy, desired, self.orbitDir * weapon.approachOffset);
     return vectorFromAngle(entryAngle, 0.82 + pressure * 0.2, toEnemy, '창 찌르기 거리 진입');
   }
@@ -144,9 +151,9 @@ function easternMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relatio
 
 function exploitStaggerMovement(self, enemy, desired, toEnemy, dist, relation, weapon, personality) {
   if (weapon.id === 'dagger' || personality.id === 'assassin') {
-    const backRadius = Math.max(20, desired);
-    const backAngle = angleToRingPointByFacing(self, enemy, backRadius, Math.PI + self.orbitDir * 0.18);
-    return vectorFromAngle(backAngle, 1, toEnemy, '흐트러짐 측후방 추격');
+    const backRadius = Math.max(18, desired - 2);
+    const backAngle = angleToRingPointByFacing(self, enemy, backRadius, Math.PI + self.orbitDir * 0.28);
+    return vectorFromAngle(backAngle, 1.42, toEnemy, '흐트러짐 측후방 순간 침투');
   }
 
   if (dist > desired + 8) {
@@ -157,59 +164,82 @@ function exploitStaggerMovement(self, enemy, desired, toEnemy, dist, relation, w
 }
 
 function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality) {
-  const flankPower = clamp((weapon.flankBias || 0.5) * 0.62 + personality.flankPreference * 0.58, 0.5, 1.35);
-  const sideRadius = desired + (relation.isFront ? 20 : 8);
-  const backRadius = Math.max(22, desired);
+  const flankPower = clamp((weapon.flankBias || 0.5) * 0.62 + personality.flankPreference * 0.58, 0.5, 1.55);
+  const sideRadius = Math.max(24, desired + (relation.isFront ? 24 : 10));
+  const backRadius = Math.max(20, desired - 1);
+  const opportunity = getDaggerOpportunity(enemy);
+  const burstReady = (self.daggerBurstCooldown || 0) <= 0;
 
   if (weapon.id === 'dagger' && enemy.weaponId === 'dagger') {
     return daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower);
   }
 
-  if (enemy.weaponId === 'spear' && dist > Math.max(24, WEAPONS.spear.minRange - 28)) {
-    const spearBusy = enemy.attackState !== 'idle' || enemy.cooldownTimer > 14 || enemy.postureRecoveryDelay > 0;
-    const targetRadius = spearBusy ? 26 : 32;
-    const facingOffset = spearBusy ? Math.PI + self.orbitDir * 0.32 : self.orbitDir * Math.PI / 2;
+  if (opportunity && burstReady) {
+    const burstRadius = enemy.weaponId === 'spear' ? Math.max(22, desired - 4) : backRadius;
+    const burstOffset = opportunity === 'hard' ? Math.PI + self.orbitDir * 0.22 : Math.PI * 0.72 * self.orbitDir;
+    const burstAngle = angleToRingPointByFacing(self, enemy, burstRadius, burstOffset);
+    return vectorFromAngle(burstAngle, 1.48 + flankPower * 0.1, toEnemy, '측후방 순간 돌파');
+  }
+
+  if (enemy.weaponId === 'spear' && dist > Math.max(22, WEAPONS.spear.minRange - 34)) {
+    const targetRadius = opportunity ? 22 : 28;
+    const facingOffset = opportunity ? Math.PI + self.orbitDir * 0.24 : self.orbitDir * Math.PI / 2;
     const antiSpearAngle = angleToRingPointByFacing(self, enemy, targetRadius, facingOffset);
-    return vectorFromAngle(antiSpearAngle, spearBusy ? 1.28 : 1.18, toEnemy, spearBusy ? '창 빈틈 측후방 순간 침투' : '창 측면 순간 진입');
+    return vectorFromAngle(antiSpearAngle, opportunity ? 1.56 : 1.26, toEnemy, opportunity ? '창 빈틈 측후방 순간 침투' : '창 측면 빠른 진입');
   }
 
   if (relation.isFront) {
     const routeAngle = angleToRingPointByFacing(self, enemy, sideRadius, self.orbitDir * Math.PI / 2);
-    return vectorFromAngle(routeAngle, 1.06 + flankPower * 0.1, toEnemy, '측후방 순간 진입');
+    return vectorFromAngle(routeAngle, 1.26 + flankPower * 0.12, toEnemy, '측면 돌파 준비');
   }
 
-  if (!relation.isBack && (dist > desired + 4 || relation.isSide)) {
-    const routeAngle = angleToRingPointByFacing(self, enemy, backRadius, Math.PI + self.orbitDir * 0.34);
-    return vectorFromAngle(routeAngle, 1.02 + flankPower * 0.08, toEnemy, '후방 각도 진입');
+  if (!relation.isBack && (dist > desired - 2 || relation.isSide)) {
+    const routeAngle = angleToRingPointByFacing(self, enemy, backRadius, Math.PI + self.orbitDir * 0.28);
+    return vectorFromAngle(routeAngle, 1.18 + flankPower * 0.1, toEnemy, '후방 각도 빠른 진입');
   }
 
-  if (dist > desired + 6) {
-    const backAngle = angleToRingPointByFacing(self, enemy, backRadius, Math.PI + self.orbitDir * 0.22);
-    return vectorFromAngle(backAngle, 1.06, toEnemy, '후방 거리 압축');
+  if (dist > desired + 4) {
+    const backAngle = angleToRingPointByFacing(self, enemy, backRadius, Math.PI + self.orbitDir * 0.18);
+    return vectorFromAngle(backAngle, 1.12, toEnemy, '후방 거리 압축');
   }
 
-  if (dist < Math.max(20, desired - 10)) {
-    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.58, 0.82, toEnemy, '짧은 이탈');
+  if (dist < Math.max(20, desired - 9)) {
+    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.58, 0.86, toEnemy, '짧은 이탈');
   }
 
   const holdAngle = angleToRingPointByFacing(self, enemy, backRadius, Math.PI + self.orbitDir * 0.18);
   const orbit = sideAngle(toEnemy, self.orbitDir);
-  return blendAngles(orbit, holdAngle, 0.62, 0.98, toEnemy, '측후방 유지');
+  return blendAngles(orbit, holdAngle, 0.56, 1.04, toEnemy, '측후방 유지');
 }
 
 function daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower) {
-  const close = dist < desired + 10;
+  const close = dist < desired + 12;
+  const tooClose = dist < Math.max(18, desired - 8);
+
   if (dist > desired + 12) {
-    const entryAngle = angleToRingPoint(self, enemy, desired, self.orbitDir * 0.9);
-    return vectorFromAngle(entryAngle, 1.08, toEnemy, '단검 미러 진입');
+    const entryAngle = angleToRingPoint(self, enemy, desired, self.orbitDir * 0.55);
+    return vectorFromAngle(entryAngle, 1.12, toEnemy, '단검 미러 진입');
   }
-  if (dist < Math.max(18, desired - 8)) {
-    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.48, 0.88, toEnemy, '단검 미러 짧은 이탈');
+
+  if (tooClose) {
+    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.34, 0.92, toEnemy, '단검 미러 짧은 이탈');
   }
-  if (close && relation.frontGap < 1.25) {
-    return blendAngles(toEnemy, sideAngle(toEnemy, self.orbitDir), 0.42, 1.05 + flankPower * 0.04, toEnemy, '단검 미러 짧은 교전');
+
+  if (close && (self.cooldownTimer <= 8 || enemy.cooldownTimer <= 8 || enemy.attackState !== 'idle')) {
+    return vectorFromAngle(toEnemy, 0.84 + flankPower * 0.04, toEnemy, '단검 미러 짧은 교전');
   }
-  return blendAngles(sideAngle(toEnemy, self.orbitDir), toEnemy, 0.34, 0.98, toEnemy, '단검 미러 각도 싸움');
+
+  const sideEntry = angleToRingPointByFacing(self, enemy, desired + 4, self.orbitDir * Math.PI / 2);
+  return vectorFromAngle(sideEntry, 1.04, toEnemy, '단검 미러 측면 재진입');
+}
+
+function getDaggerOpportunity(enemy) {
+  if (enemy.staggerTimer > 0) return 'hard';
+  if (enemy.attackState === 'recovery') return 'hard';
+  if (enemy.attackState === 'windup' || enemy.attackState === 'active') return 'soft';
+  if (enemy.postureRecoveryDelay > 0 && enemy.posture < enemy.maxPosture * 0.72) return 'soft';
+  if (enemy.cooldownTimer > 12) return 'soft';
+  return '';
 }
 
 function standardMovement(self, enemy, desired, toEnemy, fromEnemy, dist, personality) {
