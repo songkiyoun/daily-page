@@ -173,13 +173,15 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   const opportunity = getDaggerOpportunity(enemy);
   const burstReady = (self.daggerBurstCooldown || 0) <= 0;
 
-  if (weapon.id === 'dagger' && enemy.weaponId === 'dagger') {
-    return daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower);
-  }
-
   if (weapon.id === 'dagger') {
-    const maneuver = daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, opportunity, burstReady, flankPower);
+    const mirrorOpportunity = enemy.weaponId === 'dagger'
+      ? getDaggerMirrorOpportunity(self, enemy, dist)
+      : opportunity;
+    const maneuver = daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, mirrorOpportunity, burstReady, flankPower);
     if (maneuver) return maneuver;
+    if (enemy.weaponId === 'dagger') {
+      return daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower);
+    }
   }
 
   if (enemy.weaponId === 'spear' && dist > Math.max(22, WEAPONS.spear.minRange - 34)) {
@@ -217,8 +219,8 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
   const personality = PERSONALITIES[self.personalityId];
   const weapon = WEAPONS[self.weaponId];
   const feintBoost = clamp((weapon.feintStrength || 1) * (personality.feintScale || 1), 0.9, 2.45);
-  const sideRadius = Math.max(52, desired + 42 + feintBoost * 10);
-  const burstRadius = enemy.weaponId === 'spear' ? Math.max(18, desired - 12) : Math.max(17, desired - 7);
+  const sideRadius = Math.max(enemy.weaponId === 'western' ? 74 : 58, desired + 50 + feintBoost * 13);
+  const burstRadius = enemy.weaponId === 'spear' ? Math.max(18, desired - 12) : enemy.weaponId === 'western' ? Math.max(19, desired - 4) : Math.max(17, desired - 7);
 
   if ((self.daggerResetTimer || 0) > 0) {
     self.daggerManeuverPhase = '';
@@ -229,14 +231,15 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
 
   const hasManeuver = self.daggerManeuverPhase && self.daggerManeuverTimer > 0;
   const frontOrBadAngle = relation.isFront || (!relation.isBack && dist > desired - 10);
+  const hardWindow = opportunity === 'hard' && !relation.isFront && dist < desired + 78;
   const openWindow = !!opportunity && !relation.isFront && dist < desired + 70;
-  const shouldStart = !hasManeuver && burstReady && (openWindow || frontOrBadAngle) && dist < desired + 82;
+  const shouldStart = !hasManeuver && burstReady && (hardWindow || openWindow || frontOrBadAngle) && dist < desired + 92;
 
   if (shouldStart) {
     self.daggerFeintSide = self.orbitDir || 1;
-    if (openWindow && (relation.isSide || relation.isBack || opportunity === 'hard')) {
+    if (hardWindow && (relation.isBack || enemy.staggerTimer > 0 || enemy.attackState === 'recovery')) {
       self.daggerManeuverPhase = 'burst';
-      self.daggerManeuverTimer = 10;
+      self.daggerManeuverTimer = 11;
     } else {
       self.daggerManeuverPhase = 'feint';
       self.daggerManeuverTimer = Math.round((POSTURE_RULES.daggerFeintFrames || 20) * (personality.id === 'defensive' ? 1.12 : 1));
@@ -263,49 +266,58 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
   if (self.daggerManeuverPhase === 'feint') {
     const feintSide = self.daggerFeintSide || 1;
     const lateralAngle = enemy.facing + feintSide * Math.PI / 2;
-    const awayAngle = fromEnemyAngle(self, enemy);
-    enemy.flankPressureTimer = Math.max(enemy.flankPressureTimer || 0, Math.floor((POSTURE_RULES.daggerCutTurnLagFrames || 22) * 0.62));
-    return blendAngles(lateralAngle, awayAngle, 0.22, 2.26 + flankPower * 0.16 + feintBoost * 0.14, toEnemy, feintSide > 0 ? '단검 우측 강한 페이크' : '단검 좌측 강한 페이크');
+    const holdRadiusAngle = angleToRingPointByFacing(self, enemy, sideRadius, feintSide * Math.PI / 2);
+    const feintPower = 2.72 + flankPower * 0.2 + feintBoost * 0.18;
+    return blendAngles(lateralAngle, holdRadiusAngle, 0.42, feintPower, toEnemy, feintSide > 0 ? '단검 우측 미끼 페이크' : '단검 좌측 미끼 페이크');
   }
 
   if (self.daggerManeuverPhase === 'cut') {
     const cutSide = -(self.daggerFeintSide || 1);
     const cutLateral = enemy.facing + cutSide * Math.PI / 2;
-    const cutTarget = angleToRingPointByFacing(self, enemy, sideRadius * 0.82, cutSide * (Math.PI * 0.72));
+    const cutTarget = angleToRingPointByFacing(self, enemy, sideRadius * 0.7, cutSide * (Math.PI * 0.82));
     enemy.flankPressureTimer = Math.max(enemy.flankPressureTimer || 0, POSTURE_RULES.daggerCutTurnLagFrames || 22);
-    return blendAngles(cutLateral, cutTarget, 0.72, 2.82 + flankPower * 0.2 + feintBoost * 0.14, toEnemy, cutSide > 0 ? '단검 우측 반대 꺾기' : '단검 좌측 반대 꺾기');
+    return blendAngles(cutLateral, cutTarget, 0.9, 3.42 + flankPower * 0.24 + feintBoost * 0.18, toEnemy, cutSide > 0 ? '단검 우측 급반전' : '단검 좌측 급반전');
   }
 
   if (self.daggerManeuverPhase === 'burst') {
     const burstSide = -(self.daggerFeintSide || self.orbitDir || 1);
-    const offsetBase = relation.isBack || opportunity === 'hard' ? Math.PI + burstSide * 0.34 : burstSide * Math.PI * 0.78;
+    const offsetBase = relation.isBack || opportunity === 'hard' ? Math.PI + burstSide * 0.44 : burstSide * Math.PI * 0.84;
     const burstAngle = angleToRingPointByFacing(self, enemy, burstRadius, offsetBase);
     enemy.flankPressureTimer = Math.max(enemy.flankPressureTimer || 0, POSTURE_RULES.daggerCutTurnLagFrames || 22);
-    return vectorFromAngle(burstAngle, 2.74 + flankPower * 0.24 + feintBoost * 0.12, toEnemy, opportunity ? '단검 빈틈 측후방 즉시 침투' : '단검 페이크 후 측후방 순간 침투');
+    return vectorFromAngle(burstAngle, 3.08 + flankPower * 0.28 + feintBoost * 0.14, toEnemy, opportunity ? '단검 빈틈 측후방 즉시 침투' : '단검 페이크 후 측후방 순간 침투');
   }
 
   return null;
+}
+
+
+function getDaggerMirrorOpportunity(self, enemy, dist) {
+  if (enemy.staggerTimer > 0 || enemy.attackState === 'recovery') return 'hard';
+  if (enemy.attackState === 'windup' || enemy.attackState === 'active') return 'soft';
+  if (enemy.cooldownTimer > 8 || self.cooldownTimer <= 6) return 'soft';
+  if (dist < WEAPONS.dagger.range + enemy.radius + 18) return 'mirror';
+  return '';
 }
 
 function daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower) {
   const close = dist < desired + 12;
   const tooClose = dist < Math.max(18, desired - 8);
 
-  if (dist > desired + 12) {
-    const entryAngle = angleToRingPoint(self, enemy, desired, self.orbitDir * 0.55);
-    return vectorFromAngle(entryAngle, 1.12, toEnemy, '단검 미러 진입');
+  if (dist > desired + 16) {
+    const entryAngle = angleToRingPoint(self, enemy, desired + 4, self.orbitDir * 0.84);
+    return vectorFromAngle(entryAngle, 1.22, toEnemy, '단검 미러 사선 진입');
   }
 
   if (tooClose) {
-    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.34, 0.92, toEnemy, '단검 미러 짧은 이탈');
+    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.56, 1.12, toEnemy, '단검 미러 강제 이탈');
   }
 
-  if (close && (self.cooldownTimer <= 8 || enemy.cooldownTimer <= 8 || enemy.attackState !== 'idle')) {
-    return vectorFromAngle(toEnemy, 0.84 + flankPower * 0.04, toEnemy, '단검 미러 짧은 교전');
+  if (close && (self.cooldownTimer <= 5 || enemy.attackState !== 'idle') && !relation.isFront) {
+    return vectorFromAngle(toEnemy, 0.92 + flankPower * 0.05, toEnemy, '단검 미러 짧은 교전');
   }
 
-  const sideEntry = angleToRingPointByFacing(self, enemy, desired + 4, self.orbitDir * Math.PI / 2);
-  return vectorFromAngle(sideEntry, 1.04, toEnemy, '단검 미러 측면 재진입');
+  const sideEntry = angleToRingPointByFacing(self, enemy, desired + 10, self.orbitDir * Math.PI / 2);
+  return vectorFromAngle(sideEntry, 1.28, toEnemy, '단검 미러 측면 페이크 재진입');
 }
 
 function getDaggerOpportunity(enemy) {

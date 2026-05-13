@@ -185,7 +185,9 @@ function updateOrbitDirection(unit, enemy) {
 function applyMovement(unit, movement, weapon, enemy = null) {
   const acceleration = getAcceleration(unit, movement);
   const friction = 0.865;
-  const burstScale = unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label) ? 1.76 : 1;
+  const daggerBurst = unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label);
+  const daggerFeint = unit.weaponId === 'dagger' && movement.label.includes('페이크');
+  const burstScale = daggerBurst ? 1.92 : daggerFeint ? 1.52 : 1;
   const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1) * burstScale;
 
   unit.vx += movement.ax * acceleration;
@@ -222,7 +224,7 @@ function getAcceleration(unit, movement) {
   if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.25;
   if (unit.weaponId === 'spear' && movement.label.includes('측면')) value = 0.29;
   if (unit.weaponId === 'eastern') value = movement.label.includes('페이크') ? 0.29 : 0.25;
-  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.68 : movement.label.includes('페이크') ? 0.54 : 0.33;
+  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.76 : movement.label.includes('페이크') ? 0.62 : 0.33;
   if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.015;
   if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.045;
   if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
@@ -230,7 +232,7 @@ function getAcceleration(unit, movement) {
 }
 
 function isDaggerBurstLabel(label = '') {
-  return label.includes('순간') || label.includes('침투') || label.includes('후방') || label.includes('돌파') || label.includes('빠른') || label.includes('반대 꺾기') || label.includes('미러 짧은 교전');
+  return label.includes('순간') || label.includes('침투') || label.includes('후방') || label.includes('돌파') || label.includes('빠른') || label.includes('반대 꺾기') || label.includes('급반전') || label.includes('미러 짧은 교전');
 }
 
 function tryCloseRangeReset(unit, enemy, movement) {

@@ -184,9 +184,9 @@ v0.3.1: fix reward button render lifecycle
 - 별도 `v0.5.7 patch` 함수, 중복 `decideMovement`, 중복 `resolveAttack` 선언을 만들지 않습니다.
 - 이번 버전 확인 기준은 창 명중 후 거리 재설정 체감, 단검 좌우 흔들림의 시각적 체감, 단검이 정면 재진입으로 돌아가는 빈도입니다.
 
-## v0.5.8 단검 빈틈 진입·페이크 수정 기준
+## v0.5.9 단검 빈틈 진입·페이크 수정 기준
 
 - 단검 빈틈 진입은 `ai.js`의 기존 `daggerFeintMovement` 안에서만 관리합니다.
 - 단검 페이크 수치, 반대 꺾기 시간, 상대 정자세 회복 지연은 `data.js`의 기존 `WEAPONS.dagger`와 `POSTURE_RULES`에서만 관리합니다.
 - 상대가 빈틈을 보였을 때 즉시 침투하는 조건은 새 패치 함수가 아니라 기존 단검 이동 흐름 안에서 처리합니다.
-- 별도 `v0.5.8 patch` 스크립트나 중복 `decideMovement` 선언을 만들지 않습니다.
+- 별도 `v0.5.9 patch` 스크립트나 중복 `decideMovement` 선언을 만들지 않습니다.
