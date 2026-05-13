@@ -73,3 +73,11 @@ v0.2.2: improve random enemy floor scaling
 v0.3.0: add stats skills and rewards
 v0.3.1: fix reward button render lifecycle
 ```
+
+
+## v0.4.0 전술 이동 기준
+
+- 이동 판단은 `js/ai.js`의 `decideMovement`에서만 수정합니다.
+- 공격 중 전진, 후딜 중 이탈, 몸 충돌 완화는 `js/battle.js`의 기존 함수에서 직접 수정합니다.
+- 일자 접근을 고치기 위해 별도 패치 스크립트를 추가하지 않습니다.
+- 무기별 이동 성향 수치는 `js/data.js`의 각 무기 데이터에서만 관리합니다.

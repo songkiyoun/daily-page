@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.3.1';
+export const VERSION = '0.4.0';
 
 export const WEAPONS = {
   spear: {
@@ -20,7 +20,11 @@ export const WEAPONS = {
     moveSpeed: 2.55,
     knockback: 15,
     crit: 0.03,
-    description: '긴 사거리와 직선 찌르기가 강하지만 안쪽으로 파고든 적에게 약합니다.'
+    description: '긴 사거리와 직선 찌르기가 강하지만 안쪽으로 파고든 적에게 약합니다.',
+    strafeWeight: 0.38,
+    approachOffset: 0.22,
+    lungePower: 0.74,
+    recoveryBackstep: 0.62
   },
   western: {
     id: 'western',
@@ -37,7 +41,11 @@ export const WEAPONS = {
     moveSpeed: 2.72,
     knockback: 11,
     crit: 0.06,
-    description: '넓은 베기로 정면 교전이 강하지만 후딜이 있습니다.'
+    description: '넓은 베기로 정면 교전이 강하지만 후딜이 있습니다.',
+    strafeWeight: 0.58,
+    approachOffset: 0.52,
+    lungePower: 0.58,
+    recoveryBackstep: 0.46
   },
   eastern: {
     id: 'eastern',
@@ -54,7 +62,11 @@ export const WEAPONS = {
     moveSpeed: 3.08,
     knockback: 7,
     crit: 0.1,
-    description: '빠른 진입과 연속 공격이 강한 무기입니다.'
+    description: '빠른 진입과 연속 공격이 강한 무기입니다.',
+    strafeWeight: 0.76,
+    approachOffset: 0.78,
+    lungePower: 0.68,
+    recoveryBackstep: 0.34
   },
   dagger: {
     id: 'dagger',
@@ -73,7 +85,11 @@ export const WEAPONS = {
     crit: 0.18,
     backBonus: 2.25,
     flankBonus: 1.45,
-    description: '정면은 약하지만 측후방을 잡으면 강해지는 위치 선정 무기입니다.'
+    description: '정면은 약하지만 측후방을 잡으면 강해지는 위치 선정 무기입니다.',
+    strafeWeight: 0.95,
+    approachOffset: 1.08,
+    lungePower: 0.82,
+    recoveryBackstep: 0.22
   }
 };
 

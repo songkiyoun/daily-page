@@ -27,7 +27,9 @@ function updateUnit(unit, enemy, state) {
   const weapon = WEAPONS[unit.weaponId];
   const movement = decideMovement(unit, enemy);
   unit.lastAction = movement.label;
-  unit.facing = moveToward(unit.facing, movement.faceAngle, 0.11);
+  unit.facing = moveToward(unit.facing, movement.faceAngle, getTurnSpeed(unit));
+
+  updateOrbitDirection(unit, enemy);
 
   if (unit.cooldownTimer > 0) unit.cooldownTimer -= 1;
 
@@ -42,9 +44,28 @@ function updateUnit(unit, enemy, state) {
   updateAttackState(unit, enemy, state);
 }
 
+function getTurnSpeed(unit) {
+  if (unit.weaponId === 'spear') return 0.09;
+  if (unit.weaponId === 'western') return 0.1;
+  if (unit.weaponId === 'eastern') return 0.15;
+  if (unit.weaponId === 'dagger') return 0.18;
+  return 0.11;
+}
+
+function updateOrbitDirection(unit, enemy) {
+  unit.orbitFlipTimer -= 1;
+  const dist = distance(unit, enemy);
+  const tooClose = dist < unit.radius + enemy.radius + 18;
+
+  if (unit.orbitFlipTimer <= 0 || tooClose) {
+    if (Math.random() < (tooClose ? 0.18 : 0.72)) unit.orbitDir *= -1;
+    unit.orbitFlipTimer = 42 + Math.floor(Math.random() * 92);
+  }
+}
+
 function applyMovement(unit, movement, weapon) {
-  const acceleration = 0.22;
-  const friction = 0.86;
+  const acceleration = getAcceleration(unit, movement);
+  const friction = 0.865;
   const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1);
 
   unit.vx += movement.ax * acceleration;
@@ -62,15 +83,24 @@ function applyMovement(unit, movement, weapon) {
   unit.y += unit.vy;
 }
 
+function getAcceleration(unit, movement) {
+  let value = 0.22;
+  if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.27;
+  if (unit.weaponId === 'eastern') value = 0.25;
+  if (unit.weaponId === 'dagger') value = 0.27;
+  return value;
+}
+
 function canStartAttack(attacker, defender) {
   const weapon = WEAPONS[attacker.weaponId];
   const dist = distance(attacker, defender);
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
+  const startTolerance = Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52);
 
   if (dist > weapon.range + defender.radius) return false;
   if (dist < weapon.minRange) return false;
-  if (angleGap > Math.max(weapon.arc * 1.2, 0.42)) return false;
+  if (angleGap > startTolerance) return false;
   return true;
 }
 
@@ -79,36 +109,92 @@ function beginAttack(attacker, defender) {
   attacker.attackState = 'windup';
   attacker.attackTimer = weapon.windup;
   attacker.facing = angleTo(attacker, defender);
-  attacker.vx *= 0.45;
-  attacker.vy *= 0.45;
+  attacker.vx *= 0.42;
+  attacker.vy *= 0.42;
   attacker.lastAction = '공격 준비';
 }
 
 function updateAttackState(attacker, defender, state) {
   const weapon = WEAPONS[attacker.weaponId];
-
   attacker.attackTimer -= 1;
 
-  if (attacker.attackState === 'windup' && attacker.attackTimer <= 0) {
-    attacker.attackState = 'active';
-    attacker.attackTimer = 5;
-    attacker.lastAction = '타격 판정';
-    resolveAttack(attacker, defender, state);
+  if (attacker.attackState === 'windup') {
+    applyWindupDrift(attacker, defender, weapon);
+    if (attacker.attackTimer <= 0) {
+      attacker.attackState = 'active';
+      attacker.attackTimer = getActiveFrames(attacker);
+      attacker.lastAction = '타격 판정';
+      applyAttackLunge(attacker, defender, weapon);
+      resolveAttack(attacker, defender, state);
+    }
     return;
   }
 
-  if (attacker.attackState === 'active' && attacker.attackTimer <= 0) {
-    attacker.attackState = 'recovery';
-    attacker.attackTimer = weapon.recovery;
-    attacker.lastAction = '후딜';
+  if (attacker.attackState === 'active') {
+    applyAttackLunge(attacker, defender, weapon, 0.36);
+    if (attacker.attackTimer <= 0) {
+      attacker.attackState = 'recovery';
+      attacker.attackTimer = weapon.recovery;
+      attacker.lastAction = '후딜';
+    }
     return;
   }
 
-  if (attacker.attackState === 'recovery' && attacker.attackTimer <= 0) {
-    attacker.attackState = 'idle';
-    attacker.cooldownTimer = Math.max(8, Math.round(weapon.cooldown * (attacker.cooldownScale || 1)));
-    attacker.lastAction = '재정비';
+  if (attacker.attackState === 'recovery') {
+    applyRecoveryStep(attacker, defender, weapon);
+    if (attacker.attackTimer <= 0) {
+      attacker.attackState = 'idle';
+      attacker.cooldownTimer = Math.max(8, Math.round(weapon.cooldown * (attacker.cooldownScale || 1)));
+      attacker.lastAction = '재정비';
+    }
   }
+}
+
+function getActiveFrames(attacker) {
+  if (attacker.weaponId === 'spear') return 4;
+  if (attacker.weaponId === 'western') return 7;
+  if (attacker.weaponId === 'eastern') return 5;
+  if (attacker.weaponId === 'dagger') return 4;
+  return 5;
+}
+
+function applyWindupDrift(attacker, defender, weapon) {
+  const targetAngle = angleTo(attacker, defender);
+  const sideAngle = targetAngle + Math.PI / 2 * attacker.orbitDir;
+  const sidePower = weapon.strafeWeight * 0.025;
+
+  attacker.vx += Math.cos(sideAngle) * sidePower;
+  attacker.vy += Math.sin(sideAngle) * sidePower;
+  attacker.vx *= 0.9;
+  attacker.vy *= 0.9;
+  attacker.x += attacker.vx;
+  attacker.y += attacker.vy;
+}
+
+function applyAttackLunge(attacker, defender, weapon, scale = 1) {
+  const targetAngle = angleTo(attacker, defender);
+  const sideAngle = targetAngle + Math.PI / 2 * attacker.orbitDir;
+  const forward = weapon.lungePower * 0.42 * scale;
+  const side = weapon.strafeWeight * 0.08 * scale;
+
+  attacker.vx += Math.cos(targetAngle) * forward + Math.cos(sideAngle) * side;
+  attacker.vy += Math.sin(targetAngle) * forward + Math.sin(sideAngle) * side;
+  attacker.x += attacker.vx;
+  attacker.y += attacker.vy;
+}
+
+function applyRecoveryStep(attacker, defender, weapon) {
+  const awayAngle = angleTo(defender, attacker);
+  const sideAngle = awayAngle + Math.PI / 2 * attacker.orbitDir;
+  const back = weapon.recoveryBackstep * 0.15;
+  const side = weapon.strafeWeight * 0.035;
+
+  attacker.vx += Math.cos(awayAngle) * back + Math.cos(sideAngle) * side;
+  attacker.vy += Math.sin(awayAngle) * back + Math.sin(sideAngle) * side;
+  attacker.vx *= 0.91;
+  attacker.vy *= 0.91;
+  attacker.x += attacker.vx;
+  attacker.y += attacker.vy;
 }
 
 function resolveAttack(attacker, defender, state) {
@@ -118,10 +204,12 @@ function resolveAttack(attacker, defender, state) {
   const dist = distance(attacker, defender);
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
+  const hitArc = getHitArc(attacker, weapon);
+  const reachBonus = getReachBonus(attacker, weapon);
 
-  if (dist > weapon.range + defender.radius) return;
+  if (dist > weapon.range + defender.radius + reachBonus) return;
   if (dist < weapon.minRange) return;
-  if (angleGap > weapon.arc) return;
+  if (angleGap > hitArc) return;
 
   const evaded = Math.random() < defender.evasion;
   if (evaded) {
@@ -152,6 +240,20 @@ function resolveAttack(attacker, defender, state) {
   }
 }
 
+function getHitArc(attacker, weapon) {
+  if (weapon.id === 'western') return weapon.arc * 1.08;
+  if (weapon.id === 'eastern') return weapon.arc * 1.06;
+  if (weapon.id === 'dagger') return weapon.arc * 1.12;
+  return weapon.arc;
+}
+
+function getReachBonus(attacker, weapon) {
+  if (weapon.id === 'western') return 5;
+  if (weapon.id === 'eastern') return 4;
+  if (weapon.id === 'dagger') return 3;
+  return 0;
+}
+
 function getEffectiveDefense(unit) {
   const lowHpBonus = unit.hp / unit.maxHp < 0.35 ? unit.lowHpDefenseBonus || 0 : 0;
   return clamp(unit.defense + lowHpBonus, 0, 0.62);
@@ -173,25 +275,35 @@ function getPositionalBonus(attacker, defender) {
 
 function applyKnockback(attacker, defender, force) {
   const attackAngle = angleTo(attacker, defender);
-  defender.vx += Math.cos(attackAngle) * force * 0.12;
-  defender.vy += Math.sin(attackAngle) * force * 0.12;
+  const sideAngle = attackAngle + Math.PI / 2 * attacker.orbitDir;
+  defender.vx += Math.cos(attackAngle) * force * 0.12 + Math.cos(sideAngle) * force * 0.018;
+  defender.vy += Math.sin(attackAngle) * force * 0.12 + Math.sin(sideAngle) * force * 0.018;
 }
 
 function resolveBodyCollision(a, b) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const dist = Math.hypot(dx, dy) || 1;
-  const minDist = a.radius + b.radius;
+  const minDist = a.radius + b.radius + 1;
 
   if (dist >= minDist) return;
 
   const push = (minDist - dist) / 2;
   const nx = dx / dist;
   const ny = dy / dist;
+  const tangentX = -ny;
+  const tangentY = nx;
+  const tangentPush = 0.42;
+
   a.x -= nx * push;
   a.y -= ny * push;
   b.x += nx * push;
   b.y += ny * push;
+
+  a.vx -= nx * 0.22 + tangentX * a.orbitDir * tangentPush;
+  a.vy -= ny * 0.22 + tangentY * a.orbitDir * tangentPush;
+  b.vx += nx * 0.22 - tangentX * b.orbitDir * tangentPush;
+  b.vy += ny * 0.22 - tangentY * b.orbitDir * tangentPush;
 }
 
 function clampToArena(unit, arena) {
@@ -205,8 +317,14 @@ function clampToArena(unit, arena) {
   unit.x = clamp(unit.x, minX, maxX);
   unit.y = clamp(unit.y, minY, maxY);
 
-  if (unit.x !== beforeX) unit.vx *= -0.18;
-  if (unit.y !== beforeY) unit.vy *= -0.18;
+  if (unit.x !== beforeX) {
+    unit.vx *= -0.18;
+    unit.orbitDir *= -1;
+  }
+  if (unit.y !== beforeY) {
+    unit.vy *= -0.18;
+    unit.orbitDir *= -1;
+  }
 }
 
 function checkResult(state) {

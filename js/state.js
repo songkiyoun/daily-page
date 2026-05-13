@@ -41,6 +41,9 @@ export function createRun(config) {
 
 export function createBattleState(run) {
   const enemyConfig = createRandomEnemyConfig(run.floor);
+  const spawnSkew = randomSign() * randomInt(34, 82);
+  const playerY = 250 + spawnSkew;
+  const enemyY = 250 - spawnSkew;
 
   return {
     running: false,
@@ -60,8 +63,8 @@ export function createBattleState(run) {
       centerX: 380,
       centerY: 250
     },
-    player: createUnitFromPlayer(run.player, 210, 250),
-    enemy: createUnitFromEnemy(enemyConfig, run.floor, 550, 250)
+    player: createUnitFromPlayer(run.player, 210, playerY),
+    enemy: createUnitFromEnemy(enemyConfig, run.floor, 550, enemyY)
   };
 }
 
@@ -222,6 +225,7 @@ function createUnitFromPlayer(player, x, y) {
     vx: 0,
     vy: 0,
     orbitDir: randomSign(),
+    orbitFlipTimer: randomInt(42, 110),
     hits: 0,
     damageDealt: 0,
     lastAction: `${weapon.name} · ${personality.name}`,
@@ -264,6 +268,7 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     vx: 0,
     vy: 0,
     orbitDir: randomSign(),
+    orbitFlipTimer: randomInt(42, 110),
     hits: 0,
     damageDealt: 0,
     lastAction: `${weapon.name} · ${personality.name}`,
