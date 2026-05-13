@@ -186,8 +186,10 @@ export function derivePlayerProfile(player) {
     BASE_STATS.critCap
   );
 
-  const moveSpeedScale = 1 + stats.agi * 0.008 + (skillEffects.moveSpeedBonus || 0);
-  const cooldownScale = 1 / (1 + stats.agi * 0.009 + player.mastery * 0.015 + (skillEffects.cooldownBonus || 0));
+  const speedScales = getWeaponAgilityScales(weapon, stats, player.mastery, skillEffects, true);
+  const moveSpeedScale = speedScales.moveSpeedScale;
+  const cooldownScale = speedScales.cooldownScale;
+  const turnSpeedScale = speedScales.turnSpeedScale;
   const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
 
   return {
@@ -199,6 +201,7 @@ export function derivePlayerProfile(player) {
     crit,
     moveSpeedScale,
     cooldownScale,
+    turnSpeedScale,
     critDamage,
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
   };
@@ -260,6 +263,7 @@ function createUnitFromPlayer(player, x, y) {
     lowHpDefenseBonus: profile.lowHpDefenseBonus,
     moveSpeedScale: profile.moveSpeedScale,
     cooldownScale: profile.cooldownScale,
+    turnSpeedScale: profile.turnSpeedScale,
     attackState: 'idle',
     attackTimer: 0,
     cooldownTimer: 30,
@@ -328,6 +332,7 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     lowHpDefenseBonus: profile.lowHpDefenseBonus,
     moveSpeedScale: profile.moveSpeedScale,
     cooldownScale: profile.cooldownScale,
+    turnSpeedScale: profile.turnSpeedScale,
     attackState: 'idle',
     attackTimer: 0,
     cooldownTimer: 30,
@@ -435,8 +440,7 @@ function deriveEnemyProfile(enemy, floor) {
     defense,
     evasion,
     crit,
-    moveSpeedScale: 1 + stats.agi * 0.006 + (skillEffects.moveSpeedBonus || 0),
-    cooldownScale: 1 / (1 + stats.agi * 0.007 + enemy.mastery * 0.012 + (skillEffects.cooldownBonus || 0)),
+    ...getWeaponAgilityScales(weapon, stats, enemy.mastery, skillEffects, false),
     critDamage: 1.5 + stats.luck * 0.004 + (skillEffects.critDamageBonus || 0),
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
   };
@@ -541,6 +545,29 @@ function applyReward(run, reward) {
 function healPlayerToFull(player) {
   const profile = derivePlayerProfile(player);
   player.hp = profile.maxHp;
+}
+
+
+function getWeaponAgilityScales(weapon, stats, mastery, skillEffects, isPlayer) {
+  const agi = stats.agi || 0;
+  const moveBonus = Math.min(
+    (weapon.maxMoveScale || 1.25) - 1,
+    agi * (weapon.agiMoveScale || 0.006) + (skillEffects.moveSpeedBonus || 0)
+  );
+  const turnBonus = Math.min(
+    (weapon.maxTurnScale || 1.28) - 1,
+    agi * (weapon.agiTurnScale || 0.007)
+  );
+  const cooldownBonus = Math.min(
+    weapon.maxCooldownBonus || (isPlayer ? 0.28 : 0.22),
+    agi * (weapon.agiCooldownScale || 0.006) + mastery * (isPlayer ? 0.014 : 0.011) + (skillEffects.cooldownBonus || 0)
+  );
+
+  return {
+    moveSpeedScale: 1 + moveBonus,
+    turnSpeedScale: 1 + turnBonus,
+    cooldownScale: 1 / (1 + cooldownBonus)
+  };
 }
 
 function collectSkillEffects(skillIds) {

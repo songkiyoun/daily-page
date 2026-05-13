@@ -302,22 +302,24 @@ function getDaggerMirrorOpportunity(self, enemy, dist) {
 function daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower) {
   const close = dist < desired + 12;
   const tooClose = dist < Math.max(18, desired - 8);
+  const mirrorDir = self.side === 'player' ? 1 : -1;
+  const selfSide = self.orbitDir === enemy.orbitDir ? mirrorDir : self.orbitDir;
 
   if (dist > desired + 16) {
-    const entryAngle = angleToRingPoint(self, enemy, desired + 4, self.orbitDir * 0.84);
-    return vectorFromAngle(entryAngle, 1.22, toEnemy, '단검 미러 사선 진입');
+    const entryAngle = angleToRingPoint(self, enemy, desired + 4, selfSide * 0.96);
+    return vectorFromAngle(entryAngle, 1.26, toEnemy, '단검 미러 사선 진입');
   }
 
   if (tooClose) {
-    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.56, 1.12, toEnemy, '단검 미러 강제 이탈');
+    return blendAngles(fromEnemy, sideAngle(toEnemy, -selfSide), 0.72, 1.28, toEnemy, '단검 미러 교차 이탈');
   }
 
   if (close && (self.cooldownTimer <= 5 || enemy.attackState !== 'idle') && !relation.isFront) {
-    return vectorFromAngle(toEnemy, 0.92 + flankPower * 0.05, toEnemy, '단검 미러 짧은 교전');
+    return blendAngles(toEnemy, sideAngle(toEnemy, selfSide), 0.16, 0.88 + flankPower * 0.05, toEnemy, '단검 미러 짧은 교전');
   }
 
-  const sideEntry = angleToRingPointByFacing(self, enemy, desired + 10, self.orbitDir * Math.PI / 2);
-  return vectorFromAngle(sideEntry, 1.28, toEnemy, '단검 미러 측면 페이크 재진입');
+  const sideEntry = angleToRingPointByFacing(self, enemy, desired + 14, selfSide * Math.PI / 2);
+  return vectorFromAngle(sideEntry, 1.34, toEnemy, '단검 미러 교차 페이크 재진입');
 }
 
 function getDaggerOpportunity(enemy) {

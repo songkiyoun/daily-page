@@ -149,11 +149,11 @@ function recoverPosture(unit) {
 function getTurnSpeed(unit) {
   const weapon = WEAPONS[unit.weaponId];
   const personality = PERSONALITIES[unit.personalityId];
-  const agilityScale = 1 + unit.stats.agi * 0.012;
-  let scale = agilityScale;
+  let scale = unit.turnSpeedScale || 1;
 
   if (personality.id === 'assassin') scale *= 1.08;
-  if (personality.id === 'defensive') scale *= 0.96;
+  if (personality.id === 'defensive') scale *= 0.94;
+  if (personality.id === 'aggressive') scale *= 1.02;
 
   if (unit.attackState === 'windup') scale *= weapon.windupTurnScale;
   if (unit.attackState === 'active') scale *= weapon.activeTurnScale;
@@ -417,7 +417,7 @@ function getRecoveryLabel(weaponId) {
 function getRecoveryCooldown(attacker, weapon) {
   let cooldown = Math.max(8, Math.round(weapon.cooldown * (attacker.cooldownScale || 1)));
   if (weapon.id === 'eastern' && attacker.comboTimer > 0 && (attacker.comboCount || 0) <= (POSTURE_RULES.easternComboMax || 2)) {
-    cooldown = Math.max(4, Math.round(cooldown * (weapon.comboCooldownScale || 0.5)));
+    cooldown = Math.max(9, Math.round(cooldown * (weapon.comboCooldownScale || 0.58)));
   }
   if (attacker.riposteTimer > 0 && (weapon.riposteOnParry || false)) {
     cooldown = Math.max(4, Math.round(cooldown * 0.55));

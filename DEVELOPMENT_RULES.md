@@ -190,3 +190,12 @@ v0.3.1: fix reward button render lifecycle
 - 단검 페이크 수치, 반대 꺾기 시간, 상대 정자세 회복 지연은 `data.js`의 기존 `WEAPONS.dagger`와 `POSTURE_RULES`에서만 관리합니다.
 - 상대가 빈틈을 보였을 때 즉시 침투하는 조건은 새 패치 함수가 아니라 기존 단검 이동 흐름 안에서 처리합니다.
 - 별도 `v0.5.9 patch` 스크립트나 중복 `decideMovement` 선언을 만들지 않습니다.
+
+## v0.6.0 무기별 속도 체계 기준
+
+- 무기별 기본 이동속도, 방향전환, 공격 쿨타임은 `data.js`의 `WEAPONS`에서만 관리합니다.
+- 민첩 보정은 `state.js`의 기존 `getWeaponAgilityScales`에서만 계산합니다.
+- 전투 중 실제 회전 적용은 `battle.js`의 기존 `getTurnSpeed`에서만 처리합니다.
+- 단검 미러전 이동 규칙은 `ai.js`의 기존 `daggerMirrorMovement`에서 직접 관리합니다.
+- 민첩이 높아도 서양검이 단검처럼 돌거나, 창이 단검처럼 움직이면 안 됩니다.
+- 별도 `v0.6.0 patch` 함수, 중복 `decideMovement`, 중복 `getTurnSpeed`, 중복 `derivePlayerProfile` 선언을 만들지 않습니다.
