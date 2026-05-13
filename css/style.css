@@ -1,0 +1,253 @@
+:root {
+  --bg: #060711;
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel-strong: rgba(255, 255, 255, 0.075);
+  --line: rgba(255, 255, 255, 0.12);
+  --text: #eeeaf8;
+  --muted: #9b95ad;
+  --accent: #a888ff;
+  --gold: #ffd45a;
+  --danger: #ff6577;
+  --good: #67e59d;
+  --shadow: rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 50% -20%, #201848 0, #080914 48%, #03040a 100%);
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.app {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 8px;
+  font-size: clamp(1.5rem, 4vw, 2.3rem);
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.subtext {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.version {
+  border: 1px solid rgba(255, 212, 90, 0.28);
+  background: rgba(255, 212, 90, 0.08);
+  color: var(--gold);
+  padding: 9px 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 760px) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.arena-panel {
+  position: relative;
+  border: 1px solid rgba(168, 136, 255, 0.26);
+  background: rgba(0, 0, 0, 0.18);
+  box-shadow: 0 24px 70px var(--shadow);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #050611;
+}
+
+.result-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(5, 6, 17, 0.78);
+  backdrop-filter: blur(5px);
+}
+
+.result-overlay.hidden {
+  display: none;
+}
+
+.result-card {
+  width: min(420px, 100%);
+  border: 1px solid rgba(255, 212, 90, 0.42);
+  background: rgba(12, 11, 23, 0.94);
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+}
+
+.result-card h2 {
+  margin-bottom: 8px;
+  font-size: 2rem;
+}
+
+.side-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 16px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.16);
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.field span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  padding: 10px;
+  outline: none;
+}
+
+select option {
+  color: #111;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.button {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text);
+  padding: 11px 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(168, 136, 255, 0.5);
+  background: rgba(168, 136, 255, 0.14);
+}
+
+.button.primary {
+  border-color: rgba(168, 136, 255, 0.55);
+  background: rgba(168, 136, 255, 0.18);
+}
+
+.status-box {
+  display: grid;
+  gap: 10px;
+}
+
+.status-row {
+  display: grid;
+  gap: 6px;
+}
+
+.status-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.hpbar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.hpbar > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--good), var(--gold));
+  transition: width 0.12s linear;
+}
+
+.status-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.rule-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
