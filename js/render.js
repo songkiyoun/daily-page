@@ -172,39 +172,45 @@ function getWeaponVisual(unit, weapon) {
   const base = unit.attackAim ?? unit.facing;
   const side = unit.orbitDir || 1;
   let angle = unit.facing;
-  let reachScale = weapon.id === 'spear' ? 0.56 : 0.78;
+  let reachScale = weapon.id === 'spear' ? 0.48 : weapon.id === 'dagger' ? 0.7 : 0.76;
 
   if (unit.attackState === 'windup') {
     if (weapon.id === 'spear') {
-      angle = base - side * 0.06;
-      reachScale = 0.58 + phase * 0.24;
+      angle = base - side * 0.045;
+      reachScale = 0.46 + phase * 0.2;
     } else if (weapon.id === 'dagger') {
-      angle = base - side * (weapon.swingVisualArc || 0.6) * 0.32;
-      reachScale = 0.72 + phase * 0.14;
+      angle = base - side * (weapon.swingVisualArc || 0.54) * (0.42 + phase * 0.16);
+      reachScale = 0.66 + phase * 0.16;
+    } else if (weapon.id === 'eastern') {
+      angle = base - side * (weapon.swingVisualArc || weapon.arc) * (0.42 - phase * 0.1);
+      reachScale = 0.72 + phase * 0.12;
     } else {
-      angle = base - side * (weapon.swingVisualArc || weapon.arc) * 0.48;
-      reachScale = 0.72 + phase * 0.08;
+      angle = base - side * (weapon.swingVisualArc || weapon.arc) * 0.5;
+      reachScale = 0.74 + phase * 0.08;
     }
   } else if (unit.attackState === 'active') {
     if (weapon.id === 'spear') {
-      angle = base + side * Math.sin(phase * Math.PI) * 0.06;
-      reachScale = 1.0 + Math.sin(phase * Math.PI) * 0.32;
+      angle = base + side * Math.sin(phase * Math.PI) * 0.045;
+      reachScale = 0.96 + Math.sin(phase * Math.PI) * 0.44;
     } else if (weapon.id === 'dagger') {
-      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || 0.62));
-      reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.1;
-    } else {
+      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || 0.54) * 0.78);
+      reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.18;
+    } else if (weapon.id === 'eastern') {
       angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || weapon.arc));
-      reachScale = 0.95 + Math.sin(phase * Math.PI) * 0.08;
+      reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.14;
+    } else {
+      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || weapon.arc) * 0.92);
+      reachScale = 0.94 + Math.sin(phase * Math.PI) * 0.12;
     }
   } else if (unit.attackState === 'recovery') {
-    angle = base + side * (weapon.swingVisualArc || weapon.arc) * (weapon.id === 'spear' ? -0.08 : 0.38);
-    reachScale = weapon.id === 'spear' ? 0.62 : weapon.id === 'dagger' ? 0.76 : 0.82;
+    angle = base + side * (weapon.swingVisualArc || weapon.arc) * (weapon.id === 'spear' ? -0.06 : weapon.id === 'dagger' ? 0.18 : 0.34);
+    reachScale = weapon.id === 'spear' ? 0.54 : weapon.id === 'dagger' ? 0.68 : weapon.id === 'eastern' ? 0.78 : 0.8;
   }
 
   return {
     angle,
     reachScale,
-    maxDrawLength: weapon.id === 'spear' ? 112 : weapon.id === 'western' ? 78 : weapon.id === 'eastern' ? 68 : 52
+    maxDrawLength: weapon.id === 'spear' ? 118 : weapon.id === 'western' ? 78 : weapon.id === 'eastern' ? 68 : 52
   };
 }
 

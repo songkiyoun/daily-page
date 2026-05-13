@@ -364,36 +364,88 @@ function getRecoveryLabel(weaponId) {
 }
 
 function applyWindupDrift(attacker, weapon) {
-  const sideAngle = attacker.facing + Math.PI / 2 * attacker.orbitDir;
-  const backAngle = attacker.facing + Math.PI;
+  const baseAngle = attacker.attackAim ?? attacker.facing;
+  const sideSign = attacker.orbitDir || 1;
+  const sideAngle = baseAngle + Math.PI / 2 * sideSign;
+  const backAngle = baseAngle + Math.PI;
+  const forwardAngle = baseAngle;
+  const phase = clamp(attacker.attackVisualPhase || 0, 0, 1);
   const driftScale = weapon.windupDriftScale || 0.5;
-  const sidePower = weapon.strafeWeight * 0.025 * driftScale;
-  const backPower = weapon.id === 'western' ? 0.018 : weapon.id === 'spear' ? 0.012 : 0.004;
 
-  attacker.vx += Math.cos(sideAngle) * sidePower + Math.cos(backAngle) * backPower;
-  attacker.vy += Math.sin(sideAngle) * sidePower + Math.sin(backAngle) * backPower;
-  attacker.vx *= weapon.id === 'dagger' ? 0.92 : 0.88;
-  attacker.vy *= weapon.id === 'dagger' ? 0.92 : 0.88;
+  let forwardPower = 0;
+  let backPower = 0;
+  let sidePower = 0;
+
+  if (weapon.id === 'spear') {
+    backPower = 0.028 * driftScale * (1 - phase * 0.35);
+    sidePower = weapon.strafeWeight * 0.01 * driftScale;
+  } else if (weapon.id === 'western') {
+    forwardPower = 0.02 * driftScale * phase;
+    backPower = 0.016 * driftScale * (1 - phase);
+    sidePower = weapon.strafeWeight * 0.018 * driftScale;
+  } else if (weapon.id === 'eastern') {
+    forwardPower = 0.04 * driftScale * phase;
+    sidePower = weapon.strafeWeight * 0.036 * driftScale;
+  } else {
+    const fakePhase = Math.sin(phase * Math.PI);
+    backPower = 0.018 * driftScale * (1 - phase);
+    forwardPower = 0.035 * driftScale * Math.max(0, phase - 0.45);
+    sidePower = weapon.strafeWeight * 0.052 * driftScale * fakePhase;
+  }
+
+  attacker.vx +=
+    Math.cos(forwardAngle) * forwardPower +
+    Math.cos(backAngle) * backPower +
+    Math.cos(sideAngle) * sidePower;
+  attacker.vy +=
+    Math.sin(forwardAngle) * forwardPower +
+    Math.sin(backAngle) * backPower +
+    Math.sin(sideAngle) * sidePower;
+
+  const damping = weapon.id === 'dagger' ? 0.93 : weapon.id === 'eastern' ? 0.91 : 0.88;
+  attacker.vx *= damping;
+  attacker.vy *= damping;
   attacker.x += attacker.vx;
   attacker.y += attacker.vy;
 }
 
 function applyAttackLunge(attacker, weapon, scale = 1) {
-  const forwardAngle = attacker.facing;
-  const sideAngle = forwardAngle + Math.PI / 2 * attacker.orbitDir;
+  const forwardAngle = attacker.attackAim ?? attacker.facing;
+  const sideSign = attacker.orbitDir || 1;
+  const sideAngle = forwardAngle + Math.PI / 2 * sideSign;
   const lungeScale = weapon.activeLungeScale || 1;
-  const weaponFactor = weapon.id === 'spear'
-    ? 2.62
-    : weapon.id === 'western'
-      ? 2.18
-      : weapon.id === 'eastern'
-        ? 2.36
-        : 2.54;
-  const forward = weapon.lungePower * weaponFactor * scale * lungeScale;
-  const side = weapon.strafeWeight * 0.055 * scale * (weapon.id === 'spear' ? 0.28 : 0.82);
+  const entryForward = weapon.entryForward || 1;
+  const entrySide = weapon.entrySide || 0.2;
 
+  let baseForward = weapon.lungePower * lungeScale * entryForward;
+  let baseSide = weapon.strafeWeight * entrySide;
+
+  if (weapon.id === 'spear') {
+    baseForward *= 3.45;
+    baseSide *= 0.18;
+  } else if (weapon.id === 'western') {
+    baseForward *= 2.66;
+    baseSide *= 0.26;
+  } else if (weapon.id === 'eastern') {
+    baseForward *= 2.94;
+    baseSide *= 0.48;
+  } else {
+    baseForward *= 3.12;
+    baseSide *= 0.78;
+  }
+
+  const forward = baseForward * scale;
+  const side = baseSide * scale;
   attacker.vx += Math.cos(forwardAngle) * forward + Math.cos(sideAngle) * side;
   attacker.vy += Math.sin(forwardAngle) * forward + Math.sin(sideAngle) * side;
+
+  const maxBurst = weapon.id === 'spear' ? 7.4 : weapon.id === 'dagger' ? 7.0 : weapon.id === 'eastern' ? 6.6 : 5.9;
+  const speed = Math.hypot(attacker.vx, attacker.vy);
+  if (speed > maxBurst) {
+    attacker.vx = attacker.vx / speed * maxBurst;
+    attacker.vy = attacker.vy / speed * maxBurst;
+  }
+
   attacker.x += attacker.vx;
   attacker.y += attacker.vy;
 }
@@ -402,13 +454,29 @@ function applyRecoveryStep(attacker, defender, weapon) {
   const awayAngle = angleTo(defender, attacker);
   const sideAngle = awayAngle + Math.PI / 2 * attacker.orbitDir;
   const scale = weapon.recoveryMoveScale || 1;
-  const back = weapon.recoveryBackstep * 0.15 * scale;
-  const side = weapon.strafeWeight * 0.035 * scale;
+  let back = weapon.recoveryBackstep * 0.18 * scale;
+  let side = weapon.strafeWeight * 0.04 * scale;
+
+  if (weapon.id === 'spear') {
+    back *= 1.08;
+    side *= 0.45;
+  } else if (weapon.id === 'western') {
+    back *= 0.82;
+    side *= 0.58;
+  } else if (weapon.id === 'eastern') {
+    back *= 0.74;
+    side *= 0.92;
+  } else {
+    back *= 1.85;
+    side *= 1.18;
+  }
 
   attacker.vx += Math.cos(awayAngle) * back + Math.cos(sideAngle) * side;
   attacker.vy += Math.sin(awayAngle) * back + Math.sin(sideAngle) * side;
-  attacker.vx *= weapon.id === 'western' || weapon.id === 'spear' ? 0.88 : 0.92;
-  attacker.vy *= weapon.id === 'western' || weapon.id === 'spear' ? 0.88 : 0.92;
+
+  const damping = weapon.id === 'dagger' ? 0.94 : weapon.id === 'eastern' ? 0.92 : 0.88;
+  attacker.vx *= damping;
+  attacker.vy *= damping;
   attacker.x += attacker.vx;
   attacker.y += attacker.vy;
 }
@@ -586,9 +654,9 @@ function getParryPower(defender, defenderWeapon, incomingWeapon) {
 }
 
 function getHitArc(attacker, weapon) {
-  if (weapon.id === 'western') return weapon.arc * 1.08;
-  if (weapon.id === 'eastern') return weapon.arc * 1.06;
-  if (weapon.id === 'dagger') return weapon.arc * 1.12;
+  if (weapon.id === 'western') return weapon.arc * 1.02;
+  if (weapon.id === 'eastern') return weapon.arc * 1.04;
+  if (weapon.id === 'dagger') return weapon.arc * 1.1;
   return weapon.arc;
 }
 
