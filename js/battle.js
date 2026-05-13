@@ -451,7 +451,7 @@ function getRecoveryCooldown(attacker, weapon) {
     cooldown = Math.max(9, Math.round(cooldown * (weapon.comboCooldownScale || 0.58)));
   }
   if (attacker.riposteTimer > 0 && (weapon.riposteOnParry || false)) {
-    cooldown = Math.max(4, Math.round(cooldown * 0.55));
+    cooldown = Math.max(4, Math.round(cooldown * (weapon.riposteCooldownScale || 0.55)));
   }
   return cooldown;
 }
@@ -675,11 +675,15 @@ function canTryParry(defender, attacker, incomingWeapon) {
 
   const incomingDirection = angleTo(defender, attacker);
   const frontGap = Math.abs(angleDiff(defender.facing, incomingDirection));
-  if (frontGap > POSTURE_RULES.parryFrontArc) return false;
+  const defenderWeapon = WEAPONS[defender.weaponId];
+  const frontArc = POSTURE_RULES.parryFrontArc * (defenderWeapon.parryFrontArcScale || 1);
+  if (frontGap > frontArc) return false;
 
   const dist = distance(defender, attacker);
-  const defenderWeapon = WEAPONS[defender.weaponId];
-  const parryReach = Math.max(defender.radius + attacker.radius + 24, defenderWeapon.range * 0.72 + attacker.radius);
+  const parryReach = Math.max(
+    defender.radius + attacker.radius + 24,
+    defenderWeapon.range * 0.72 * (defenderWeapon.parryReachScale || 1) + attacker.radius
+  );
   if (dist > parryReach + getReachBonus(attacker, incomingWeapon)) return false;
 
   if (defender.attackState === 'recovery' && defender.attackTimer > 8) return false;
@@ -1010,8 +1014,8 @@ function applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality = 0) {
     const maxCombo = POSTURE_RULES.easternComboMax || 2;
     attacker.comboCount = Math.min(maxCombo, (attacker.comboCount || 0) + 1);
     attacker.comboTimer = Math.round((POSTURE_RULES.easternComboWindowFrames || 34) * (personality.comboScale || 1));
-    attacker.attackTimer = Math.min(attacker.attackTimer || weapon.recovery, Math.max(5, Math.round(weapon.recovery * 0.62)));
-    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.42 * identityScale));
+    attacker.attackTimer = Math.min(attacker.attackTimer || weapon.recovery, Math.max(7, Math.round(weapon.recovery * 0.76)));
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.5 * identityScale));
   }
 
   if (weapon.id === 'dagger') {
@@ -1025,8 +1029,8 @@ function applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality = 0) {
   }
 
   if (weapon.id === 'western') {
-    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.72 * identityScale));
-    if (hitQuality > 0.55) defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, weapon.hitStunFrames || 4);
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.92 * identityScale));
+    if (hitQuality > 0.48) defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, weapon.hitStunFrames || 4);
   }
 
   if (weapon.id === 'spear' && hitQuality > 0.38) {
