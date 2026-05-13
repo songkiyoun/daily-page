@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.4.4-ui-flow-stat-fix" />
-  <title>Circle Battle Tower Rebuild v0.4.4</title>
+  <meta name="build" content="circle-battle-rebuild-v0.4.6-run-lock-push-reset" />
+  <title>Circle Battle Tower Rebuild v0.4.6</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
@@ -12,10 +12,10 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
-        <h1>1:1 탑 등반 전투 UI 정리</h1>
-        <p class="subtext">캐릭터 세팅, 중앙 전투·결과·보상, 우측 탑 정보 구조로 정리한 v0.4.4 뼈대입니다.</p>
+        <h1>1:1 탑 등반 런 고정과 거리 재설정</h1>
+        <p class="subtext">런 진행 중 무기·성격 변경을 잠그고, 창·방어형의 밀어내기와 후퇴 루프를 정리한 v0.4.6 뼈대입니다.</p>
       </div>
-      <div id="versionBadge" class="version">v0.4.4</div>
+      <div id="versionBadge" class="version">v0.4.6</div>
     </header>
 
     <section class="layout">
@@ -33,7 +33,7 @@
           <div class="button-row single">
             <button id="startBtn" class="button primary">새 런 시작</button>
           </div>
-          <p class="hint-text">무기와 성격은 새 런 시작 전에 선택합니다. 전투 중에는 세팅을 잠급니다.</p>
+          <p class="hint-text">무기와 성격은 새 캐릭터 생성 시에만 선택합니다. 한 번 탑 등반을 시작하면 해당 런이 끝날 때까지 바꿀 수 없습니다.</p>
         </section>
 
         <section class="card">

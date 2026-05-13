@@ -2,7 +2,7 @@
 // 1:1 전용 자동 이동 판단을 담당합니다.
 // 수정 원칙: AI가 이상하면 이 파일의 decideMovement를 직접 수정합니다.
 
-import { PERSONALITIES, WEAPONS } from './data.js';
+import { PERSONALITIES, POSTURE_RULES, WEAPONS } from './data.js';
 import { angleDiff, angleTo, clamp, distance } from './utils.js';
 
 export function decideMovement(self, enemy, state = null) {
@@ -25,8 +25,13 @@ export function decideMovement(self, enemy, state = null) {
   }
 
   const lowHpRetreat = self.hp / self.maxHp < personality.retreatHpRatio;
+  const retreatLimited = shouldLimitRetreat(self, state);
+  const retreatStalled = (self.retreatFrames || 0) > 20 && dist < desired + 18;
   if (lowHpRetreat && personality.caution > 0.45) {
-    return retreatMovement(self, enemy, desired + 28, toEnemy, fromEnemy, personality, '체력 관리 후퇴');
+    if (retreatLimited || retreatStalled) {
+      return resetAngleMovement(self, enemy, desired, toEnemy, dist, personality, '방어형 측면 재정렬');
+    }
+    return retreatMovement(self, enemy, desired + 16, toEnemy, fromEnemy, personality, '체력 관리 후퇴');
   }
 
   const threat = getIncomingThreat(self, enemy, relation);
@@ -39,7 +44,7 @@ export function decideMovement(self, enemy, state = null) {
   }
 
   if (weapon.id === 'spear') {
-    return spearMovement(self, enemy, desired, toEnemy, fromEnemy, dist, weapon, personality);
+    return spearMovement(self, enemy, desired, toEnemy, fromEnemy, dist, weapon, personality, state);
   }
 
   if (weapon.id === 'eastern') {
@@ -73,11 +78,15 @@ function applyBattleUrgency(personality, urgency) {
   };
 }
 
-function spearMovement(self, enemy, desired, toEnemy, fromEnemy, dist, weapon, personality) {
+function spearMovement(self, enemy, desired, toEnemy, fromEnemy, dist, weapon, personality, state) {
   const pressure = personality.pressure;
+  const retreatLimited = shouldLimitRetreat(self, state);
 
-  if (dist < weapon.minRange + 20) {
-    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.42 + personality.caution * 0.18, 1, toEnemy, '창 최소거리 확보');
+  if (dist < weapon.minRange + 24) {
+    if (retreatLimited || (self.retreatFrames || 0) > 18 || dist < weapon.minRange + 6) {
+      return resetAngleMovement(self, enemy, desired, toEnemy, dist, personality, '창 측면 재정렬');
+    }
+    return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.34 + personality.caution * 0.08, 0.82, toEnemy, '창 짧은 거리 확보');
   }
 
   if (dist > desired + 20) {
@@ -86,7 +95,7 @@ function spearMovement(self, enemy, desired, toEnemy, fromEnemy, dist, weapon, p
   }
 
   const orbit = sideAngle(toEnemy, self.orbitDir);
-  return blendAngles(orbit, fromEnemy, 0.2 + personality.caution * 0.2, 0.68 + pressure * 0.16, toEnemy, '창 간격 유지');
+  return blendAngles(orbit, fromEnemy, 0.14 + personality.caution * 0.14, 0.68 + pressure * 0.16, toEnemy, '창 간격 유지');
 }
 
 function westernMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality) {
@@ -179,15 +188,40 @@ function standardMovement(self, enemy, desired, toEnemy, fromEnemy, dist, person
   return vectorFromAngle(sideAngle(toEnemy, self.orbitDir), 0.58 + personality.orbit * 0.18, toEnemy, '간격 유지');
 }
 
+function shouldLimitRetreat(self, state) {
+  const limit = POSTURE_RULES.retreatMaxFrames || 56;
+  if (self.retreatLockout > 0) return true;
+  if ((self.retreatFrames || 0) > limit) return true;
+  if (!state?.arena) return false;
+
+  const margin = 54;
+  return (
+    self.x < state.arena.left + margin ||
+    self.x > state.arena.right - margin ||
+    self.y < state.arena.top + margin ||
+    self.y > state.arena.bottom - margin
+  );
+}
+
+function resetAngleMovement(self, enemy, desired, toEnemy, dist, personality, label) {
+  const side = sideAngle(toEnemy, self.orbitDir);
+  const forwardWeight = dist < desired ? 0.24 + (personality.pressure || 0.5) * 0.1 : 0.08;
+  const power = label.includes('창') ? 1.02 : 0.98;
+  return blendAngles(side, toEnemy, forwardWeight, power, toEnemy, label);
+}
+
 function retreatMovement(self, enemy, desired, toEnemy, fromEnemy, personality, label) {
-  const route = blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.44 + personality.orbit * 0.2, 0.94, toEnemy, label);
+  if (shouldLimitRetreat(self, null)) {
+    return resetAngleMovement(self, enemy, desired, toEnemy, distance(self, enemy), personality, '후퇴 제한 측면 전환');
+  }
+  const route = blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.56 + personality.orbit * 0.18, 0.88, toEnemy, label);
   if (distance(self, enemy) > desired) route.label = '체력 관리 거리 유지';
   return route;
 }
 
 function threatMovement(self, enemy, toEnemy, fromEnemy, threat, personality) {
   const side = sideAngle(toEnemy, self.orbitDir);
-  if (threat === 'inside') return blendAngles(fromEnemy, side, 0.48, 1, toEnemy, '안쪽 거리 이탈');
+  if (threat === 'inside') return blendAngles(side, fromEnemy, 0.2, 1, toEnemy, '안쪽 측면 전환');
   if (threat === 'frontSwing') return blendAngles(side, fromEnemy, personality.caution * 0.34, 0.92, toEnemy, '공격 궤도 회피');
   return blendAngles(side, fromEnemy, 0.22, 0.84, toEnemy, '위협 회피');
 }

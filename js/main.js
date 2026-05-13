@@ -54,7 +54,9 @@ function init() {
   populateSelect(controls.playerPersonality, PERSONALITIES, 'balanced');
   controls.version.textContent = `v${VERSION}`;
 
-  controls.startBtn.addEventListener('click', startNewRun);
+  controls.startBtn.addEventListener('click', handleMainButton);
+  controls.playerWeapon.addEventListener('change', handleConfigChange);
+  controls.playerPersonality.addEventListener('change', handleConfigChange);
   controls.overlayActionBtn.addEventListener('click', handleOverlayAction);
   controls.pauseBtn.addEventListener('click', () => {
     if (!state) return;
@@ -100,12 +102,55 @@ function startNewRun() {
   renderAllPanels(true);
 }
 
+function handleMainButton() {
+  if (!state) {
+    startNewRun();
+    return;
+  }
+
+  if (state.running && !state.result) return;
+
+  if (canStartCurrentFloor()) {
+    startCurrentFloor();
+    return;
+  }
+
+  if (canCreateNewCharacter()) {
+    startNewRun();
+  }
+}
+
+function handleConfigChange() {
+  if (!canEditCharacterSetup()) return;
+  run = createRun(readConfig());
+  state = createBattleState(run);
+  clearPanelKeys();
+  render(ctx, state);
+  renderAllPanels(true);
+  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'newRun');
+}
+
 function startCurrentFloor() {
-  if (!state || state.running) return;
+  if (!canStartCurrentFloor()) return;
   startState(state);
   hideOverlay();
   updatePauseButton();
   renderAllPanels(true);
+}
+
+function canStartCurrentFloor() {
+  return !!state && !state.running && !state.result && !!run?.active;
+}
+
+function canCreateNewCharacter() {
+  return !state || state.result === 'defeat' || state.result === 'draw';
+}
+
+function canEditCharacterSetup() {
+  return !state ||
+    state.result === 'defeat' ||
+    state.result === 'draw' ||
+    (run?.floor === TOWER_RULES.startFloor && run?.victories === 0 && !state.running && !state.result);
 }
 
 function handleOverlayAction() {
@@ -290,14 +335,41 @@ function hideRewardBox() {
 
 function renderControlState(force = false) {
   if (!state) return;
-  const key = [state.running ? 'running' : 'idle', state.result || 'none', state.paused ? 'paused' : 'live'].join('|');
+  const setupEditable = canEditCharacterSetup();
+  const canStartFloor = canStartCurrentFloor();
+  const canNewCharacter = canCreateNewCharacter();
+  const key = [
+    state.running ? 'running' : 'idle',
+    state.result || 'none',
+    state.paused ? 'paused' : 'live',
+    setupEditable ? 'setup' : 'locked',
+    run?.floor || 0,
+    run?.victories || 0
+  ].join('|');
   if (!force && panelKeys.controls === key) return;
   panelKeys.controls = key;
-  const locked = state.running && !state.result;
-  controls.playerWeapon.disabled = locked;
-  controls.playerPersonality.disabled = locked;
+
+  controls.playerWeapon.disabled = !setupEditable;
+  controls.playerPersonality.disabled = !setupEditable;
   controls.pauseBtn.disabled = !state.running || !!state.result;
-  controls.startBtn.textContent = locked ? '새 런 재시작' : '새 런 시작';
+
+  if (state.running && !state.result) {
+    controls.startBtn.textContent = '전투 진행 중';
+    controls.startBtn.disabled = true;
+  } else if (state.result === 'victory') {
+    controls.startBtn.textContent = '보상 선택 필요';
+    controls.startBtn.disabled = true;
+  } else if (canStartFloor) {
+    controls.startBtn.textContent = run.floor === TOWER_RULES.startFloor && run.victories === 0 ? '탑 등반 시작' : '현재 층 전투 시작';
+    controls.startBtn.disabled = false;
+  } else if (canNewCharacter) {
+    controls.startBtn.textContent = '새 캐릭터 생성';
+    controls.startBtn.disabled = false;
+  } else {
+    controls.startBtn.textContent = '진행 불가';
+    controls.startBtn.disabled = true;
+  }
+
   updatePauseButton();
 }
 
@@ -323,7 +395,7 @@ function renderResultIfNeeded() {
     showOverlay(
       'DEFEAT',
       `${state.run.floor}층에서 쓰러졌습니다. 같은 구조로 새 런을 다시 시작합니다.`,
-      '새 런 시작',
+      '새 캐릭터 생성',
       'retry'
     );
     renderAllPanels(true);

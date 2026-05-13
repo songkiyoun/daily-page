@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.4.4';
+export const VERSION = '0.4.6';
 
 export const WEAPONS = {
   spear: {
@@ -161,7 +161,7 @@ export const PERSONALITIES = {
     flankPreference: 0.44,
     pressure: 0.32,
     defenseBonus: 0.04,
-    description: '체력이 낮거나 거리가 가까우면 먼저 빠집니다.'
+    description: '낮은 체력에서는 거리를 재정렬하고, 오래 밀리면 측면 견제와 반격으로 전환합니다.'
   },
   assassin: {
     id: 'assassin',
@@ -223,11 +223,21 @@ export const POSTURE_RULES = {
   enemyFloorToMax: 2,
   recoveryDelayFrames: 96,
   recoveryPerFrame: 0.22,
-  staggerFrames: 46,
+  staggerFrames: 52,
   staggerPostureRestoreRatio: 0.42,
   staggerDamageTakenBonus: 1.12,
-  staggerMoveScale: 0.16,
-  minPostureDamage: 3
+  staggerMoveScale: 0.08,
+  minPostureDamage: 3,
+  impactTurnMin: 0.18,
+  impactTurnMax: 0.78,
+  impactTurnPostureScale: 0.011,
+  staggerFacingTwist: 0.92,
+  retreatMaxFrames: 38,
+  retreatLockoutFrames: 42,
+  closeResetCooldown: 30,
+  closeResetPostureDamage: 17,
+  weaponClashCooldown: 24,
+  weaponClashPostureDamage: 11
 };
 
 export const SKILLS = {

@@ -15,6 +15,7 @@ export function updateBattle(state) {
   updateUnit(state.player, state.enemy, state);
   updateUnit(state.enemy, state.player, state);
 
+  resolveWeaponClash(state.player, state.enemy);
   resolveBodyCollision(state.player, state.enemy);
   clampToArena(state.player, state.arena);
   clampToArena(state.enemy, state.arena);
@@ -36,6 +37,7 @@ function updateUnit(unit, enemy, state) {
   recoverPosture(unit);
 
   const movement = decideMovement(unit, enemy, state);
+  updateRetreatState(unit, movement);
   unit.lastAction = movement.label;
   unit.facing = moveToward(unit.facing, movement.faceAngle, getTurnSpeed(unit));
 
@@ -43,6 +45,7 @@ function updateUnit(unit, enemy, state) {
 
   if (unit.attackState === 'idle') {
     applyMovement(unit, movement, weapon);
+    if (tryCloseRangeReset(unit, enemy, movement)) return;
     if (unit.cooldownTimer <= 0 && canStartAttack(unit, enemy)) {
       beginAttack(unit, enemy);
     }
@@ -56,6 +59,24 @@ function tickTimers(unit) {
   if (unit.cooldownTimer > 0) unit.cooldownTimer -= 1;
   if (unit.postureRecoveryDelay > 0) unit.postureRecoveryDelay -= 1;
   if (unit.staggerTimer > 0) unit.staggerTimer -= 1;
+  if (unit.retreatLockout > 0) unit.retreatLockout -= 1;
+  if (unit.resetMoveCooldown > 0) unit.resetMoveCooldown -= 1;
+  if (unit.clashCooldown > 0) unit.clashCooldown -= 1;
+}
+
+function updateRetreatState(unit, movement) {
+  const label = movement.label || '';
+  const isRetreat = label.includes('후퇴') || label.includes('최소거리 확보') || label.includes('거리 이탈') || label.includes('체력 관리');
+
+  if (isRetreat) {
+    unit.retreatFrames = (unit.retreatFrames || 0) + 1;
+    if (unit.retreatFrames > POSTURE_RULES.retreatMaxFrames) {
+      unit.retreatLockout = Math.max(unit.retreatLockout || 0, POSTURE_RULES.retreatLockoutFrames);
+    }
+    return;
+  }
+
+  unit.retreatFrames = Math.max(0, (unit.retreatFrames || 0) - 2);
 }
 
 function recoverPosture(unit) {
@@ -110,6 +131,11 @@ function applyMovement(unit, movement, weapon) {
   unit.vx *= friction;
   unit.vy *= friction;
 
+  if (unit.retreatLockout > 0 && movement.label.includes('측면')) {
+    unit.vx *= 1.06;
+    unit.vy *= 1.06;
+  }
+
   const speed = Math.hypot(unit.vx, unit.vy);
   if (speed > maxSpeed) {
     unit.vx = (unit.vx / speed) * maxSpeed;
@@ -123,12 +149,59 @@ function applyMovement(unit, movement, weapon) {
 function getAcceleration(unit, movement) {
   const personality = PERSONALITIES[unit.personalityId];
   let value = 0.21 + (personality.pressure || 0.5) * 0.025;
-  if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.27;
+  if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.25;
+  if (unit.weaponId === 'spear' && movement.label.includes('측면')) value = 0.29;
   if (unit.weaponId === 'eastern') value = 0.25;
   if (unit.weaponId === 'dagger') value = 0.28;
-  if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.035;
+  if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.015;
+  if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.045;
   if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
   return value;
+}
+
+function tryCloseRangeReset(unit, enemy, movement) {
+  if (unit.resetMoveCooldown > 0 || unit.attackState !== 'idle') return false;
+
+  const weapon = WEAPONS[unit.weaponId];
+  const personality = PERSONALITIES[unit.personalityId];
+  const dist = distance(unit, enemy);
+  const bodyClose = dist < unit.radius + enemy.radius + 22;
+  const spearPinned = weapon.id === 'spear' && (
+    dist < weapon.minRange + 22 ||
+    ((unit.retreatFrames || 0) > 16 && dist < weapon.idealRange - 4) ||
+    unit.retreatLockout > 0
+  );
+  const defensivePinned = personality.id === 'defensive' && (
+    bodyClose ||
+    ((unit.retreatFrames || 0) > 24 && dist < weapon.idealRange + 18) ||
+    (unit.retreatLockout > 0 && dist < weapon.idealRange + 8)
+  );
+
+  if (!spearPinned && !defensivePinned) return false;
+
+  const pushAngle = angleTo(unit, enemy);
+  const sideAngle = pushAngle + Math.PI / 2 * unit.orbitDir;
+  const force = spearPinned ? 5.8 : 3.8;
+  const sideForce = spearPinned ? 1.45 : 1.35;
+  const selfSide = spearPinned ? 2.1 : 1.55;
+
+  enemy.vx += Math.cos(pushAngle) * force + Math.cos(sideAngle) * sideForce;
+  enemy.vy += Math.sin(pushAngle) * force + Math.sin(sideAngle) * sideForce;
+  unit.vx += -Math.cos(pushAngle) * 0.75 + Math.cos(sideAngle) * selfSide;
+  unit.vy += -Math.sin(pushAngle) * 0.75 + Math.sin(sideAngle) * selfSide;
+  unit.retreatFrames = 0;
+  unit.retreatLockout = Math.max(unit.retreatLockout || 0, Math.floor(POSTURE_RULES.retreatLockoutFrames * 0.45));
+  unit.resetMoveCooldown = POSTURE_RULES.closeResetCooldown;
+  unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : 14);
+  enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : 9);
+
+  const postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? 1.22 : 0.94);
+  applyPostureDamage(unit, enemy, postureDamage);
+  twistBodyOnImpact(enemy, unit, postureDamage, weapon);
+
+  unit.lastAction = spearPinned ? '창 밀어내기' : '방어 견제 밀어내기';
+  enemy.lastAction = '자세 밀림';
+  return true;
 }
 
 function canStartAttack(attacker, defender) {
@@ -298,8 +371,10 @@ function resolveAttack(attacker, defender, state) {
   attacker.lastAction = crit ? '치명타' : '명중';
   defender.lastAction = defender.staggerTimer > 0 ? '흐트러짐 피격' : '피격';
 
-  applyPostureDamage(attacker, defender, getPostureDamage(attacker, defender, weapon, positionalBonus, crit));
+  const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit);
+  applyPostureDamage(attacker, defender, postureDamage);
   applyKnockback(attacker, defender, weapon.knockback);
+  twistBodyOnImpact(defender, attacker, postureDamage, weapon);
 
   if (defender.hp <= 0) {
     defender.isDead = true;
@@ -401,15 +476,38 @@ function applyPostureDamage(attacker, defender, amount) {
 }
 
 function triggerStagger(unit, attacker) {
+  const impactAngle = angleTo(attacker, unit);
   unit.staggerTimer = POSTURE_RULES.staggerFrames;
   unit.attackState = 'idle';
   unit.attackTimer = 0;
-  unit.cooldownTimer = Math.max(unit.cooldownTimer, 18);
+  unit.cooldownTimer = Math.max(unit.cooldownTimer, 22);
   unit.posture = Math.round(unit.maxPosture * POSTURE_RULES.staggerPostureRestoreRatio);
   unit.postureRecoveryDelay = POSTURE_RULES.recoveryDelayFrames;
-  unit.vx += Math.cos(angleTo(attacker, unit)) * 1.5;
-  unit.vy += Math.sin(angleTo(attacker, unit)) * 1.5;
-  unit.lastAction = '자세 흐트러짐';
+  unit.retreatFrames = 0;
+  unit.retreatLockout = Math.max(unit.retreatLockout || 0, 24);
+  unit.facing = impactAngle + Math.PI + attacker.orbitDir * POSTURE_RULES.staggerFacingTwist;
+  unit.vx += Math.cos(impactAngle) * 1.35;
+  unit.vy += Math.sin(impactAngle) * 1.35;
+  unit.lastAction = '스태미너 붕괴';
+}
+
+function twistBodyOnImpact(defender, attacker, postureDamage, weapon) {
+  if (defender.isDead) return;
+
+  const incoming = angleTo(attacker, defender);
+  const side = Math.sign(angleDiff(defender.facing, incoming)) || attacker.orbitDir || 1;
+  const weaponWeight = weapon.id === 'western' ? 1.08 : weapon.id === 'spear' ? 1.0 : weapon.id === 'dagger' ? 0.78 : 0.9;
+  const twist = clamp(
+    POSTURE_RULES.impactTurnMin + postureDamage * POSTURE_RULES.impactTurnPostureScale * weaponWeight,
+    POSTURE_RULES.impactTurnMin,
+    POSTURE_RULES.impactTurnMax
+  );
+
+  defender.facing += side * twist;
+  defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay, Math.floor(POSTURE_RULES.recoveryDelayFrames * 0.55));
+  if (defender.attackState === 'windup' || defender.attackState === 'active') {
+    defender.attackTimer += 2;
+  }
 }
 
 function applyKnockback(attacker, defender, force) {
@@ -417,6 +515,57 @@ function applyKnockback(attacker, defender, force) {
   const sideAngle = attackAngle + Math.PI / 2 * attacker.orbitDir;
   defender.vx += Math.cos(attackAngle) * force * 0.12 + Math.cos(sideAngle) * force * 0.018;
   defender.vy += Math.sin(attackAngle) * force * 0.12 + Math.sin(sideAngle) * force * 0.018;
+}
+
+function resolveWeaponClash(a, b) {
+  if (a.isDead || b.isDead || a.clashCooldown > 0 || b.clashCooldown > 0) return;
+  if (!isWeaponThreatening(a, b) || !isWeaponThreatening(b, a)) return;
+
+  const weaponA = WEAPONS[a.weaponId];
+  const weaponB = WEAPONS[b.weaponId];
+  const powerA = getClashPower(a, weaponA);
+  const powerB = getClashPower(b, weaponB);
+  const total = Math.max(1, powerA + powerB);
+  const damageToA = POSTURE_RULES.weaponClashPostureDamage * (powerB / total) * 1.8;
+  const damageToB = POSTURE_RULES.weaponClashPostureDamage * (powerA / total) * 1.8;
+  const angleAB = angleTo(a, b);
+
+  a.clashCooldown = POSTURE_RULES.weaponClashCooldown;
+  b.clashCooldown = POSTURE_RULES.weaponClashCooldown;
+  a.attackState = a.attackState === 'active' ? 'recovery' : a.attackState;
+  b.attackState = b.attackState === 'active' ? 'recovery' : b.attackState;
+  a.attackTimer = Math.max(a.attackTimer, 8);
+  b.attackTimer = Math.max(b.attackTimer, 8);
+
+  applyPostureDamage(b, a, damageToA);
+  applyPostureDamage(a, b, damageToB);
+  twistBodyOnImpact(a, b, damageToA, weaponB);
+  twistBodyOnImpact(b, a, damageToB, weaponA);
+
+  a.vx -= Math.cos(angleAB) * 1.2;
+  a.vy -= Math.sin(angleAB) * 1.2;
+  b.vx += Math.cos(angleAB) * 1.2;
+  b.vy += Math.sin(angleAB) * 1.2;
+  a.lastAction = '무기 충돌';
+  b.lastAction = '무기 충돌';
+}
+
+function isWeaponThreatening(attacker, defender) {
+  if (attacker.attackState !== 'windup' && attacker.attackState !== 'active') return false;
+
+  const weapon = WEAPONS[attacker.weaponId];
+  const dist = distance(attacker, defender);
+  const targetAngle = angleTo(attacker, defender);
+  const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
+  const rangePadding = attacker.attackState === 'windup' ? defender.radius + 10 : defender.radius + getReachBonus(attacker, weapon) + 8;
+
+  if (dist > weapon.range + rangePadding) return false;
+  if (dist < Math.max(0, weapon.minRange - 8)) return false;
+  return angleGap <= weapon.arc + 0.42;
+}
+
+function getClashPower(unit, weapon) {
+  return weapon.postureDamage + unit.stats.str * 1.8 + unit.stats.def * 0.9 + unit.mastery * 1.4;
 }
 
 function resolveBodyCollision(a, b) {
