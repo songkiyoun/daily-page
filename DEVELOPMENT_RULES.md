@@ -81,3 +81,12 @@ v0.3.1: fix reward button render lifecycle
 - 공격 중 전진, 후딜 중 이탈, 몸 충돌 완화는 `js/battle.js`의 기존 함수에서 직접 수정합니다.
 - 일자 접근을 고치기 위해 별도 패치 스크립트를 추가하지 않습니다.
 - 무기별 이동 성향 수치는 `js/data.js`의 각 무기 데이터에서만 관리합니다.
+
+
+## v0.4.1 이동 리팩터링 기준
+
+- 무기별 이동 수치는 `data.js`의 `WEAPONS` 객체에서만 관리합니다.
+- 성격별 이동 성향은 `data.js`의 `PERSONALITIES` 객체에서만 관리합니다.
+- 이동 판단은 `ai.js`의 기존 `decideMovement`와 하위 이동 함수들을 직접 수정합니다.
+- 단검 공격 각도 제한은 `battle.js`의 기존 `canStartAttack`에서만 관리합니다.
+- 별도 `v0.4.1 patch` 스크립트나 중복 함수를 추가하지 않습니다.

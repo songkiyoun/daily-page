@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.4.1';
 
 export const WEAPONS = {
   spear: {
@@ -10,8 +10,8 @@ export const WEAPONS = {
     name: '창',
     color: '#cda2ff',
     range: 112,
-    minRange: 54,
-    idealRange: 92,
+    minRange: 58,
+    idealRange: 96,
     arc: 0.26,
     damage: 15,
     cooldown: 66,
@@ -21,19 +21,21 @@ export const WEAPONS = {
     knockback: 15,
     crit: 0.03,
     description: '긴 사거리와 직선 찌르기가 강하지만 안쪽으로 파고든 적에게 약합니다.',
-    strafeWeight: 0.38,
-    approachOffset: 0.22,
+    movementStyle: 'keepaway',
+    strafeWeight: 0.44,
+    approachOffset: 0.18,
+    flankBias: 0.2,
     lungePower: 0.74,
-    recoveryBackstep: 0.62
+    recoveryBackstep: 0.7
   },
   western: {
     id: 'western',
     name: '서양검',
     color: '#8fd0ff',
-    range: 72,
+    range: 74,
     minRange: 12,
-    idealRange: 58,
-    arc: 1.26,
+    idealRange: 61,
+    arc: 1.3,
     damage: 19,
     cooldown: 58,
     windup: 12,
@@ -42,19 +44,21 @@ export const WEAPONS = {
     knockback: 11,
     crit: 0.06,
     description: '넓은 베기로 정면 교전이 강하지만 후딜이 있습니다.',
-    strafeWeight: 0.58,
-    approachOffset: 0.52,
+    movementStyle: 'angled_slash',
+    strafeWeight: 0.62,
+    approachOffset: 0.56,
+    flankBias: 0.48,
     lungePower: 0.58,
-    recoveryBackstep: 0.46
+    recoveryBackstep: 0.52
   },
   eastern: {
     id: 'eastern',
     name: '동양검',
     color: '#ffe18f',
-    range: 58,
+    range: 59,
     minRange: 6,
-    idealRange: 43,
-    arc: 0.86,
+    idealRange: 44,
+    arc: 0.88,
     damage: 12,
     cooldown: 31,
     windup: 6,
@@ -63,18 +67,20 @@ export const WEAPONS = {
     knockback: 7,
     crit: 0.1,
     description: '빠른 진입과 연속 공격이 강한 무기입니다.',
-    strafeWeight: 0.76,
-    approachOffset: 0.78,
+    movementStyle: 'hit_and_run',
+    strafeWeight: 0.82,
+    approachOffset: 0.86,
+    flankBias: 0.7,
     lungePower: 0.68,
-    recoveryBackstep: 0.34
+    recoveryBackstep: 0.42
   },
   dagger: {
     id: 'dagger',
     name: '단검',
     color: '#b8ff8f',
-    range: 42,
+    range: 43,
     minRange: 0,
-    idealRange: 28,
+    idealRange: 31,
     arc: 0.58,
     damage: 8,
     cooldown: 22,
@@ -86,10 +92,12 @@ export const WEAPONS = {
     backBonus: 2.25,
     flankBonus: 1.45,
     description: '정면은 약하지만 측후방을 잡으면 강해지는 위치 선정 무기입니다.',
-    strafeWeight: 0.95,
-    approachOffset: 1.08,
+    movementStyle: 'flank',
+    strafeWeight: 1.08,
+    approachOffset: 1.25,
+    flankBias: 1,
     lungePower: 0.82,
-    recoveryBackstep: 0.22
+    recoveryBackstep: 0.34
   }
 };
 
@@ -100,6 +108,10 @@ export const PERSONALITIES = {
     aggression: 0.52,
     caution: 0.48,
     orbit: 0.55,
+    rangeScale: 1,
+    retreatHpRatio: 0.28,
+    flankPreference: 0.52,
+    pressure: 0.55,
     defenseBonus: 0.01,
     description: '거리 조절과 공격을 적당히 섞습니다.'
   },
@@ -109,6 +121,10 @@ export const PERSONALITIES = {
     aggression: 0.82,
     caution: 0.25,
     orbit: 0.28,
+    rangeScale: 0.9,
+    retreatHpRatio: 0.16,
+    flankPreference: 0.34,
+    pressure: 0.86,
     attackBonus: 0.06,
     description: '적을 빠르게 압박하고 먼저 공격하려 합니다.'
   },
@@ -118,6 +134,10 @@ export const PERSONALITIES = {
     aggression: 0.35,
     caution: 0.82,
     orbit: 0.48,
+    rangeScale: 1.13,
+    retreatHpRatio: 0.44,
+    flankPreference: 0.44,
+    pressure: 0.32,
     defenseBonus: 0.04,
     description: '체력이 낮거나 거리가 가까우면 먼저 빠집니다.'
   },
@@ -126,7 +146,11 @@ export const PERSONALITIES = {
     name: '암살자형',
     aggression: 0.64,
     caution: 0.52,
-    orbit: 0.9,
+    orbit: 0.96,
+    rangeScale: 0.86,
+    retreatHpRatio: 0.26,
+    flankPreference: 1,
+    pressure: 0.58,
     evasionBonus: 0.035,
     critBonus: 0.04,
     description: '정면 교전보다 측후방 진입을 노립니다.'

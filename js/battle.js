@@ -25,7 +25,7 @@ function updateUnit(unit, enemy, state) {
   if (unit.isDead) return;
 
   const weapon = WEAPONS[unit.weaponId];
-  const movement = decideMovement(unit, enemy);
+  const movement = decideMovement(unit, enemy, state);
   unit.lastAction = movement.label;
   unit.facing = moveToward(unit.facing, movement.faceAngle, getTurnSpeed(unit));
 
@@ -55,11 +55,14 @@ function getTurnSpeed(unit) {
 function updateOrbitDirection(unit, enemy) {
   unit.orbitFlipTimer -= 1;
   const dist = distance(unit, enemy);
+  const personality = PERSONALITIES[unit.personalityId];
   const tooClose = dist < unit.radius + enemy.radius + 18;
+  const isFlanker = unit.weaponId === 'dagger' || personality.id === 'assassin';
 
   if (unit.orbitFlipTimer <= 0 || tooClose) {
-    if (Math.random() < (tooClose ? 0.18 : 0.72)) unit.orbitDir *= -1;
-    unit.orbitFlipTimer = 42 + Math.floor(Math.random() * 92);
+    const flipChance = isFlanker ? (tooClose ? 0.08 : 0.26) : (tooClose ? 0.18 : 0.68);
+    if (Math.random() < flipChance) unit.orbitDir *= -1;
+    unit.orbitFlipTimer = (isFlanker ? 76 : 42) + Math.floor(Math.random() * (isFlanker ? 110 : 92));
   }
 }
 
@@ -84,15 +87,19 @@ function applyMovement(unit, movement, weapon) {
 }
 
 function getAcceleration(unit, movement) {
-  let value = 0.22;
+  const personality = PERSONALITIES[unit.personalityId];
+  let value = 0.21 + (personality.pressure || 0.5) * 0.025;
   if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.27;
   if (unit.weaponId === 'eastern') value = 0.25;
-  if (unit.weaponId === 'dagger') value = 0.27;
+  if (unit.weaponId === 'dagger') value = 0.28;
+  if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.035;
+  if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
   return value;
 }
 
 function canStartAttack(attacker, defender) {
   const weapon = WEAPONS[attacker.weaponId];
+  const personality = PERSONALITIES[attacker.personalityId];
   const dist = distance(attacker, defender);
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
@@ -101,6 +108,16 @@ function canStartAttack(attacker, defender) {
   if (dist > weapon.range + defender.radius) return false;
   if (dist < weapon.minRange) return false;
   if (angleGap > startTolerance) return false;
+
+  if (attacker.weaponId === 'dagger' && !hasDaggerAttackAngle(attacker, defender)) {
+    return false;
+  }
+
+  const committedToAngle = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방');
+  if (personality.id === 'assassin' && attacker.weaponId !== 'spear' && isDirectlyInFrontOf(defender, attacker) && !committedToAngle) {
+    return false;
+  }
+
   return true;
 }
 
@@ -108,6 +125,7 @@ function beginAttack(attacker, defender) {
   const weapon = WEAPONS[attacker.weaponId];
   attacker.attackState = 'windup';
   attacker.attackTimer = weapon.windup;
+  attacker.attackResolved = false;
   attacker.facing = angleTo(attacker, defender);
   attacker.vx *= 0.42;
   attacker.vy *= 0.42;
@@ -125,13 +143,16 @@ function updateAttackState(attacker, defender, state) {
       attacker.attackTimer = getActiveFrames(attacker);
       attacker.lastAction = '타격 판정';
       applyAttackLunge(attacker, defender, weapon);
-      resolveAttack(attacker, defender, state);
+      attacker.attackResolved = resolveAttack(attacker, defender, state);
     }
     return;
   }
 
   if (attacker.attackState === 'active') {
     applyAttackLunge(attacker, defender, weapon, 0.36);
+    if (!attacker.attackResolved) {
+      attacker.attackResolved = resolveAttack(attacker, defender, state);
+    }
     if (attacker.attackTimer <= 0) {
       attacker.attackState = 'recovery';
       attacker.attackTimer = weapon.recovery;
@@ -198,7 +219,7 @@ function applyRecoveryStep(attacker, defender, weapon) {
 }
 
 function resolveAttack(attacker, defender, state) {
-  if (defender.isDead) return;
+  if (defender.isDead) return true;
 
   const weapon = WEAPONS[attacker.weaponId];
   const dist = distance(attacker, defender);
@@ -207,14 +228,14 @@ function resolveAttack(attacker, defender, state) {
   const hitArc = getHitArc(attacker, weapon);
   const reachBonus = getReachBonus(attacker, weapon);
 
-  if (dist > weapon.range + defender.radius + reachBonus) return;
-  if (dist < weapon.minRange) return;
-  if (angleGap > hitArc) return;
+  if (dist > weapon.range + defender.radius + reachBonus) return false;
+  if (dist < weapon.minRange) return false;
+  if (angleGap > hitArc) return false;
 
   const evaded = Math.random() < defender.evasion;
   if (evaded) {
     defender.lastAction = '회피';
-    return;
+    return true;
   }
 
   const crit = Math.random() < attacker.crit;
@@ -238,6 +259,8 @@ function resolveAttack(attacker, defender, state) {
     defender.isDead = true;
     defender.lastAction = '전투 불능';
   }
+
+  return true;
 }
 
 function getHitArc(attacker, weapon) {
@@ -252,6 +275,25 @@ function getReachBonus(attacker, weapon) {
   if (weapon.id === 'eastern') return 4;
   if (weapon.id === 'dagger') return 3;
   return 0;
+}
+
+function hasDaggerAttackAngle(attacker, defender) {
+  const attackerFromDefender = angleTo(defender, attacker);
+  const backGap = Math.abs(angleDiff(defender.facing + Math.PI, attackerFromDefender));
+  const sideGap = Math.min(
+    Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender)),
+    Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
+  );
+  const defenderLowHp = defender.hp / defender.maxHp < 0.22;
+  const committedToFlank = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방');
+
+  return backGap < 1.08 || sideGap < 0.86 || committedToFlank || defenderLowHp;
+}
+
+function isDirectlyInFrontOf(observer, target) {
+  const observerToTarget = angleTo(observer, target);
+  const frontGap = Math.abs(angleDiff(observer.facing, observerToTarget));
+  return frontGap < 0.62;
 }
 
 function getEffectiveDefense(unit) {
