@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.4.3-turn-posture-stagger" />
-  <title>Circle Battle Tower Rebuild v0.4.3</title>
+  <meta name="build" content="circle-battle-rebuild-v0.4.4-ui-flow-stat-fix" />
+  <title>Circle Battle Tower Rebuild v0.4.4</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
@@ -12,28 +12,16 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
-        <h1>1:1 전투 리듬과 자세 시스템</h1>
-        <p class="subtext">방향 전환 제한, 공격 후 빈틈, 자세 게이지와 자세 흐트러짐을 반영한 v0.4.3 뼈대입니다.</p>
+        <h1>1:1 탑 등반 전투 UI 정리</h1>
+        <p class="subtext">캐릭터 세팅, 중앙 전투·결과·보상, 우측 탑 정보 구조로 정리한 v0.4.4 뼈대입니다.</p>
       </div>
-      <div id="versionBadge" class="version">v0.4.3</div>
+      <div id="versionBadge" class="version">v0.4.4</div>
     </header>
 
     <section class="layout">
-      <div class="arena-panel">
-        <canvas id="arena" width="760" height="500" aria-label="전투 경기장"></canvas>
-        <div id="resultOverlay" class="result-overlay hidden">
-          <div class="result-card">
-            <p class="eyebrow">TOWER RESULT</p>
-            <h2 id="resultTitle">READY</h2>
-            <p id="resultText">무기와 성격을 선택하고 탑 등반을 시작하세요.</p>
-            <button id="overlayActionBtn" class="button primary">탑 등반 시작</button>
-          </div>
-        </div>
-      </div>
-
-      <aside class="side-panel">
+      <aside class="setup-panel side-panel">
         <section class="card">
-          <h2>런 설정</h2>
+          <h2>캐릭터 세팅</h2>
           <label class="field">
             <span>플레이어 무기</span>
             <select id="playerWeapon"></select>
@@ -42,46 +30,61 @@
             <span>플레이어 성격</span>
             <select id="playerPersonality"></select>
           </label>
-          <p id="enemyPreview" class="hint-text"></p>
-          <div class="button-row">
+          <div class="button-row single">
             <button id="startBtn" class="button primary">새 런 시작</button>
-            <button id="pauseBtn" class="button">일시정지</button>
           </div>
+          <p class="hint-text">무기와 성격은 새 런 시작 전에 선택합니다. 전투 중에는 세팅을 잠급니다.</p>
         </section>
 
         <section class="card">
-          <h2>플레이어 성장</h2>
+          <h2>스탯 설정</h2>
           <div id="playerBox" class="player-box"></div>
         </section>
 
-        <section id="rewardCard" class="card hidden">
-          <h2>층 클리어 보상</h2>
-          <p class="hint-text">보상을 하나 선택하면 다음 층으로 이동합니다.</p>
-          <div id="rewardBox" class="reward-box"></div>
-        </section>
-
-        <section class="card">
-          <h2>탑 정보</h2>
-          <div id="towerBox" class="tower-box"></div>
-        </section>
-
-        <section class="card">
-          <h2>상태</h2>
-          <div id="statusBox" class="status-box"></div>
+        <section class="card future-card">
+          <h2>상점 예정</h2>
+          <p class="hint-text">상점, 시작 강화, 최초 캐릭터 성장 기능은 전투 코어와 보상 구조가 안정된 뒤 추가합니다.</p>
         </section>
 
         <section class="card">
           <h2>개발 원칙</h2>
           <ul class="rule-list">
+            <li>새 패치 블록을 아래에 덧붙이지 않습니다.</li>
+            <li>수정은 담당 파일의 기존 함수와 데이터를 직접 고칩니다.</li>
             <li>1:1 전투만 고려합니다.</li>
-            <li>맵은 원형이 아닌 사각형 전장입니다.</li>
-            <li>상대 무기, 성격, 스탯, 스킬은 층마다 랜덤입니다.</li>
-            <li>수정은 담당 파일의 기존 함수를 직접 고칩니다.</li>
-            <li>새 런은 기본 스탯 포인트를 가지고 시작합니다.</li>
-            <li>보상 선택 후 다음 층으로 이동하면 체력이 완전히 회복됩니다.</li>
-            <li>무기별 방향 전환 속도와 공격 후딜을 적용합니다.</li>
-            <li>자세 게이지가 0이 되면 짧은 자세 흐트러짐 상태가 됩니다.</li>
+            <li>맵은 사각형 전장입니다.</li>
           </ul>
+        </section>
+      </aside>
+
+      <section class="arena-column">
+        <div class="arena-panel">
+          <canvas id="arena" width="760" height="500" aria-label="전투 경기장"></canvas>
+          <div id="resultOverlay" class="result-overlay hidden">
+            <div class="result-card">
+              <p class="eyebrow">TOWER RESULT</p>
+              <h2 id="resultTitle">READY</h2>
+              <p id="resultText">무기와 성격을 선택하고 탑 등반을 시작하세요.</p>
+              <div id="overlayRewardBox" class="overlay-reward-box hidden"></div>
+              <button id="overlayActionBtn" class="button primary">탑 등반 시작</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="info-panel side-panel">
+        <section class="card compact-card">
+          <div class="panel-head">
+            <h2>탑 정보</h2>
+            <button id="pauseBtn" class="button mini">일시정지</button>
+          </div>
+          <div id="towerBox" class="tower-box"></div>
+          <p id="enemyPreview" class="hint-text"></p>
+        </section>
+
+        <section class="card">
+          <h2>상태</h2>
+          <div id="statusBox" class="status-box"></div>
         </section>
       </aside>
     </section>

@@ -30,7 +30,7 @@ select {
 }
 
 .app {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1380px, calc(100% - 32px));
   margin: 0 auto;
   padding: 24px 0;
 }
@@ -85,9 +85,19 @@ h2 {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 760px) minmax(280px, 1fr);
+  grid-template-columns: minmax(250px, 290px) minmax(0, 760px) minmax(270px, 1fr);
   gap: 16px;
   align-items: start;
+}
+
+.side-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.arena-column {
+  display: grid;
+  gap: 14px;
 }
 
 .arena-panel {
@@ -119,7 +129,7 @@ canvas {
 }
 
 .result-card {
-  width: min(420px, 100%);
+  width: min(560px, 100%);
   border: 1px solid rgba(255, 212, 90, 0.42);
   background: rgba(12, 11, 23, 0.94);
   padding: 22px;
@@ -132,16 +142,32 @@ canvas {
   font-size: 2rem;
 }
 
-.side-panel {
-  display: grid;
-  gap: 14px;
-}
-
 .card {
   border: 1px solid var(--line);
   background: var(--panel);
   padding: 16px;
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.16);
+}
+
+.compact-card {
+  padding-bottom: 14px;
+}
+
+.future-card {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.panel-head h2 {
+  margin-bottom: 0;
 }
 
 .field {
@@ -165,6 +191,10 @@ select {
   outline: none;
 }
 
+select:disabled {
+  opacity: 0.48;
+}
+
 select option {
   color: #111;
 }
@@ -176,6 +206,10 @@ select option {
   margin-top: 14px;
 }
 
+.button-row.single {
+  grid-template-columns: 1fr;
+}
+
 .button {
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.055);
@@ -185,10 +219,15 @@ select option {
   transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
-.button:hover {
+.button:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: rgba(168, 136, 255, 0.5);
   background: rgba(168, 136, 255, 0.14);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .button.primary {
@@ -196,7 +235,14 @@ select option {
   background: rgba(168, 136, 255, 0.18);
 }
 
-.status-box {
+.button.mini {
+  padding: 7px 9px;
+  font-size: 0.78rem;
+}
+
+.status-box,
+.tower-box,
+.player-box {
   display: grid;
   gap: 10px;
 }
@@ -236,149 +282,109 @@ select option {
   background: linear-gradient(90deg, var(--accent), var(--gold));
 }
 
+.expbar > i {
+  background: linear-gradient(90deg, #70c7ff, var(--accent));
+}
+
 .status-note {
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.5;
 }
 
-.rule-list {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--muted);
-  line-height: 1.65;
-  font-size: 0.86rem;
-}
-
-@media (max-width: 980px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-
-.hint-text {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.55;
-}
-
-.tower-box {
-  display: grid;
-  gap: 8px;
-}
-
 .tower-row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  padding: 9px 10px;
-  font-size: 0.84rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 6px 0;
+  font-size: 0.86rem;
 }
 
 .tower-row span {
   color: var(--muted);
 }
 
-.tower-row strong {
-  color: var(--gold);
-  text-align: right;
-}
-
-.hidden {
-  display: none !important;
-}
-
-.player-box {
-  display: grid;
-  gap: 9px;
-}
-
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  margin-top: 8px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .stat-button {
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.044);
   color: var(--text);
-  display: grid;
-  gap: 3px;
-  padding: 9px 5px;
+  padding: 10px;
   cursor: pointer;
+  text-align: left;
 }
 
-.stat-button span {
-  color: var(--muted);
-  font-size: 0.72rem;
-}
-
-.stat-button strong {
-  color: var(--gold);
+.stat-button:hover:not(:disabled) {
+  border-color: rgba(255, 212, 90, 0.46);
+  background: rgba(255, 212, 90, 0.09);
 }
 
 .stat-button:disabled {
-  opacity: 0.55;
-  cursor: default;
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .skill-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
-.tag,
-.muted-small {
+.tag {
   display: inline-flex;
-  border: 1px solid rgba(168,136,255,0.22);
-  background: rgba(168,136,255,0.08);
-  color: #d8ceff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
   padding: 5px 7px;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
 }
 
+.hint-text,
 .muted-small {
-  border-color: rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.035);
   color: var(--muted);
+  line-height: 1.55;
+  font-size: 0.82rem;
 }
 
-.expbar > i {
-  background: linear-gradient(90deg, var(--accent), var(--gold));
-}
-
-.reward-box {
+.overlay-reward-box {
   display: grid;
-  gap: 8px;
-  margin-top: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 16px 0 4px;
+}
+
+.overlay-reward-box.hidden {
+  display: none;
 }
 
 .reward-button {
-  border: 1px solid rgba(255,212,90,0.28);
-  background: rgba(255,212,90,0.065);
+  min-height: 118px;
+  border: 1px solid rgba(255, 212, 90, 0.34);
+  background: rgba(255, 212, 90, 0.075);
   color: var(--text);
+  padding: 13px;
+  cursor: pointer;
   text-align: left;
   display: grid;
-  gap: 5px;
-  padding: 11px;
-  cursor: pointer;
+  gap: 8px;
+  align-content: start;
 }
 
 .reward-button:hover {
-  border-color: rgba(255,212,90,0.58);
-  background: rgba(255,212,90,0.11);
+  transform: translateY(-1px);
+  border-color: rgba(255, 212, 90, 0.72);
+  background: rgba(255, 212, 90, 0.12);
 }
 
 .reward-button strong {
@@ -386,20 +392,47 @@ select option {
 }
 
 .reward-button span {
-  color: var(--muted);
-  font-size: 0.8rem;
+  color: #d9d2b2;
   line-height: 1.45;
+  font-size: 0.8rem;
 }
 
-.button:disabled {
-  opacity: 0.48;
-  cursor: default;
-  transform: none;
+.rule-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 0.84rem;
 }
 
-@media (max-width: 560px) {
-  .stat-grid {
-    grid-template-columns: repeat(3, 1fr);
+@media (max-width: 1180px) {
+  .layout {
+    grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+  }
+
+  .info-panel {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
+@media (max-width: 860px) {
+  .app {
+    width: min(100% - 20px, 760px);
+    padding: 16px 0;
+  }
+
+  .layout,
+  .info-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .overlay-reward-box {
+    grid-template-columns: 1fr;
+  }
+}
