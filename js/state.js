@@ -1,18 +1,41 @@
 // state.js
-// 게임 상태 생성과 초기화만 담당합니다.
+// 게임 상태 생성, 런 성장, 보상 적용만 담당합니다.
 // 1:1 전용 구조이므로 allies, enemies, mode 배열을 만들지 않습니다.
 
-import { BASE_STATS, ENEMY_NAMES, PERSONALITIES, TOWER_RULES, WEAPONS } from './data.js';
-import { randomInt, randomSign, sample } from './utils.js';
+import {
+  BASE_STATS,
+  ENEMY_NAMES,
+  PERSONALITIES,
+  PLAYER_START_STATS,
+  REWARD_RULES,
+  SKILLS,
+  STAT_KEYS,
+  TOWER_RULES,
+  WEAPONS
+} from './data.js';
+import { clamp, randomInt, randomSign, sample } from './utils.js';
 
 export function createRun(config) {
   return {
     active: true,
     floor: TOWER_RULES.startFloor,
     bestFloor: TOWER_RULES.startFloor,
-    playerWeapon: config.playerWeapon,
-    playerPersonality: config.playerPersonality,
-    victories: 0
+    victories: 0,
+    pendingRewards: [],
+    lastRewardLog: '',
+    levelMessage: '',
+    player: {
+      name: 'PLAYER',
+      weaponId: config.playerWeapon,
+      personalityId: config.playerPersonality,
+      level: 1,
+      exp: 0,
+      statPoints: 0,
+      stats: { ...PLAYER_START_STATS },
+      skills: [],
+      mastery: 0,
+      hp: null
+    }
   };
 }
 
@@ -25,6 +48,7 @@ export function createBattleState(run) {
     frame: 0,
     elapsed: 0,
     result: null,
+    rewardsPrepared: false,
     run,
     arena: {
       width: 760,
@@ -36,69 +60,8 @@ export function createBattleState(run) {
       centerX: 380,
       centerY: 250
     },
-    player: createUnit({
-      id: 'player',
-      name: 'PLAYER',
-      side: 'player',
-      weaponId: run.playerWeapon,
-      personalityId: run.playerPersonality,
-      floor: run.floor,
-      x: 210,
-      y: 250
-    }),
-    enemy: createUnit({
-      id: 'enemy',
-      name: enemyConfig.name,
-      side: 'enemy',
-      weaponId: enemyConfig.weaponId,
-      personalityId: enemyConfig.personalityId,
-      floor: run.floor,
-      x: 550,
-      y: 250
-    })
-  };
-}
-
-export function advanceRunFloor(state) {
-  state.run.victories += 1;
-  state.run.floor += 1;
-  state.run.bestFloor = Math.max(state.run.bestFloor, state.run.floor);
-  return createBattleState(state.run);
-}
-
-export function createUnit({ id, name, side, weaponId, personalityId, floor, x, y }) {
-  const weapon = WEAPONS[weaponId];
-  const personality = PERSONALITIES[personalityId];
-  const scale = getUnitScale(side, floor);
-  const maxHp = Math.round(BASE_STATS.maxHp * scale.hp);
-
-  return {
-    id,
-    name,
-    side,
-    weaponId,
-    personalityId,
-    floor,
-    radius: side === 'player' ? 18 : 17,
-    x,
-    y,
-    facing: side === 'player' ? 0 : Math.PI,
-    hp: maxHp,
-    maxHp,
-    attackScale: scale.attack,
-    defense: scale.defense,
-    evasion: BASE_STATS.evasion,
-    crit: BASE_STATS.crit,
-    attackState: 'idle',
-    attackTimer: 0,
-    cooldownTimer: 30,
-    vx: 0,
-    vy: 0,
-    orbitDir: randomSign(),
-    hits: 0,
-    damageDealt: 0,
-    lastAction: `${weapon.name} · ${personality.name}`,
-    isDead: false
+    player: createUnitFromPlayer(run.player, 210, 250),
+    enemy: createUnitFromEnemy(enemyConfig, run.floor, 550, 250)
   };
 }
 
@@ -113,37 +76,406 @@ export function togglePause(state) {
   state.paused = !state.paused;
 }
 
+export function spendPlayerStat(run, statKey) {
+  if (!run?.player || run.player.statPoints <= 0 || !STAT_KEYS.includes(statKey)) return false;
+  run.player.stats[statKey] += 1;
+  run.player.statPoints -= 1;
+  const profile = derivePlayerProfile(run.player);
+  run.player.hp = clamp(run.player.hp ?? profile.maxHp, 1, profile.maxHp);
+  return true;
+}
+
+export function completeFloorVictory(state) {
+  if (state.rewardsPrepared) return;
+
+  const run = state.run;
+  const profileBeforeHeal = derivePlayerProfile(run.player);
+  const remainingHp = clamp(state.player.hp, 0, profileBeforeHeal.maxHp);
+  const passiveHeal = Math.round(profileBeforeHeal.maxHp * REWARD_RULES.floorClearHealRatio);
+  run.player.hp = clamp(remainingHp + passiveHeal, 1, profileBeforeHeal.maxHp);
+  run.victories += 1;
+
+  const expGain = REWARD_RULES.baseExp + run.floor * REWARD_RULES.expPerFloor;
+  run.levelMessage = grantExp(run.player, expGain);
+  run.pendingRewards = generateRewardChoices(run);
+  state.rewardsPrepared = true;
+}
+
+export function applyRewardAndAdvance(state, rewardId) {
+  const run = state.run;
+  const reward = run.pendingRewards.find((item) => item.id === rewardId);
+  if (!reward) return state;
+
+  applyReward(run, reward);
+  run.pendingRewards = [];
+  run.floor += 1;
+  run.bestFloor = Math.max(run.bestFloor, run.floor);
+  return createBattleState(run);
+}
+
+export function getNextLevelExp(level) {
+  return 100 + (level - 1) * 42;
+}
+
+export function derivePlayerProfile(player) {
+  const weapon = WEAPONS[player.weaponId];
+  const personality = PERSONALITIES[player.personalityId];
+  const skillEffects = collectSkillEffects(player.skills);
+  const stats = player.stats;
+
+  const maxHp = Math.round(
+    BASE_STATS.maxHp +
+    stats.vit * 12 +
+    stats.str * 2 +
+    stats.def * 4 +
+    player.level * 7
+  );
+
+  const attackScale =
+    1 +
+    stats.str * 0.065 +
+    stats.agi * 0.012 +
+    player.mastery * 0.035 +
+    (personality.attackBonus || 0) +
+    (skillEffects.attackBonus || 0);
+
+  const defense = clamp(
+    0.035 +
+    stats.def * 0.012 +
+    stats.vit * 0.002 +
+    (personality.defenseBonus || 0) +
+    (skillEffects.defenseBonus || 0),
+    0,
+    BASE_STATS.defenseCap
+  );
+
+  const evasion = clamp(
+    0.025 +
+    stats.agi * 0.007 +
+    stats.luck * 0.002 +
+    (personality.evasionBonus || 0) +
+    (skillEffects.evasionBonus || 0),
+    0,
+    BASE_STATS.evasionCap
+  );
+
+  const crit = clamp(
+    weapon.crit +
+    stats.luck * 0.008 +
+    (personality.critBonus || 0) +
+    (skillEffects.critBonus || 0),
+    0,
+    BASE_STATS.critCap
+  );
+
+  const moveSpeedScale = 1 + stats.agi * 0.008 + (skillEffects.moveSpeedBonus || 0);
+  const cooldownScale = 1 / (1 + stats.agi * 0.009 + player.mastery * 0.015 + (skillEffects.cooldownBonus || 0));
+  const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
+
+  return {
+    maxHp,
+    attackScale,
+    defense,
+    evasion,
+    crit,
+    moveSpeedScale,
+    cooldownScale,
+    critDamage,
+    lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
+  };
+}
+
+function createUnitFromPlayer(player, x, y) {
+  const profile = derivePlayerProfile(player);
+  const weapon = WEAPONS[player.weaponId];
+  const personality = PERSONALITIES[player.personalityId];
+  const hp = player.hp == null ? profile.maxHp : clamp(player.hp, 1, profile.maxHp);
+  player.hp = hp;
+
+  return {
+    id: 'player',
+    name: player.name,
+    side: 'player',
+    weaponId: player.weaponId,
+    personalityId: player.personalityId,
+    level: player.level,
+    stats: { ...player.stats },
+    skills: [...player.skills],
+    mastery: player.mastery,
+    radius: 18,
+    x,
+    y,
+    facing: 0,
+    hp,
+    maxHp: profile.maxHp,
+    attackScale: profile.attackScale,
+    defense: profile.defense,
+    evasion: profile.evasion,
+    crit: profile.crit,
+    critDamage: profile.critDamage,
+    lowHpDefenseBonus: profile.lowHpDefenseBonus,
+    moveSpeedScale: profile.moveSpeedScale,
+    cooldownScale: profile.cooldownScale,
+    attackState: 'idle',
+    attackTimer: 0,
+    cooldownTimer: 30,
+    vx: 0,
+    vy: 0,
+    orbitDir: randomSign(),
+    hits: 0,
+    damageDealt: 0,
+    lastAction: `${weapon.name} · ${personality.name}`,
+    isDead: false
+  };
+}
+
+function createUnitFromEnemy(enemyConfig, floor, x, y) {
+  const profile = deriveEnemyProfile(enemyConfig, floor);
+  const weapon = WEAPONS[enemyConfig.weaponId];
+  const personality = PERSONALITIES[enemyConfig.personalityId];
+
+  return {
+    id: 'enemy',
+    name: enemyConfig.name,
+    side: 'enemy',
+    weaponId: enemyConfig.weaponId,
+    personalityId: enemyConfig.personalityId,
+    level: enemyConfig.level,
+    stats: { ...enemyConfig.stats },
+    skills: [...enemyConfig.skills],
+    mastery: enemyConfig.mastery,
+    radius: floor % TOWER_RULES.bossInterval === 0 ? 20 : 17,
+    x,
+    y,
+    facing: Math.PI,
+    hp: profile.maxHp,
+    maxHp: profile.maxHp,
+    attackScale: profile.attackScale,
+    defense: profile.defense,
+    evasion: profile.evasion,
+    crit: profile.crit,
+    critDamage: profile.critDamage,
+    lowHpDefenseBonus: profile.lowHpDefenseBonus,
+    moveSpeedScale: profile.moveSpeedScale,
+    cooldownScale: profile.cooldownScale,
+    attackState: 'idle',
+    attackTimer: 0,
+    cooldownTimer: 30,
+    vx: 0,
+    vy: 0,
+    orbitDir: randomSign(),
+    hits: 0,
+    damageDealt: 0,
+    lastAction: `${weapon.name} · ${personality.name}`,
+    isDead: false
+  };
+}
+
 function createRandomEnemyConfig(floor) {
   const weaponIds = Object.keys(WEAPONS);
   const personalityIds = Object.keys(PERSONALITIES);
   const nameIndex = (floor + randomInt(0, ENEMY_NAMES.length - 1)) % ENEMY_NAMES.length;
   const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
+  const base = 4 + Math.floor(floor * 0.55);
+  const bossBonus = isBossFloor ? 3 : 0;
 
   return {
     name: isBossFloor ? `BOSS ${ENEMY_NAMES[nameIndex]}` : ENEMY_NAMES[nameIndex],
     weaponId: sample(weaponIds),
-    personalityId: sample(personalityIds)
+    personalityId: sample(personalityIds),
+    level: Math.max(1, floor),
+    stats: {
+      str: base + bossBonus + randomInt(0, 2),
+      vit: base + bossBonus + randomInt(0, 3),
+      def: base + bossBonus + randomInt(0, 2),
+      agi: base + bossBonus + randomInt(0, 2),
+      luck: base + randomInt(0, 2)
+    },
+    skills: createEnemySkills(floor, isBossFloor),
+    mastery: Math.floor(floor / 4) + (isBossFloor ? 2 : 0)
   };
 }
 
-function getUnitScale(side, floor) {
-  if (side === 'player') {
-    return {
-      hp: 1,
-      attack: 1,
-      defense: BASE_STATS.defense
-    };
-  }
+function deriveEnemyProfile(enemy, floor) {
+  const weapon = WEAPONS[enemy.weaponId];
+  const personality = PERSONALITIES[enemy.personalityId];
+  const skillEffects = collectSkillEffects(enemy.skills);
+  const stats = enemy.stats;
+  const floorIndex = Math.max(0, floor - 1);
+  const bossMult = floor % TOWER_RULES.bossInterval === 0 ? 1.18 : 1;
 
-  const floorBonus = Math.max(0, floor - 1);
-  const bossBonus = floor % TOWER_RULES.bossInterval === 0 ? 0.25 : 0;
+  const maxHp = Math.round(
+    (BASE_STATS.maxHp + stats.vit * 11 + stats.def * 3 + floorIndex * 4) *
+    (1 + floorIndex * TOWER_RULES.hpGrowthPerFloor * 0.28) *
+    bossMult
+  );
+
+  const attackScale =
+    (1 +
+    stats.str * 0.057 +
+    stats.agi * 0.01 +
+    enemy.mastery * 0.027 +
+    floorIndex * TOWER_RULES.damageGrowthPerFloor * 0.32 +
+    (personality.attackBonus || 0) +
+    (skillEffects.attackBonus || 0)) * bossMult;
+
+  const defense = clamp(
+    0.025 +
+    stats.def * 0.01 +
+    stats.vit * 0.0015 +
+    floorIndex * TOWER_RULES.defenseGrowthPerFloor * 0.42 +
+    (personality.defenseBonus || 0) +
+    (skillEffects.defenseBonus || 0),
+    0,
+    TOWER_RULES.maxEnemyDefense + (floor % TOWER_RULES.bossInterval === 0 ? 0.06 : 0)
+  );
+
+  const evasion = clamp(
+    0.018 +
+    stats.agi * 0.006 +
+    stats.luck * 0.0015 +
+    (personality.evasionBonus || 0) +
+    (skillEffects.evasionBonus || 0),
+    0,
+    0.32
+  );
+
+  const crit = clamp(
+    weapon.crit +
+    stats.luck * 0.006 +
+    (personality.critBonus || 0) +
+    (skillEffects.critBonus || 0),
+    0,
+    0.48
+  );
 
   return {
-    hp: 1 + floorBonus * TOWER_RULES.hpGrowthPerFloor + bossBonus,
-    attack: 1 + floorBonus * TOWER_RULES.damageGrowthPerFloor + bossBonus * 0.7,
-    defense: Math.min(
-      TOWER_RULES.maxEnemyDefense,
-      BASE_STATS.defense + floorBonus * TOWER_RULES.defenseGrowthPerFloor + bossBonus * 0.04
-    )
+    maxHp,
+    attackScale,
+    defense,
+    evasion,
+    crit,
+    moveSpeedScale: 1 + stats.agi * 0.006 + (skillEffects.moveSpeedBonus || 0),
+    cooldownScale: 1 / (1 + stats.agi * 0.007 + enemy.mastery * 0.012 + (skillEffects.cooldownBonus || 0)),
+    critDamage: 1.5 + stats.luck * 0.004 + (skillEffects.critDamageBonus || 0),
+    lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
   };
+}
+
+function createEnemySkills(floor, isBossFloor) {
+  const pool = Object.keys(SKILLS);
+  const count = Math.min(isBossFloor ? 3 : 2, Math.floor(floor / 5) + (isBossFloor ? 1 : 0));
+  const skills = [];
+  while (skills.length < count && skills.length < pool.length) {
+    const skill = sample(pool);
+    if (!skills.includes(skill)) skills.push(skill);
+  }
+  return skills;
+}
+
+function grantExp(player, amount) {
+  player.exp += amount;
+  let levelUps = 0;
+
+  while (player.exp >= getNextLevelExp(player.level)) {
+    player.exp -= getNextLevelExp(player.level);
+    player.level += 1;
+    player.statPoints += 2;
+    levelUps += 1;
+  }
+
+  if (!levelUps) return `경험치 +${amount}`;
+  return `경험치 +${amount} · 레벨 ${levelUps}회 상승 · 스탯 포인트 +${levelUps * 2}`;
+}
+
+function generateRewardChoices(run) {
+  const rewards = [];
+  const shuffledStats = [...STAT_KEYS].sort(() => Math.random() - 0.5);
+
+  rewards.push({
+    id: `stat-${shuffledStats[0]}`,
+    type: 'stat',
+    statKey: shuffledStats[0],
+    amount: REWARD_RULES.statAmount,
+    title: `${statName(shuffledStats[0])} 훈련`,
+    description: `${statName(shuffledStats[0])} +${REWARD_RULES.statAmount}. 기본 전투 능력을 직접 올립니다.`
+  });
+
+  rewards.push({
+    id: 'mastery',
+    type: 'mastery',
+    amount: REWARD_RULES.masteryAmount,
+    title: '무기 숙련',
+    description: `현재 무기 숙련도 +${REWARD_RULES.masteryAmount}. 공격력과 공격 회전이 조금 좋아집니다.`
+  });
+
+  const missingSkills = Object.keys(SKILLS).filter((skillId) => !run.player.skills.includes(skillId));
+  if (missingSkills.length > 0) {
+    const skillId = sample(missingSkills);
+    rewards.push({
+      id: `skill-${skillId}`,
+      type: 'skill',
+      skillId,
+      title: `스킬 습득 · ${SKILLS[skillId].name}`,
+      description: SKILLS[skillId].description
+    });
+  } else {
+    rewards.push({
+      id: 'heal',
+      type: 'heal',
+      title: '응급 정비',
+      description: `최대 체력의 ${Math.round(REWARD_RULES.healRatioReward * 100)}%를 추가 회복합니다.`
+    });
+  }
+
+  return rewards.slice(0, REWARD_RULES.choices);
+}
+
+function applyReward(run, reward) {
+  const player = run.player;
+  if (reward.type === 'stat') {
+    player.stats[reward.statKey] += reward.amount;
+    run.lastRewardLog = `${statName(reward.statKey)} +${reward.amount}`;
+  }
+
+  if (reward.type === 'mastery') {
+    player.mastery += reward.amount;
+    run.lastRewardLog = `무기 숙련 +${reward.amount}`;
+  }
+
+  if (reward.type === 'skill') {
+    if (!player.skills.includes(reward.skillId)) player.skills.push(reward.skillId);
+    run.lastRewardLog = `스킬 습득: ${SKILLS[reward.skillId].name}`;
+  }
+
+  if (reward.type === 'heal') {
+    const profile = derivePlayerProfile(player);
+    player.hp = clamp((player.hp ?? profile.maxHp) + profile.maxHp * REWARD_RULES.healRatioReward, 1, profile.maxHp);
+    run.lastRewardLog = '응급 정비 회복';
+  }
+
+  const profile = derivePlayerProfile(player);
+  player.hp = clamp(player.hp ?? profile.maxHp, 1, profile.maxHp);
+}
+
+function collectSkillEffects(skillIds) {
+  return skillIds.reduce((effects, skillId) => {
+    const skill = SKILLS[skillId];
+    if (!skill) return effects;
+    Object.entries(skill.effects).forEach(([key, value]) => {
+      effects[key] = (effects[key] || 0) + value;
+    });
+    return effects;
+  }, {});
+}
+
+function statName(key) {
+  const names = {
+    str: '힘',
+    vit: '체력',
+    def: '방어',
+    agi: '민첩',
+    luck: '행운'
+  };
+  return names[key] || key;
 }

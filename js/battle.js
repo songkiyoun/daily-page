@@ -45,7 +45,7 @@ function updateUnit(unit, enemy, state) {
 function applyMovement(unit, movement, weapon) {
   const acceleration = 0.22;
   const friction = 0.86;
-  const maxSpeed = weapon.moveSpeed;
+  const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1);
 
   unit.vx += movement.ax * acceleration;
   unit.vy += movement.ay * acceleration;
@@ -106,7 +106,7 @@ function updateAttackState(attacker, defender, state) {
 
   if (attacker.attackState === 'recovery' && attacker.attackTimer <= 0) {
     attacker.attackState = 'idle';
-    attacker.cooldownTimer = weapon.cooldown;
+    attacker.cooldownTimer = Math.max(8, Math.round(weapon.cooldown * (attacker.cooldownScale || 1)));
     attacker.lastAction = '재정비';
   }
 }
@@ -133,8 +133,10 @@ function resolveAttack(attacker, defender, state) {
   const positionalBonus = getPositionalBonus(attacker, defender);
   const personality = PERSONALITIES[attacker.personalityId];
   const aggressionBonus = 1 + personality.aggression * 0.08;
-  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * (crit ? 1.65 : 1);
-  const damage = Math.max(2, rawDamage * (1 - defender.defense));
+  const lowHpAttackBonus = attacker.hp / attacker.maxHp < 0.35 && attacker.skills?.includes('survival') ? 1.06 : 1;
+  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * (crit ? attacker.critDamage : 1);
+  const effectiveDefense = getEffectiveDefense(defender);
+  const damage = Math.max(2, rawDamage * (1 - effectiveDefense));
 
   defender.hp = clamp(defender.hp - damage, 0, defender.maxHp);
   attacker.hits += 1;
@@ -148,6 +150,11 @@ function resolveAttack(attacker, defender, state) {
     defender.isDead = true;
     defender.lastAction = '전투 불능';
   }
+}
+
+function getEffectiveDefense(unit) {
+  const lowHpBonus = unit.hp / unit.maxHp < 0.35 ? unit.lowHpDefenseBonus || 0 : 0;
+  return clamp(unit.defense + lowHpBonus, 0, 0.62);
 }
 
 function getPositionalBonus(attacker, defender) {
