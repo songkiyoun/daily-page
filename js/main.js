@@ -43,6 +43,7 @@ const controls = {
   simCount: document.getElementById('simCount'),
   simRunBtn: document.getElementById('simRunBtn'),
   simMatrixBtn: document.getElementById('simMatrixBtn'),
+  simMirrorAuditBtn: document.getElementById('simMirrorAuditBtn'),
   simCopyBtn: document.getElementById('simCopyBtn'),
   simResultBox: document.getElementById('simResultBox'),
   version: document.getElementById('versionBadge')
@@ -84,6 +85,7 @@ function init() {
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
   controls.simRunBtn.addEventListener('click', handleSimulationRun);
   controls.simMatrixBtn.addEventListener('click', handleSimulationMatrix);
+  controls.simMirrorAuditBtn.addEventListener('click', handleMirrorAudit);
   controls.simCopyBtn.addEventListener('click', handleSimulationCopy);
 
   run = createRun(readConfig());
@@ -228,7 +230,7 @@ function handleRewardClick(event) {
 
 function handleSimulationRun() {
   const count = readSimulationCount(10);
-  const result = simulateMatchSet({
+  const result = simulateFairMatchSet({
     playerWeapon: controls.simPlayerWeapon.value,
     playerPersonality: controls.simPlayerPersonality.value,
     enemyWeapon: controls.simEnemyWeapon.value,
@@ -243,7 +245,7 @@ function handleSimulationMatrix() {
   const rows = [];
   getAllCombatantConfigs().forEach((playerConfig) => {
     getAllCombatantConfigs().forEach((enemyConfig) => {
-      rows.push(simulateMatchSet({
+      rows.push(simulateFairMatchSet({
         playerWeapon: playerConfig.weaponId,
         playerPersonality: playerConfig.personalityId,
         enemyWeapon: enemyConfig.weaponId,
@@ -253,6 +255,18 @@ function handleSimulationMatrix() {
     });
   });
   renderSimulationMatrix(rows, count);
+}
+
+function handleMirrorAudit() {
+  const count = readSimulationCount(10);
+  const rows = getAllCombatantConfigs().map((config) => simulateFairMatchSet({
+    playerWeapon: config.weaponId,
+    playerPersonality: config.personalityId,
+    enemyWeapon: config.weaponId,
+    enemyPersonality: config.personalityId,
+    count
+  }));
+  renderMirrorAudit(rows, count);
 }
 
 function handleSimulationCopy() {
@@ -300,13 +314,51 @@ function readSimulationCount(defaultCount) {
   return Math.max(1, Math.min(50, value));
 }
 
-function simulateMatchSet({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality, count }) {
-  const summary = {
+function simulateFairMatchSet({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality, count }) {
+  const summary = createSimulationSummary({
     playerWeapon,
     playerPersonality,
     enemyWeapon,
     enemyPersonality,
     count,
+    fairnessMode: '양방향 보정'
+  });
+
+  for (let i = 0; i < count; i += 1) {
+    const spawnSkew = getSymmetricSpawnSkew(i);
+
+    const forward = simulateSingleMatch({
+      playerWeapon,
+      playerPersonality,
+      enemyWeapon,
+      enemyPersonality,
+      spawnSkew
+    });
+    addResultFromPerspective(summary, forward, false);
+
+    const reverse = simulateSingleMatch({
+      playerWeapon: enemyWeapon,
+      playerPersonality: enemyPersonality,
+      enemyWeapon: playerWeapon,
+      enemyPersonality: playerPersonality,
+      spawnSkew: -spawnSkew
+    });
+    addResultFromPerspective(summary, reverse, true);
+  }
+
+  finalizeSimulationSummary(summary);
+  return summary;
+}
+
+function createSimulationSummary({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality, count, fairnessMode }) {
+  return {
+    playerWeapon,
+    playerPersonality,
+    enemyWeapon,
+    enemyPersonality,
+    count,
+    actualCount: count * 2,
+    fairnessMode,
     wins: 0,
     losses: 0,
     draws: 0,
@@ -314,31 +366,75 @@ function simulateMatchSet({ playerWeapon, playerPersonality, enemyWeapon, enemyP
     enemyHits: 0,
     time: 0,
     playerHp: 0,
-    enemyHp: 0
+    enemyHp: 0,
+    forwardWins: 0,
+    reverseWins: 0,
+    forwardLosses: 0,
+    reverseLosses: 0,
+    forwardDraws: 0,
+    reverseDraws: 0
   };
-
-  for (let i = 0; i < count; i += 1) {
-    const result = simulateSingleMatch({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality });
-    if (result.outcome === 'victory') summary.wins += 1;
-    else if (result.outcome === 'defeat') summary.losses += 1;
-    else summary.draws += 1;
-    summary.playerHits += result.playerHits;
-    summary.enemyHits += result.enemyHits;
-    summary.time += result.time;
-    summary.playerHp += result.playerHp;
-    summary.enemyHp += result.enemyHp;
-  }
-
-  summary.winRate = summary.wins / count;
-  summary.avgPlayerHits = summary.playerHits / count;
-  summary.avgEnemyHits = summary.enemyHits / count;
-  summary.avgTime = summary.time / count;
-  summary.avgPlayerHp = summary.playerHp / count;
-  summary.avgEnemyHp = summary.enemyHp / count;
-  return summary;
 }
 
-function simulateSingleMatch({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality }) {
+function addResultFromPerspective(summary, result, invertedPerspective) {
+  let outcome = result.outcome;
+  let playerHits = result.playerHits;
+  let enemyHits = result.enemyHits;
+  let playerHp = result.playerHp;
+  let enemyHp = result.enemyHp;
+
+  if (invertedPerspective) {
+    outcome = invertOutcome(result.outcome);
+    playerHits = result.enemyHits;
+    enemyHits = result.playerHits;
+    playerHp = result.enemyHp;
+    enemyHp = result.playerHp;
+  }
+
+  if (outcome === 'victory') {
+    summary.wins += 1;
+    if (invertedPerspective) summary.reverseWins += 1;
+    else summary.forwardWins += 1;
+  } else if (outcome === 'defeat') {
+    summary.losses += 1;
+    if (invertedPerspective) summary.reverseLosses += 1;
+    else summary.forwardLosses += 1;
+  } else {
+    summary.draws += 1;
+    if (invertedPerspective) summary.reverseDraws += 1;
+    else summary.forwardDraws += 1;
+  }
+
+  summary.playerHits += playerHits;
+  summary.enemyHits += enemyHits;
+  summary.time += result.time;
+  summary.playerHp += playerHp;
+  summary.enemyHp += enemyHp;
+}
+
+function finalizeSimulationSummary(summary) {
+  const denominator = Math.max(1, summary.actualCount);
+  summary.winRate = summary.wins / denominator;
+  summary.avgPlayerHits = summary.playerHits / denominator;
+  summary.avgEnemyHits = summary.enemyHits / denominator;
+  summary.avgTime = summary.time / denominator;
+  summary.avgPlayerHp = summary.playerHp / denominator;
+  summary.avgEnemyHp = summary.enemyHp / denominator;
+  summary.mirrorDelta = Math.abs(50 - Math.round(summary.winRate * 100));
+}
+
+function invertOutcome(outcome) {
+  if (outcome === 'victory') return 'defeat';
+  if (outcome === 'defeat') return 'victory';
+  return 'draw';
+}
+
+function getSymmetricSpawnSkew(index) {
+  const sequence = [0, 36, -36, 64, -64, 18, -18, 82, -82, 48, -48, 28, -28, 72, -72, 8, -8];
+  return sequence[index % sequence.length];
+}
+
+function simulateSingleMatch({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality, spawnSkew = 0 }) {
   const simRun = createRun({ playerWeapon, playerPersonality });
   simRun.floor = TOWER_RULES.startFloor;
   simRun.player.stats = { ...PLAYER_START_STATS };
@@ -354,7 +450,7 @@ function simulateSingleMatch({ playerWeapon, playerPersonality, enemyWeapon, ene
     stats: { ...PLAYER_START_STATS },
     name: 'SIM ENEMY'
   });
-  const simState = createBattleState(simRun, { enemyConfig });
+  const simState = createBattleState(simRun, { enemyConfig, spawnSkew });
   startState(simState);
 
   const maxFrames = 60 * 110;
@@ -384,13 +480,15 @@ function renderSimulationResult(result) {
   controls.simResultBox.innerHTML = `
     <div class="sim-summary">
       <strong>${playerLabel} vs ${enemyLabel}</strong>
-      <span>${result.count}회 시뮬레이션 · 승률 ${Math.round(result.winRate * 100)}%</span>
+      <span>${result.count}회 양방향 보정 · 실제 ${result.actualCount}판 · 승률 ${Math.round(result.winRate * 100)}%</span>
     </div>
     <div class="sim-stat-grid">
       <div><span>승/패/무</span><strong>${result.wins}/${result.losses}/${result.draws}</strong></div>
       <div><span>평균 명중</span><strong>${result.avgPlayerHits.toFixed(1)} : ${result.avgEnemyHits.toFixed(1)}</strong></div>
       <div><span>평균 시간</span><strong>${result.avgTime.toFixed(1)}초</strong></div>
       <div><span>잔여 체력</span><strong>${result.avgPlayerHp.toFixed(0)} : ${result.avgEnemyHp.toFixed(0)}</strong></div>
+      <div><span>정방향 승/패/무</span><strong>${result.forwardWins}/${result.forwardLosses}/${result.forwardDraws}</strong></div>
+      <div><span>역방향 보정 승/패/무</span><strong>${result.reverseWins}/${result.reverseLosses}/${result.reverseDraws}</strong></div>
     </div>
     <textarea class="sim-copy-text" readonly>${escapeTextarea(lastSimulationText)}</textarea>
   `;
@@ -399,7 +497,7 @@ function renderSimulationResult(result) {
 function renderSimulationMatrix(rows, count) {
   lastSimulationText = buildMatrixSimulationText(rows, count);
   const table = rows.map((row) => `
-    <tr>
+    <tr class="${getSimulationRowClass(row)}">
       <td>${WEAPONS[row.playerWeapon].name}</td>
       <td>${PERSONALITIES[row.playerPersonality].name}</td>
       <td>${WEAPONS[row.enemyWeapon].name}</td>
@@ -407,13 +505,14 @@ function renderSimulationMatrix(rows, count) {
       <td>${Math.round(row.winRate * 100)}%</td>
       <td>${row.avgPlayerHits.toFixed(1)} : ${row.avgEnemyHits.toFixed(1)}</td>
       <td>${row.avgTime.toFixed(1)}초</td>
+      <td>${row.fairnessMode}</td>
     </tr>
   `).join('');
 
   controls.simResultBox.innerHTML = `
     <div class="sim-summary">
       <strong>전체 조합 비교</strong>
-      <span>내 16조합 × 상대 16조합 · 총 ${rows.length}매치업 · 각 ${count}회 · 미러전 포함</span>
+      <span>내 16조합 × 상대 16조합 · 총 ${rows.length}매치업 · 각 ${count}회 양방향 보정 · 실제 조합당 ${count * 2}판</span>
     </div>
     <table class="sim-table">
       <thead>
@@ -425,12 +524,62 @@ function renderSimulationMatrix(rows, count) {
           <th>승률</th>
           <th>평균 명중</th>
           <th>평균 시간</th>
+          <th>보정</th>
         </tr>
       </thead>
       <tbody>${table}</tbody>
     </table>
     <textarea class="sim-copy-text" readonly>${escapeTextarea(lastSimulationText)}</textarea>
   `;
+}
+
+function renderMirrorAudit(rows, count) {
+  lastSimulationText = buildMirrorAuditText(rows, count);
+  const table = rows.map((row) => `
+    <tr class="${getSimulationRowClass(row)}">
+      <td>${WEAPONS[row.playerWeapon].name}</td>
+      <td>${PERSONALITIES[row.playerPersonality].name}</td>
+      <td>${Math.round(row.winRate * 100)}%</td>
+      <td>${row.avgPlayerHits.toFixed(1)} : ${row.avgEnemyHits.toFixed(1)}</td>
+      <td>${row.avgTime.toFixed(1)}초</td>
+      <td>${getMirrorAuditLabel(row)}</td>
+    </tr>
+  `).join('');
+
+  controls.simResultBox.innerHTML = `
+    <div class="sim-summary">
+      <strong>미러전 검증</strong>
+      <span>16개 미러전 · 각 ${count}회 양방향 보정 · 실제 조합당 ${count * 2}판 · 45~55% 근처가 정상 기준</span>
+    </div>
+    <table class="sim-table">
+      <thead>
+        <tr>
+          <th>무기</th>
+          <th>성격</th>
+          <th>승률</th>
+          <th>평균 명중</th>
+          <th>평균 시간</th>
+          <th>판정</th>
+        </tr>
+      </thead>
+      <tbody>${table}</tbody>
+    </table>
+    <textarea class="sim-copy-text" readonly>${escapeTextarea(lastSimulationText)}</textarea>
+  `;
+}
+
+function getSimulationRowClass(row) {
+  const rate = Math.round(row.winRate * 100);
+  if (rate <= 25 || rate >= 75) return 'sim-alert';
+  if (rate <= 35 || rate >= 65) return 'sim-warn';
+  return '';
+}
+
+function getMirrorAuditLabel(row) {
+  const rate = Math.round(row.winRate * 100);
+  if (rate >= 45 && rate <= 55) return '정상';
+  if (rate >= 40 && rate <= 60) return '허용';
+  return '편향 확인';
 }
 
 function combatantLabel(weaponId, personalityId) {
@@ -441,7 +590,8 @@ function buildSingleSimulationText(result) {
   return [
     '[시뮬레이션 결과]',
     `버전: v${VERSION}`,
-    `반복: ${result.count}회`,
+    `반복: ${result.count}회 양방향 보정`,
+    `실제 전투 수: ${result.actualCount}판`,
     `내 세팅: ${combatantLabel(result.playerWeapon, result.playerPersonality)} / 스탯 5-5-5-5-5`,
     `상대 세팅: ${combatantLabel(result.enemyWeapon, result.enemyPersonality)} / 스탯 5-5-5-5-5`,
     '',
@@ -449,7 +599,9 @@ function buildSingleSimulationText(result) {
     `승률: ${Math.round(result.winRate * 100)}%`,
     `평균 명중: 내 ${result.avgPlayerHits.toFixed(1)}회 / 상대 ${result.avgEnemyHits.toFixed(1)}회`,
     `평균 전투 시간: ${result.avgTime.toFixed(1)}초`,
-    `평균 잔여 체력: 내 ${result.avgPlayerHp.toFixed(0)} / 상대 ${result.avgEnemyHp.toFixed(0)}`
+    `평균 잔여 체력: 내 ${result.avgPlayerHp.toFixed(0)} / 상대 ${result.avgEnemyHp.toFixed(0)}`,
+    `정방향 승/패/무: ${result.forwardWins}/${result.forwardLosses}/${result.forwardDraws}`,
+    `역방향 보정 승/패/무: ${result.reverseWins}/${result.reverseLosses}/${result.reverseDraws}`
   ].join('\n');
 }
 
@@ -457,10 +609,11 @@ function buildMatrixSimulationText(rows, count) {
   const lines = [
     '[전체 조합 시뮬레이션 결과]',
     `버전: v${VERSION}`,
-    `반복: 각 ${count}회`,
-    '기준: 1층 / 양쪽 스탯 5-5-5-5-5 / 미러전 포함',
+    `반복: 각 ${count}회 양방향 보정`,
+    `실제 전투 수: 조합당 ${count * 2}판`,
+    '기준: 1층 / 양쪽 스탯 5-5-5-5-5 / 미러전 포함 / A-B와 B-A 방향 평균',
     '',
-    '내무기\t내성격\t상대무기\t상대성격\t승률\t내평균명중\t상대평균명중\t평균시간\t내잔여체력\t상대잔여체력'
+    '내무기\t내성격\t상대무기\t상대성격\t승률\t내평균명중\t상대평균명중\t평균시간\t내잔여체력\t상대잔여체력\t정방향승패무\t역방향승패무\t보정'
   ];
 
   rows.forEach((row) => {
@@ -474,7 +627,38 @@ function buildMatrixSimulationText(rows, count) {
       row.avgEnemyHits.toFixed(1),
       row.avgTime.toFixed(1),
       row.avgPlayerHp.toFixed(0),
-      row.avgEnemyHp.toFixed(0)
+      row.avgEnemyHp.toFixed(0),
+      `${row.forwardWins}/${row.forwardLosses}/${row.forwardDraws}`,
+      `${row.reverseWins}/${row.reverseLosses}/${row.reverseDraws}`,
+      row.fairnessMode
+    ].join('\t'));
+  });
+
+  return lines.join('\n');
+}
+
+function buildMirrorAuditText(rows, count) {
+  const lines = [
+    '[미러전 검증 결과]',
+    `버전: v${VERSION}`,
+    `반복: 각 ${count}회 양방향 보정`,
+    `실제 전투 수: 조합당 ${count * 2}판`,
+    '기준: 같은 무기·성격끼리 45~55% 근처면 정상, 40~60%까지 허용',
+    '',
+    '무기\t성격\t승률\t내평균명중\t상대평균명중\t평균시간\t내잔여체력\t상대잔여체력\t판정'
+  ];
+
+  rows.forEach((row) => {
+    lines.push([
+      WEAPONS[row.playerWeapon].name,
+      PERSONALITIES[row.playerPersonality].name,
+      `${Math.round(row.winRate * 100)}%`,
+      row.avgPlayerHits.toFixed(1),
+      row.avgEnemyHits.toFixed(1),
+      row.avgTime.toFixed(1),
+      row.avgPlayerHp.toFixed(0),
+      row.avgEnemyHp.toFixed(0),
+      getMirrorAuditLabel(row)
     ].join('\t'));
   });
 
@@ -484,6 +668,7 @@ function buildMatrixSimulationText(rows, count) {
 function escapeTextarea(text) {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
+
 
 
 function loop() {

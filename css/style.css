@@ -594,3 +594,17 @@ input[type="number"] {
     grid-template-columns: 1fr;
   }
 }
+
+
+.sim-table tr.sim-warn td {
+  background: rgba(255, 212, 90, 0.045);
+}
+
+.sim-table tr.sim-alert td {
+  background: rgba(255, 90, 90, 0.055);
+}
+
+.sim-table tr.sim-warn td:first-child,
+.sim-table tr.sim-alert td:first-child {
+  border-left: 2px solid rgba(255, 212, 90, 0.42);
+}

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.6.5-simulator-center-layout" />
-  <title>Circle Battle Tower Rebuild v0.6.5</title>
+  <meta name="build" content="circle-battle-rebuild-v0.6.6-simulator-center-layout" />
+  <title>Circle Battle Tower Rebuild v0.6.6</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
@@ -13,9 +13,9 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">전투 박스 하단에서 모든 무기·성격 조합을 비교할 수 있는 v0.6.5 뼈대입니다.</p>
+        <p class="subtext">전투 박스 하단에서 모든 무기·성격 조합을 비교할 수 있는 v0.6.6 뼈대입니다.</p>
       </div>
-      <div id="versionBadge" class="version">v0.6.5</div>
+      <div id="versionBadge" class="version">v0.6.6</div>
     </header>
 
     <section class="layout">
@@ -74,7 +74,7 @@
           <div class="simulator-head">
             <div>
               <h2>전투 시뮬레이터</h2>
-              <p class="hint-text">1층 기본 스탯 5 기준으로 실제 전투 로직을 반복 실행합니다. 전체 비교는 내 조합과 상대 조합을 모두 돌리며 미러전까지 포함합니다.</p>
+              <p class="hint-text">1층 기본 스탯 5 기준으로 실제 전투 로직을 반복 실행합니다. 전체 비교는 내 조합과 상대 조합을 모두 돌리며, A/B 양방향 보정과 미러전 검증을 지원합니다.</p>
             </div>
             <div class="sim-badge">기본 10회</div>
           </div>
@@ -103,6 +103,7 @@
           <div class="button-row simulator-buttons">
             <button id="simRunBtn" class="button">선택 조합 실행</button>
             <button id="simMatrixBtn" class="button primary">전체 256조합 비교</button>
+            <button id="simMirrorAuditBtn" class="button">미러전 검증</button>
             <button id="simCopyBtn" class="button">결과 복사</button>
           </div>
           <div id="simResultBox" class="sim-result-box large">아직 시뮬레이션을 실행하지 않았습니다.</div>
