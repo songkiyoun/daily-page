@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.5.0';
+export const VERSION = '0.5.1';
 
 export const WEAPONS = {
   spear: {
@@ -12,6 +12,9 @@ export const WEAPONS = {
     range: 112,
     minRange: 58,
     idealRange: 96,
+    neutralBuffer: 18,
+    attackStartBuffer: 23,
+    hitReachBonus: 2,
     arc: 0.26,
     damage: 15,
     cooldown: 66,
@@ -22,7 +25,7 @@ export const WEAPONS = {
     impactStopFrames: 5,
     swingVisualArc: 0.18,
     windupDriftScale: 0.36,
-    activeLungeScale: 1.18,
+    activeLungeScale: 1.52,
     recoveryMoveScale: 1.12,
     turnSpeed: 0.052,
     windupTurnScale: 0.5,
@@ -39,8 +42,8 @@ export const WEAPONS = {
     strafeWeight: 0.44,
     approachOffset: 0.18,
     flankBias: 0.2,
-    lungePower: 0.74,
-    recoveryBackstep: 0.7
+    lungePower: 1.18,
+    recoveryBackstep: 0.74
   },
   western: {
     id: 'western',
@@ -49,7 +52,10 @@ export const WEAPONS = {
     range: 74,
     minRange: 12,
     idealRange: 61,
-    arc: 1.3,
+    neutralBuffer: 13,
+    attackStartBuffer: 15,
+    hitReachBonus: 4,
+    arc: 1.08,
     damage: 19,
     cooldown: 58,
     windup: 12,
@@ -59,7 +65,7 @@ export const WEAPONS = {
     impactStopFrames: 5,
     swingVisualArc: 1.8,
     windupDriftScale: 0.48,
-    activeLungeScale: 0.9,
+    activeLungeScale: 1.08,
     recoveryMoveScale: 1.15,
     turnSpeed: 0.07,
     windupTurnScale: 0.58,
@@ -76,7 +82,7 @@ export const WEAPONS = {
     strafeWeight: 0.62,
     approachOffset: 0.56,
     flankBias: 0.48,
-    lungePower: 0.58,
+    lungePower: 0.86,
     recoveryBackstep: 0.52
   },
   eastern: {
@@ -86,6 +92,9 @@ export const WEAPONS = {
     range: 59,
     minRange: 6,
     idealRange: 44,
+    neutralBuffer: 10,
+    attackStartBuffer: 13,
+    hitReachBonus: 4,
     arc: 0.88,
     damage: 12,
     cooldown: 31,
@@ -96,7 +105,7 @@ export const WEAPONS = {
     impactStopFrames: 3,
     swingVisualArc: 1.28,
     windupDriftScale: 0.72,
-    activeLungeScale: 1.05,
+    activeLungeScale: 1.22,
     recoveryMoveScale: 0.92,
     turnSpeed: 0.118,
     windupTurnScale: 0.72,
@@ -113,7 +122,7 @@ export const WEAPONS = {
     strafeWeight: 0.82,
     approachOffset: 0.86,
     flankBias: 0.7,
-    lungePower: 0.68,
+    lungePower: 1.0,
     recoveryBackstep: 0.42
   },
   dagger: {
@@ -123,6 +132,9 @@ export const WEAPONS = {
     range: 43,
     minRange: 0,
     idealRange: 31,
+    neutralBuffer: 9,
+    attackStartBuffer: 14,
+    hitReachBonus: 3,
     arc: 0.58,
     damage: 8,
     cooldown: 22,
@@ -133,7 +145,7 @@ export const WEAPONS = {
     impactStopFrames: 2,
     swingVisualArc: 0.62,
     windupDriftScale: 0.82,
-    activeLungeScale: 1.26,
+    activeLungeScale: 1.48,
     recoveryMoveScale: 0.8,
     turnSpeed: 0.162,
     windupTurnScale: 0.82,
@@ -154,8 +166,8 @@ export const WEAPONS = {
     strafeWeight: 1.08,
     approachOffset: 1.25,
     flankBias: 1.18,
-    lungePower: 0.92,
-    recoveryBackstep: 0.34
+    lungePower: 1.24,
+    recoveryBackstep: 1.18
   }
 };
 

@@ -244,12 +244,13 @@ function canStartAttack(attacker, defender) {
   const startTolerance = daggerMirror
     ? 1.45
     : Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52);
+  const attackStartReach = getAttackStartReach(attacker, defender, weapon);
 
-  if (defender.staggerTimer > 0 && dist <= weapon.range + defender.radius + getReachBonus(attacker, weapon)) {
+  if (defender.staggerTimer > 0 && dist <= attackStartReach) {
     return true;
   }
 
-  if (dist > weapon.range + defender.radius + getReachBonus(attacker, weapon)) return false;
+  if (dist > attackStartReach) return false;
   if (dist < weapon.minRange) return false;
   if (angleGap > startTolerance) return false;
 
@@ -381,8 +382,15 @@ function applyAttackLunge(attacker, weapon, scale = 1) {
   const forwardAngle = attacker.facing;
   const sideAngle = forwardAngle + Math.PI / 2 * attacker.orbitDir;
   const lungeScale = weapon.activeLungeScale || 1;
-  const forward = weapon.lungePower * 0.42 * scale * lungeScale;
-  const side = weapon.strafeWeight * 0.08 * scale * (weapon.id === 'spear' ? 0.45 : 1);
+  const weaponFactor = weapon.id === 'spear'
+    ? 2.62
+    : weapon.id === 'western'
+      ? 2.18
+      : weapon.id === 'eastern'
+        ? 2.36
+        : 2.54;
+  const forward = weapon.lungePower * weaponFactor * scale * lungeScale;
+  const side = weapon.strafeWeight * 0.055 * scale * (weapon.id === 'spear' ? 0.28 : 0.82);
 
   attacker.vx += Math.cos(forwardAngle) * forward + Math.cos(sideAngle) * side;
   attacker.vy += Math.sin(forwardAngle) * forward + Math.sin(sideAngle) * side;
@@ -423,7 +431,7 @@ function resolveAttack(attacker, defender, state) {
   const hitArc = daggerMirror ? 1.22 : getHitArc(attacker, weapon);
   const reachBonus = getReachBonus(attacker, weapon);
 
-  if (dist > weapon.range + defender.radius + reachBonus) return false;
+  if (dist > getHitReach(attacker, defender, weapon) + reachBonus) return false;
   if (dist < weapon.minRange) return false;
   if (angleGap > hitArc) return false;
 
@@ -582,6 +590,16 @@ function getHitArc(attacker, weapon) {
   if (weapon.id === 'eastern') return weapon.arc * 1.06;
   if (weapon.id === 'dagger') return weapon.arc * 1.12;
   return weapon.arc;
+}
+
+function getAttackStartReach(attacker, defender, weapon) {
+  const startBuffer = weapon.attackStartBuffer || 0;
+  return weapon.range + defender.radius + getReachBonus(attacker, weapon) + startBuffer;
+}
+
+function getHitReach(attacker, defender, weapon) {
+  const hitReachBonus = weapon.hitReachBonus || 0;
+  return weapon.range + defender.radius + hitReachBonus;
 }
 
 function getReachBonus(attacker, weapon) {

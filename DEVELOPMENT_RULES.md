@@ -148,7 +148,7 @@ v0.3.1: fix reward button render lifecycle
 - 패링 관련 수치와 무기별 패링 효율은 `data.js`에서만 관리합니다.
 - 패링 시각 효과는 `render.js`에서만 처리하며 전투 계산에 영향을 주지 않습니다.
 
-## v0.5.0 추가 기준
+## v0.5.1 추가 기준
 
 - 무기별 공격 리듬 수치는 `data.js`의 WEAPONS 안에서만 관리합니다.
 - 공격 준비, 타격, 후딜 전환은 `battle.js`의 기존 `updateAttackState` 흐름 안에서만 수정합니다.

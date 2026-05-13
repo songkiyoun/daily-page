@@ -287,17 +287,26 @@ function threatMovement(self, enemy, toEnemy, fromEnemy, threat, personality) {
 }
 
 function getDesiredRange(self, enemy, weapon, personality) {
-  let desired = weapon.idealRange * (personality.rangeScale || 1);
+  const enemyRadius = enemy?.radius || 17;
+  const outsideBuffer = weapon.neutralBuffer ?? 10;
+  const personalityRangeShift = ((personality.rangeScale || 1) - 1) * 26;
+  let desired = weapon.range + enemyRadius + outsideBuffer + personalityRangeShift;
+
+  if (personality.id === 'aggressive') desired -= 6;
+  if (personality.id === 'defensive') desired += 6;
+  if (personality.id === 'assassin' && weapon.id !== 'spear') desired -= 4;
 
   if (enemy.weaponId === 'spear' && (weapon.id === 'dagger' || weapon.id === 'eastern')) {
-    desired = Math.max(24, WEAPONS.spear.minRange - 22);
+    desired = Math.min(desired, WEAPONS.spear.minRange + enemyRadius + 4);
   }
 
   if (weapon.id === 'spear' && enemy.weaponId === 'dagger') {
-    desired += 10;
+    desired += 8;
   }
 
-  return clamp(desired, weapon.minRange + 12, weapon.range - 4);
+  const minDesired = weapon.minRange + enemyRadius + 8;
+  const maxDesired = weapon.range + enemyRadius + outsideBuffer + 24;
+  return clamp(desired, minDesired, maxDesired);
 }
 
 function getIncomingThreat(self, enemy, relation) {
