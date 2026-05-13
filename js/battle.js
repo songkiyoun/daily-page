@@ -256,9 +256,9 @@ function tryCloseRangeReset(unit, enemy, movement) {
   const pushAngle = angleTo(unit, enemy);
   const sideAngle = pushAngle + Math.PI / 2 * unit.orbitDir;
   const identityPush = (weapon.closePushScale || 1) * (personality.closePushScale || 1);
-  const force = (spearPinned ? 5.8 : 3.8) * identityPush;
-  const sideForce = (spearPinned ? 1.45 : 1.35) * identityPush;
-  const selfSide = (spearPinned ? 2.1 : 1.55) * identityPush;
+  const force = (spearPinned ? 7.2 : 4.2) * identityPush;
+  const sideForce = (spearPinned ? 1.8 : 1.4) * identityPush;
+  const selfSide = (spearPinned ? 2.35 : 1.6) * identityPush;
 
   enemy.vx += Math.cos(pushAngle) * force + Math.cos(sideAngle) * sideForce;
   enemy.vy += Math.sin(pushAngle) * force + Math.sin(sideAngle) * sideForce;
@@ -946,13 +946,15 @@ function applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality = 0) {
     if (hitQuality > 0.55) defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, weapon.hitStunFrames || 4);
   }
 
-  if (weapon.id === 'spear' && hitQuality > 0.45) {
-    defender.retreatLockout = Math.max(defender.retreatLockout || 0, 12);
+  if (weapon.id === 'spear' && hitQuality > 0.38) {
+    defender.retreatLockout = Math.max(defender.retreatLockout || 0, 16);
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, Math.round(POSTURE_RULES.recoveryDelayFrames * 0.52 * identityScale));
+    attacker.cooldownTimer = Math.min(attacker.cooldownTimer || weapon.cooldown, Math.max(12, Math.round(weapon.cooldown * 0.72)));
   }
 }
 
 function getHitForwardKnockbackScale(weapon) {
-  if (weapon.id === 'spear') return 0.46;
+  if (weapon.id === 'spear') return 0.58;
   if (weapon.id === 'western') return 0.24;
   if (weapon.id === 'eastern') return 0.22;
   if (weapon.id === 'dagger') return 0.08;
