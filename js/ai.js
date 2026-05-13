@@ -30,6 +30,9 @@ export function decideMovement(self, enemy, state = null) {
   const alreadyAtFightRange = dist >= desired - 8;
   const spearMirrorHold = weapon.id === 'spear' && enemy.weaponId === 'spear' && dist >= weapon.minRange + 16;
   if (lowHpRetreat && personality.caution > 0.45) {
+    if (self.weaponId === 'dagger') {
+      return daggerLowHpEvasion(self, enemy, desired, toEnemy, fromEnemy, dist, relation, personality);
+    }
     if (retreatLimited || retreatStalled || alreadyAtFightRange || spearMirrorHold) {
       return resetAngleMovement(self, enemy, desired, toEnemy, dist, personality, '방어형 견제 재정렬');
     }
@@ -166,11 +169,25 @@ function exploitStaggerMovement(self, enemy, desired, toEnemy, dist, relation, w
   return vectorFromAngle(sideAngle(toEnemy, self.orbitDir), 0.36, toEnemy, '흐트러짐 압박');
 }
 
+
+function daggerLowHpEvasion(self, enemy, desired, toEnemy, fromEnemy, dist, relation, personality) {
+  const side = self.orbitDir || 1;
+  if (relation.isFront || dist < desired + 4) {
+    const wideSide = angleToRingPointByFacing(self, enemy, Math.max(48, desired + 18), side * Math.PI / 2);
+    return blendAngles(wideSide, fromEnemy, 0.18, 1.46 + personality.orbit * 0.12, toEnemy, '단검 저체력 측면 회피');
+  }
+  const backAngle = angleToRingPointByFacing(self, enemy, Math.max(30, desired), Math.PI + side * 0.42);
+  return vectorFromAngle(backAngle, 1.18, toEnemy, '단검 저체력 측후방 재정렬');
+}
+
 function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality) {
   const flankPower = clamp((weapon.flankBias || 0.5) * 0.62 + personality.flankPreference * 0.58, 0.5, 1.55);
   const sideRadius = Math.max(26, desired + (relation.isFront ? 26 : 12));
   const backRadius = Math.max(22, desired - 1);
-  const opportunity = getDaggerOpportunity(enemy);
+  let opportunity = getDaggerOpportunity(enemy);
+  if (weapon.id === 'dagger' && enemy.weaponId === 'spear' && !relation.isFront && dist < desired + 94) {
+    opportunity = relation.isBack || enemy.attackState === 'recovery' || enemy.postureRecoveryDelay > 0 ? 'hard' : (opportunity || 'soft');
+  }
   const burstReady = (self.daggerBurstCooldown || 0) <= 0;
 
   if (weapon.id === 'dagger') {
@@ -303,6 +320,10 @@ function daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, re
   const close = dist < desired + 12;
   const tooClose = dist < Math.max(18, desired - 8);
   const mirrorDir = self.side === 'player' ? 1 : -1;
+  if (self.orbitDir === enemy.orbitDir && (self.orbitFlipTimer || 0) > 18) {
+    self.orbitDir = mirrorDir;
+    self.orbitFlipTimer = 26;
+  }
   const selfSide = self.orbitDir === enemy.orbitDir ? mirrorDir : self.orbitDir;
 
   if (dist > desired + 16) {

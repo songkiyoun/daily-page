@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.1';
+export const VERSION = '0.6.2';
 
 export const WEAPONS = {
   spear: {
@@ -27,14 +27,14 @@ export const WEAPONS = {
     windupDriftScale: 0.42,
     activeLungeScale: 1.96,
     recoveryMoveScale: 1.24,
-    turnSpeed: 0.052,
-    windupTurnScale: 0.46,
-    activeTurnScale: 0.2,
-    recoveryTurnScale: 0.22,
-    shakenTurnScale: 0.48,
-    feintResponseTurnScale: 0.56,
+    turnSpeed: 0.048,
+    windupTurnScale: 0.4,
+    activeTurnScale: 0.17,
+    recoveryTurnScale: 0.17,
+    shakenTurnScale: 0.4,
+    feintResponseTurnScale: 0.42,
     hitRecoveryScale: 0.82,
-    failRecoveryScale: 1.22,
+    failRecoveryScale: 1.3,
     postureDamage: 24,
     parryEfficiency: 0.36,
     parryBreak: 0.1,
@@ -55,8 +55,8 @@ export const WEAPONS = {
     identity: '거리 재설정',
     identityNote: '맞히면 상대를 크게 밀어 다시 창 사거리를 만든다. 패링당하면 크게 흔들리고 회복이 느리다.',
     closePushScale: 1.62,
-    staggerRecoveryPenalty: 1.36,
-    parryRecoveryPenalty: 1.34,
+    staggerRecoveryPenalty: 1.42,
+    parryRecoveryPenalty: 1.42,
     comboOnHit: 0,
     hitStunFrames: 2,
     feintStrength: 0.08,
@@ -336,7 +336,7 @@ export const PERSONALITIES = {
     caution: 0.52,
     orbit: 0.96,
     rangeScale: 0.86,
-    retreatHpRatio: 0.26,
+    retreatHpRatio: 0.2,
     flankPreference: 1,
     pressure: 0.58,
     parryBonus: 0.02,
@@ -398,7 +398,7 @@ export const POSTURE_RULES = {
   staggerFrames: 52,
   staggerPostureRestoreRatio: 0.42,
   staggerDamageTakenBonus: 1.12,
-  staggerMoveScale: 0.08,
+  staggerMoveScale: 0.12,
   minPostureDamage: 3,
   impactTurnMin: 0.18,
   impactTurnMax: 0.78,
@@ -410,9 +410,9 @@ export const POSTURE_RULES = {
   closeResetPostureDamage: 17,
   weaponClashCooldown: 24,
   weaponClashPostureDamage: 11,
-  daggerFlankPressureFrames: 18,
-  daggerFlankTurnScale: 0.38,
-  daggerBurstCooldownFrames: 24,
+  daggerFlankPressureFrames: 26,
+  daggerFlankTurnScale: 0.32,
+  daggerBurstCooldownFrames: 19,
   parryBaseChance: 0.08,
   parryMaxChance: 0.62,
   parryFrontArc: 0.82,
@@ -431,7 +431,7 @@ export const POSTURE_RULES = {
   daggerFeintFrames: 42,
   daggerCutFrames: 15,
   daggerResetFrames: 30,
-  daggerCutTurnLagFrames: 38,
+  daggerCutTurnLagFrames: 44,
   easternComboWindowFrames: 28,
   easternComboMax: 2,
   riposteWindowFrames: 38

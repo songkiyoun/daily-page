@@ -170,7 +170,11 @@ function getTurnSpeed(unit) {
   if (unit.attackState === 'active') scale *= weapon.activeTurnScale;
   if (unit.attackState === 'recovery') scale *= weapon.recoveryTurnScale;
   if (unit.postureRecoveryDelay > 0) scale *= weapon.shakenTurnScale || 0.78;
-  if (unit.flankPressureTimer > 0) scale *= (weapon.feintResponseTurnScale || 1) * POSTURE_RULES.daggerFlankTurnScale;
+  if (unit.flankPressureTimer > 0) {
+    scale *= (weapon.feintResponseTurnScale || 1) * POSTURE_RULES.daggerFlankTurnScale;
+    if (unit.weaponId === 'spear') scale *= 0.86;
+    if (unit.weaponId === 'western') scale *= 0.92;
+  }
   if (unit.parryFlashTimer > 0) scale *= Math.min(0.74, weapon.shakenTurnScale || 0.72);
   if (unit.posture < unit.maxPosture * 0.35) scale *= Math.min(0.9, (weapon.shakenTurnScale || 0.86) + 0.12);
   if (unit.staggerTimer > 0) scale *= POSTURE_RULES.staggerMoveScale;
@@ -810,9 +814,10 @@ function hasDaggerAttackAngle(attacker, defender) {
   const defenderLowHp = defender.hp / defender.maxHp < 0.22;
   const committedBurst = isDaggerBurstLabel(attacker.lastAction) && dist < WEAPONS.dagger.range + defender.radius + 12;
   const defenderBusy = defender.attackState !== 'idle' || defender.cooldownTimer > 10 || defender.flankPressureTimer > 0;
+  const spearWindow = defender.weaponId === 'spear' && (defender.flankPressureTimer > 0 || defender.attackState === 'recovery' || defender.postureRecoveryDelay > 0);
   const daggerMirrorCommit = defender.weaponId === 'dagger' && dist < WEAPONS.dagger.range + defender.radius + 8 && frontGap < 1.62;
 
-  return backGap < 1.32 || sideGap < 1.04 || defenderLowHp || committedBurst || (defenderBusy && sideGap < 1.22) || daggerMirrorCommit;
+  return backGap < 1.32 || sideGap < 1.04 || defenderLowHp || committedBurst || (defenderBusy && sideGap < 1.22) || (spearWindow && sideGap < 1.36) || daggerMirrorCommit;
 }
 
 function isDirectlyInFrontOf(observer, target) {
@@ -839,7 +844,7 @@ function getPositionalBonus(attacker, defender) {
 
   if (backGap < 1.12) return weapon.backBonus;
   if (flankGap < 1.02) return weapon.flankBonus;
-  if (defender.flankPressureTimer > 0 && flankGap < 1.18) return (weapon.flankBonus + 1) / 2;
+  if (defender.flankPressureTimer > 0 && flankGap < 1.22) return defender.weaponId === 'spear' ? Math.max(weapon.flankBonus * 0.92, 1.32) : (weapon.flankBonus + 1) / 2;
   return 1;
 }
 
@@ -907,7 +912,7 @@ function getStaggerDurationScale(unit, attacker) {
       ? 1.12
       : victimWeapon.id === 'eastern'
         ? 0.94
-        : 0.78;
+        : 0.62;
   const attackerScale = attackerWeapon?.staggerRecoveryPenalty || 1;
   return victimScale * attackerScale;
 }
@@ -917,7 +922,7 @@ function triggerStagger(unit, attacker, state = null) {
   unit.staggerTimer = Math.round(POSTURE_RULES.staggerFrames * getStaggerDurationScale(unit, attacker));
   unit.attackState = 'idle';
   unit.attackTimer = 0;
-  unit.cooldownTimer = Math.max(unit.cooldownTimer, 22);
+  unit.cooldownTimer = Math.max(unit.cooldownTimer, unit.weaponId === 'dagger' ? 14 : 22);
   unit.posture = Math.round(unit.maxPosture * POSTURE_RULES.staggerPostureRestoreRatio);
   unit.postureRecoveryDelay = getPostureRecoveryDelay(unit, 1.1);
   unit.retreatFrames = 0;
