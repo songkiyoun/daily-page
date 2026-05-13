@@ -28,6 +28,14 @@ function updateUnit(unit, enemy, state) {
   const weapon = WEAPONS[unit.weaponId];
   tickTimers(unit);
 
+  if (unit.impactStopTimer > 0) {
+    unit.impactStopTimer -= 1;
+    unit.vx *= 0.62;
+    unit.vy *= 0.62;
+    unit.lastAction = unit.lastAction.includes('패링') ? unit.lastAction : '충격 정지';
+    return;
+  }
+
   if (unit.staggerTimer > 0) {
     applyStaggerDrift(unit);
     unit.lastAction = '자세 흐트러짐';
@@ -261,11 +269,15 @@ function beginAttack(attacker, defender) {
   const weapon = WEAPONS[attacker.weaponId];
   attacker.attackState = 'windup';
   attacker.attackTimer = weapon.windup;
+  attacker.attackWindupMax = weapon.windup;
+  attacker.attackActiveMax = getActiveFrames(attacker);
+  attacker.attackRecoveryMax = weapon.recovery;
   attacker.attackResolved = false;
   attacker.attackAim = angleTo(attacker, defender);
-  attacker.vx *= 0.42;
-  attacker.vy *= 0.42;
-  attacker.lastAction = '공격 준비';
+  attacker.attackVisualPhase = 0;
+  attacker.vx *= getAttackEntryBrake(attacker.weaponId);
+  attacker.vy *= getAttackEntryBrake(attacker.weaponId);
+  attacker.lastAction = getWindupLabel(attacker.weaponId);
 }
 
 function updateAttackState(attacker, defender, state) {
@@ -273,11 +285,13 @@ function updateAttackState(attacker, defender, state) {
   attacker.attackTimer -= 1;
 
   if (attacker.attackState === 'windup') {
+    attacker.attackVisualPhase = 1 - attacker.attackTimer / Math.max(1, attacker.attackWindupMax || weapon.windup);
     applyWindupDrift(attacker, weapon);
     if (attacker.attackTimer <= 0) {
       attacker.attackState = 'active';
-      attacker.attackTimer = getActiveFrames(attacker);
-      attacker.lastAction = '타격 판정';
+      attacker.attackTimer = attacker.attackActiveMax || getActiveFrames(attacker);
+      attacker.attackVisualPhase = 0;
+      attacker.lastAction = getActiveLabel(attacker.weaponId);
       applyAttackLunge(attacker, weapon);
       attacker.attackResolved = resolveAttack(attacker, defender, state);
     }
@@ -285,22 +299,27 @@ function updateAttackState(attacker, defender, state) {
   }
 
   if (attacker.attackState === 'active') {
+    attacker.attackVisualPhase = 1 - attacker.attackTimer / Math.max(1, attacker.attackActiveMax || getActiveFrames(attacker));
     applyAttackLunge(attacker, weapon, 0.36);
     if (!attacker.attackResolved) {
       attacker.attackResolved = resolveAttack(attacker, defender, state);
     }
     if (attacker.attackTimer <= 0) {
       attacker.attackState = 'recovery';
-      attacker.attackTimer = weapon.recovery;
-      attacker.lastAction = '후딜';
+      const missPenalty = attacker.attackResolved ? 0 : (weapon.missRecoveryAdd || 0);
+      attacker.attackTimer = weapon.recovery + missPenalty;
+      attacker.attackRecoveryMax = attacker.attackTimer;
+      attacker.lastAction = attacker.attackResolved ? getRecoveryLabel(attacker.weaponId) : '헛침 후딜';
     }
     return;
   }
 
   if (attacker.attackState === 'recovery') {
+    attacker.attackVisualPhase = 1 - attacker.attackTimer / Math.max(1, attacker.attackRecoveryMax || weapon.recovery);
     applyRecoveryStep(attacker, defender, weapon);
     if (attacker.attackTimer <= 0) {
       attacker.attackState = 'idle';
+      attacker.attackVisualPhase = 0;
       attacker.cooldownTimer = Math.max(8, Math.round(weapon.cooldown * (attacker.cooldownScale || 1)));
       attacker.lastAction = '재정비';
     }
@@ -308,21 +327,52 @@ function updateAttackState(attacker, defender, state) {
 }
 
 function getActiveFrames(attacker) {
-  if (attacker.weaponId === 'spear') return 4;
-  if (attacker.weaponId === 'western') return 7;
-  if (attacker.weaponId === 'eastern') return 5;
-  if (attacker.weaponId === 'dagger') return 4;
-  return 5;
+  return WEAPONS[attacker.weaponId]?.activeFrames || 5;
+}
+
+function getAttackEntryBrake(weaponId) {
+  if (weaponId === 'spear') return 0.3;
+  if (weaponId === 'western') return 0.34;
+  if (weaponId === 'eastern') return 0.46;
+  if (weaponId === 'dagger') return 0.52;
+  return 0.42;
+}
+
+function getWindupLabel(weaponId) {
+  if (weaponId === 'spear') return '창 찌르기 준비';
+  if (weaponId === 'western') return '서양검 크게 감기';
+  if (weaponId === 'eastern') return '동양검 빠른 발도';
+  if (weaponId === 'dagger') return '단검 찌르기 준비';
+  return '공격 준비';
+}
+
+function getActiveLabel(weaponId) {
+  if (weaponId === 'spear') return '창 찌르기';
+  if (weaponId === 'western') return '서양검 베기';
+  if (weaponId === 'eastern') return '동양검 베기';
+  if (weaponId === 'dagger') return '단검 찌르기';
+  return '타격 판정';
+}
+
+function getRecoveryLabel(weaponId) {
+  if (weaponId === 'spear') return '창 회수';
+  if (weaponId === 'western') return '서양검 후딜';
+  if (weaponId === 'eastern') return '동양검 이탈';
+  if (weaponId === 'dagger') return '단검 빠른 이탈';
+  return '후딜';
 }
 
 function applyWindupDrift(attacker, weapon) {
   const sideAngle = attacker.facing + Math.PI / 2 * attacker.orbitDir;
-  const sidePower = weapon.strafeWeight * 0.025;
+  const backAngle = attacker.facing + Math.PI;
+  const driftScale = weapon.windupDriftScale || 0.5;
+  const sidePower = weapon.strafeWeight * 0.025 * driftScale;
+  const backPower = weapon.id === 'western' ? 0.018 : weapon.id === 'spear' ? 0.012 : 0.004;
 
-  attacker.vx += Math.cos(sideAngle) * sidePower;
-  attacker.vy += Math.sin(sideAngle) * sidePower;
-  attacker.vx *= 0.9;
-  attacker.vy *= 0.9;
+  attacker.vx += Math.cos(sideAngle) * sidePower + Math.cos(backAngle) * backPower;
+  attacker.vy += Math.sin(sideAngle) * sidePower + Math.sin(backAngle) * backPower;
+  attacker.vx *= weapon.id === 'dagger' ? 0.92 : 0.88;
+  attacker.vy *= weapon.id === 'dagger' ? 0.92 : 0.88;
   attacker.x += attacker.vx;
   attacker.y += attacker.vy;
 }
@@ -330,8 +380,9 @@ function applyWindupDrift(attacker, weapon) {
 function applyAttackLunge(attacker, weapon, scale = 1) {
   const forwardAngle = attacker.facing;
   const sideAngle = forwardAngle + Math.PI / 2 * attacker.orbitDir;
-  const forward = weapon.lungePower * 0.42 * scale;
-  const side = weapon.strafeWeight * 0.08 * scale;
+  const lungeScale = weapon.activeLungeScale || 1;
+  const forward = weapon.lungePower * 0.42 * scale * lungeScale;
+  const side = weapon.strafeWeight * 0.08 * scale * (weapon.id === 'spear' ? 0.45 : 1);
 
   attacker.vx += Math.cos(forwardAngle) * forward + Math.cos(sideAngle) * side;
   attacker.vy += Math.sin(forwardAngle) * forward + Math.sin(sideAngle) * side;
@@ -342,13 +393,14 @@ function applyAttackLunge(attacker, weapon, scale = 1) {
 function applyRecoveryStep(attacker, defender, weapon) {
   const awayAngle = angleTo(defender, attacker);
   const sideAngle = awayAngle + Math.PI / 2 * attacker.orbitDir;
-  const back = weapon.recoveryBackstep * 0.15;
-  const side = weapon.strafeWeight * 0.035;
+  const scale = weapon.recoveryMoveScale || 1;
+  const back = weapon.recoveryBackstep * 0.15 * scale;
+  const side = weapon.strafeWeight * 0.035 * scale;
 
   attacker.vx += Math.cos(awayAngle) * back + Math.cos(sideAngle) * side;
   attacker.vy += Math.sin(awayAngle) * back + Math.sin(sideAngle) * side;
-  attacker.vx *= 0.91;
-  attacker.vy *= 0.91;
+  attacker.vx *= weapon.id === 'western' || weapon.id === 'spear' ? 0.88 : 0.92;
+  attacker.vy *= weapon.id === 'western' || weapon.id === 'spear' ? 0.88 : 0.92;
   attacker.x += attacker.vx;
   attacker.y += attacker.vy;
 }
@@ -404,6 +456,7 @@ function resolveAttack(attacker, defender, state) {
   applyPostureDamage(attacker, defender, postureDamage);
   applyKnockback(attacker, defender, weapon.knockback);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
+  applyImpactStop(attacker, defender, weapon);
   attacker.counterTimer = 0;
 
   if (defender.hp <= 0) {
@@ -412,6 +465,13 @@ function resolveAttack(attacker, defender, state) {
   }
 
   return true;
+}
+
+
+function applyImpactStop(attacker, defender, weapon) {
+  const stop = weapon.impactStopFrames || 3;
+  attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, Math.max(1, stop - 1));
+  defender.impactStopTimer = Math.max(defender.impactStopTimer || 0, stop + (defender.staggerTimer > 0 ? 2 : 0));
 }
 
 function resolveParry(defender, attacker, incomingWeapon) {
@@ -498,6 +558,8 @@ function performParry(defender, attacker, incomingWeapon) {
   defender.parryFlashTimer = POSTURE_RULES.parryFlashFrames;
   defender.counterTimer = POSTURE_RULES.counterWindowFrames;
   defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay, Math.floor(POSTURE_RULES.recoveryDelayFrames * 0.38));
+  defender.impactStopTimer = Math.max(defender.impactStopTimer || 0, 3);
+  attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, incomingWeapon.impactStopFrames || 4);
   defender.lastAction = '패링 성공';
   attacker.lastAction = '패링당함';
 }
@@ -687,6 +749,8 @@ function resolveWeaponClash(a, b) {
   a.vy -= Math.sin(angleAB) * 1.2;
   b.vx += Math.cos(angleAB) * 1.2;
   b.vy += Math.sin(angleAB) * 1.2;
+  a.impactStopTimer = Math.max(a.impactStopTimer || 0, 3);
+  b.impactStopTimer = Math.max(b.impactStopTimer || 0, 3);
   a.lastAction = '무기 충돌';
   b.lastAction = '무기 충돌';
 }

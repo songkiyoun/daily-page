@@ -62,17 +62,35 @@ function drawArena(ctx, arena) {
 function drawWeaponArc(ctx, unit) {
   if (unit.isDead) return;
   const weapon = WEAPONS[unit.weaponId];
-  const alpha = unit.attackState === 'active' ? 0.24 : 0.08;
-  const start = unit.facing - weapon.arc;
-  const end = unit.facing + weapon.arc;
+  const visual = getWeaponVisual(unit, weapon);
+  const alpha = unit.attackState === 'active'
+    ? 0.3
+    : unit.attackState === 'windup'
+      ? 0.11
+      : unit.attackState === 'recovery'
+        ? 0.07
+        : 0.045;
+  const arc = unit.attackState === 'active'
+    ? Math.max(weapon.arc, (weapon.swingVisualArc || weapon.arc) * 0.52)
+    : weapon.arc * 0.78;
+  const start = visual.angle - arc;
+  const end = visual.angle + arc;
 
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(unit.x, unit.y);
-  ctx.arc(unit.x, unit.y, weapon.range, start, end);
+  ctx.arc(unit.x, unit.y, weapon.range * visual.reachScale, start, end);
   ctx.closePath();
   ctx.fillStyle = hexToRgba(weapon.color, alpha);
   ctx.fill();
+
+  if (unit.attackState === 'active') {
+    ctx.beginPath();
+    ctx.arc(unit.x, unit.y, weapon.range * visual.reachScale, start, end);
+    ctx.strokeStyle = hexToRgba(weapon.color, 0.52);
+    ctx.lineWidth = weapon.id === 'spear' ? 3 : 2;
+    ctx.stroke();
+  }
 
   if (weapon.minRange > 0) {
     ctx.beginPath();
@@ -122,20 +140,79 @@ function drawUnit(ctx, unit) {
     ctx.stroke();
   }
 
-  ctx.rotate(unit.facing);
+  const visual = getWeaponVisual(unit, weapon);
+  ctx.rotate(visual.angle);
   ctx.beginPath();
   ctx.moveTo(unit.radius + 3, 0);
-  ctx.lineTo(unit.radius + Math.min(weapon.range, 62), 0);
+  ctx.lineTo(unit.radius + Math.min(weapon.range * visual.reachScale, visual.maxDrawLength), 0);
   ctx.strokeStyle = weapon.color;
-  ctx.lineWidth = weapon.id === 'spear' ? 3 : 5;
+  ctx.lineWidth = getWeaponLineWidth(weapon, unit.attackState);
   ctx.lineCap = 'round';
   ctx.stroke();
+
+  if (unit.attackState === 'active' && weapon.id !== 'spear') {
+    ctx.beginPath();
+    ctx.moveTo(unit.radius + 8, -3);
+    ctx.lineTo(unit.radius + Math.min(weapon.range * 0.82, visual.maxDrawLength - 8), -3);
+    ctx.strokeStyle = hexToRgba('#ffffff', 0.38);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
   ctx.restore();
 
   drawHealthBar(ctx, unit);
   drawPostureBar(ctx, unit);
   drawUnitLabel(ctx, unit);
+}
+
+
+function getWeaponVisual(unit, weapon) {
+  const phase = Math.max(0, Math.min(1, unit.attackVisualPhase || 0));
+  const base = unit.attackAim ?? unit.facing;
+  const side = unit.orbitDir || 1;
+  let angle = unit.facing;
+  let reachScale = 0.78;
+
+  if (unit.attackState === 'windup') {
+    if (weapon.id === 'spear') {
+      angle = base - side * 0.08;
+      reachScale = 0.72 + phase * 0.08;
+    } else if (weapon.id === 'dagger') {
+      angle = base - side * (weapon.swingVisualArc || 0.6) * 0.32;
+      reachScale = 0.72 + phase * 0.14;
+    } else {
+      angle = base - side * (weapon.swingVisualArc || weapon.arc) * 0.48;
+      reachScale = 0.72 + phase * 0.08;
+    }
+  } else if (unit.attackState === 'active') {
+    if (weapon.id === 'spear') {
+      angle = base + side * Math.sin(phase * Math.PI) * 0.08;
+      reachScale = 0.92 + Math.sin(phase * Math.PI) * 0.18;
+    } else if (weapon.id === 'dagger') {
+      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || 0.62));
+      reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.1;
+    } else {
+      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || weapon.arc));
+      reachScale = 0.95 + Math.sin(phase * Math.PI) * 0.08;
+    }
+  } else if (unit.attackState === 'recovery') {
+    angle = base + side * (weapon.swingVisualArc || weapon.arc) * (weapon.id === 'spear' ? -0.1 : 0.38);
+    reachScale = weapon.id === 'dagger' ? 0.76 : 0.82;
+  }
+
+  return {
+    angle,
+    reachScale,
+    maxDrawLength: weapon.id === 'spear' ? 112 : weapon.id === 'western' ? 78 : weapon.id === 'eastern' ? 68 : 52
+  };
+}
+
+function getWeaponLineWidth(weapon, attackState) {
+  const activeBonus = attackState === 'active' ? 1.4 : 0;
+  if (weapon.id === 'spear') return 3 + activeBonus;
+  if (weapon.id === 'dagger') return 4 + activeBonus;
+  return 5 + activeBonus;
 }
 
 function drawHealthBar(ctx, unit) {
