@@ -162,10 +162,6 @@ function getTurnSpeed(unit) {
   const personality = PERSONALITIES[unit.personalityId];
   let scale = unit.turnSpeedScale || 1;
 
-  if (personality.id === 'assassin') scale *= 1.08;
-  if (personality.id === 'defensive') scale *= 0.94;
-  if (personality.id === 'aggressive') scale *= 1.02;
-
   if (unit.attackState === 'windup') scale *= weapon.windupTurnScale;
   if (unit.attackState === 'active') scale *= weapon.activeTurnScale;
   if (unit.attackState === 'recovery') scale *= weapon.recoveryTurnScale;
@@ -271,9 +267,11 @@ function tryCloseRangeReset(unit, enemy, movement) {
 
   const pushAngle = angleTo(unit, enemy);
   const sideAngle = pushAngle + Math.PI / 2 * unit.orbitDir;
+  const enemyPersonality = PERSONALITIES[enemy.personalityId];
   const identityPush = (weapon.closePushScale || 1) * (personality.closePushScale || 1);
-  const force = (spearPinned ? 7.2 : 4.2) * identityPush;
-  const sideForce = (spearPinned ? 1.8 : 1.4) * identityPush;
+  const pushResistance = enemyPersonality.knockbackTakenScale || 1;
+  const force = (spearPinned ? 7.2 : 4.2) * identityPush * pushResistance;
+  const sideForce = (spearPinned ? 1.8 : 1.4) * identityPush * pushResistance;
   const selfSide = (spearPinned ? 2.35 : 1.6) * identityPush;
 
   enemy.vx += Math.cos(pushAngle) * force + Math.cos(sideAngle) * sideForce;
@@ -749,9 +747,10 @@ function performParry(defender, attacker, incomingWeapon, state) {
 }
 
 function getParryKnockback(attacker, incomingWeapon) {
+  const personality = PERSONALITIES[attacker.personalityId];
   const weaponScale = incomingWeapon.parryKnockbackTaken || 1;
   const postureScale = attacker.posture < attacker.maxPosture * 0.35 ? 1.18 : 1;
-  return POSTURE_RULES.parryKnockback * weaponScale * postureScale * 1.16;
+  return POSTURE_RULES.parryKnockback * weaponScale * postureScale * (personality.knockbackTakenScale || 1) * 1.16;
 }
 
 function getParryPower(defender, defenderWeapon, incomingWeapon) {
@@ -858,9 +857,12 @@ function getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hit
     ? getDaggerPostureBonus(attacker, defender, weapon)
     : 1;
   const defenseReduction = clamp(1 - defender.defense * 0.38, 0.72, 1);
+  const attackerPersonality = PERSONALITIES[attacker.personalityId];
+  const defenderPersonality = PERSONALITIES[defender.personalityId];
+  const personalityPostureScale = (attackerPersonality.postureDamageDealtScale || 1) * (defenderPersonality.postureDamageTakenScale || 1);
   return Math.max(
     POSTURE_RULES.minPostureDamage,
-    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction
+    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction * personalityPostureScale
   );
 }
 
@@ -881,6 +883,7 @@ function getDaggerPostureBonus(attacker, defender, weapon) {
 
 function getPostureRecoveryDelay(unit, scale = 1) {
   const weapon = WEAPONS[unit.weaponId];
+  const personality = PERSONALITIES[unit.personalityId];
   const weaponScale = weapon.id === 'spear'
     ? 1.2
     : weapon.id === 'western'
@@ -888,7 +891,14 @@ function getPostureRecoveryDelay(unit, scale = 1) {
       : weapon.id === 'eastern'
         ? 0.92
         : 0.78;
-  return Math.round(POSTURE_RULES.recoveryDelayFrames * weaponScale * scale);
+  const personalityScale = personality.id === 'defensive'
+    ? 0.88
+    : personality.id === 'assassin'
+      ? 1.08
+      : personality.id === 'aggressive'
+        ? 1.06
+        : 1;
+  return Math.round(POSTURE_RULES.recoveryDelayFrames * weaponScale * personalityScale * scale);
 }
 
 function applyPostureDamage(attacker, defender, amount, state = null) {
@@ -957,7 +967,10 @@ function applyWeaponHitReaction(attacker, defender, weapon, hitQuality = 0) {
   const attackAngle = angleTo(attacker, defender);
   const sideAngle = attackAngle + Math.PI / 2 * attacker.orbitDir;
   const qualityScale = 1 + hitQuality * (POSTURE_RULES.preciseHitKnockbackBonus || 0.28);
-  const force = (weapon.hitKnockback || weapon.knockback || 8) * qualityScale;
+  const attackerPersonality = PERSONALITIES[attacker.personalityId];
+  const defenderPersonality = PERSONALITIES[defender.personalityId];
+  const personalityKnockbackScale = (attackerPersonality.knockbackDealtScale || 1) * (defenderPersonality.knockbackTakenScale || 1);
+  const force = (weapon.hitKnockback || weapon.knockback || 8) * qualityScale * personalityKnockbackScale;
   const forwardScale = getHitForwardKnockbackScale(weapon);
   const sideScale = getHitSideKnockbackScale(weapon);
 
@@ -1093,10 +1106,11 @@ function isWeaponThreatening(attacker, defender) {
 }
 
 function getClashKnockback(unit, weapon, opposingPower, totalPower) {
+  const personality = PERSONALITIES[unit.personalityId];
   const pressure = clamp(opposingPower / Math.max(1, totalPower), 0.25, 0.82);
   const weaponScale = weapon.clashKnockbackScale || 1;
   const postureScale = unit.posture < unit.maxPosture * 0.4 ? 1.12 : 1;
-  return (POSTURE_RULES.weaponClashKnockback || 2.2) * weaponScale * postureScale * (0.96 + pressure * 1.12);
+  return (POSTURE_RULES.weaponClashKnockback || 2.2) * weaponScale * postureScale * (personality.knockbackTakenScale || 1) * (0.96 + pressure * 1.12);
 }
 
 function getClashPower(unit, weapon) {

@@ -142,12 +142,12 @@ export function derivePlayerProfile(player) {
     player.level * 7
   );
 
-  const maxPosture = Math.round(
+  const maxPosture = Math.round((
     POSTURE_RULES.baseMax +
     stats.def * POSTURE_RULES.defenseToMax +
     stats.vit * POSTURE_RULES.vitalityToMax +
     player.level * POSTURE_RULES.levelToMax
-  );
+  ) * (personality.postureMaxScale || 1));
 
   const attackScale =
     1 +
@@ -187,9 +187,9 @@ export function derivePlayerProfile(player) {
   );
 
   const speedScales = getWeaponAgilityScales(weapon, stats, player.mastery, skillEffects, true);
-  const moveSpeedScale = speedScales.moveSpeedScale;
-  const cooldownScale = speedScales.cooldownScale;
-  const turnSpeedScale = speedScales.turnSpeedScale;
+  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1);
+  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1);
+  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1);
   const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
 
   return {
@@ -391,7 +391,8 @@ function deriveEnemyProfile(enemy, floor) {
     stats.def * (POSTURE_RULES.defenseToMax - 1) +
     stats.vit * POSTURE_RULES.vitalityToMax +
     floorIndex * POSTURE_RULES.enemyFloorToMax) *
-    bossMult
+    bossMult *
+    (personality.postureMaxScale || 1)
   );
 
   const attackScale =
@@ -433,6 +434,8 @@ function deriveEnemyProfile(enemy, floor) {
     0.48
   );
 
+  const speedScales = getWeaponAgilityScales(weapon, stats, enemy.mastery, skillEffects, false);
+
   return {
     maxHp,
     maxPosture,
@@ -440,7 +443,9 @@ function deriveEnemyProfile(enemy, floor) {
     defense,
     evasion,
     crit,
-    ...getWeaponAgilityScales(weapon, stats, enemy.mastery, skillEffects, false),
+    moveSpeedScale: speedScales.moveSpeedScale * (personality.moveSpeedScale || 1),
+    cooldownScale: speedScales.cooldownScale * (personality.cooldownScale || 1),
+    turnSpeedScale: speedScales.turnSpeedScale * (personality.turnSpeedScale || 1),
     critDamage: 1.5 + stats.luck * 0.004 + (skillEffects.critDamageBonus || 0),
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
   };

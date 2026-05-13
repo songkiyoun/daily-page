@@ -209,3 +209,16 @@ v0.3.1: fix reward button render lifecycle
 - 단검 미러전 이동 규칙은 `ai.js`의 기존 `daggerMirrorMovement`에서 직접 관리합니다.
 - 민첩이 높아도 서양검이 단검처럼 돌거나, 창이 단검처럼 움직이면 안 됩니다.
 - 별도 `v0.6.0 patch` 함수, 중복 `decideMovement`, 중복 `getTurnSpeed`, 중복 `derivePlayerProfile` 선언을 만들지 않습니다.
+
+
+## v0.6.3 성격 시스템 재정의 기준
+
+- 성격은 무기 정체성을 덮지 않고 전투 수치와 운용 성향을 보정합니다.
+- 공격형은 공격력, 공격속도, 밀쳐내기, 자세 압박을 올리고 방어력과 패링 확률을 낮춥니다.
+- 방어형은 방어력, 패링, 밀림 저항, 자세 안정성을 올리고 공격력과 공격속도를 낮춥니다.
+- 밸런스형은 기준값 역할을 하므로 과한 보정을 넣지 않습니다.
+- 암살형은 이동, 회전, 측후방, 치명타를 올리고 방어력과 밀림 저항을 낮춥니다.
+- 성격 수치 변경은 `data.js`의 `PERSONALITIES`에서만 관리합니다.
+- 파생 능력치 반영은 `state.js`의 기존 `derivePlayerProfile`, `deriveEnemyProfile`에서만 처리합니다.
+- 넉백·자세 피해 반영은 `battle.js`의 기존 피격·패링·충돌 함수에서만 처리합니다.
+- 별도 `v0.6.3 patch` 함수, 중복 `derivePlayerProfile`, 중복 `resolveAttack`, 중복 `getTurnSpeed`를 만들지 않습니다.
