@@ -251,3 +251,34 @@ select option {
     flex-direction: column;
   }
 }
+
+.hint-text {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.tower-box {
+  display: grid;
+  gap: 8px;
+}
+
+.tower-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 9px 10px;
+  font-size: 0.84rem;
+}
+
+.tower-row span {
+  color: var(--muted);
+}
+
+.tower-row strong {
+  color: var(--gold);
+  text-align: right;
+}

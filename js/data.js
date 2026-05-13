@@ -1,8 +1,8 @@
 // data.js
 // 프로젝트의 순수 데이터만 관리합니다.
-// 수정 원칙: 무기·성격 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
+// 수정 원칙: 무기·성격·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
 export const WEAPONS = {
   spear: {
@@ -115,3 +115,27 @@ export const BASE_STATS = {
   evasion: 0.05,
   crit: 0.08
 };
+
+export const TOWER_RULES = {
+  startFloor: 1,
+  hpGrowthPerFloor: 0.12,
+  damageGrowthPerFloor: 0.075,
+  defenseGrowthPerFloor: 0.006,
+  maxEnemyDefense: 0.28,
+  bossInterval: 10
+};
+
+export const ENEMY_NAMES = [
+  'RAVEN',
+  'KAIN',
+  'MIRA',
+  'BLADE',
+  'ONYX',
+  'NOVA',
+  'ASH',
+  'VEGA',
+  'ZERO',
+  'RYU',
+  'LUNA',
+  'CROW'
+];

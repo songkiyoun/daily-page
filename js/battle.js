@@ -2,11 +2,9 @@
 // 공격 판정, 피해 계산, 승패 판정만 담당합니다.
 // 수정 원칙: 새 resolveAttack 패치 함수를 뒤에 추가하지 말고 기존 함수를 직접 수정합니다.
 
-import { BASE_STATS, PERSONALITIES, WEAPONS } from './data.js';
+import { PERSONALITIES, WEAPONS } from './data.js';
 import { decideMovement } from './ai.js';
 import { angleDiff, angleTo, clamp, distance, moveToward } from './utils.js';
-
-const ARENA_PADDING = 18;
 
 export function updateBattle(state) {
   if (!state.running || state.paused || state.result) return;
@@ -125,18 +123,18 @@ function resolveAttack(attacker, defender, state) {
   if (dist < weapon.minRange) return;
   if (angleGap > weapon.arc) return;
 
-  const evaded = Math.random() < BASE_STATS.evasion;
+  const evaded = Math.random() < defender.evasion;
   if (evaded) {
     defender.lastAction = '회피';
     return;
   }
 
-  const crit = Math.random() < BASE_STATS.crit;
+  const crit = Math.random() < attacker.crit;
   const positionalBonus = getPositionalBonus(attacker, defender);
   const personality = PERSONALITIES[attacker.personalityId];
   const aggressionBonus = 1 + personality.aggression * 0.08;
-  const rawDamage = weapon.damage * BASE_STATS.attack * positionalBonus * aggressionBonus * (crit ? 1.65 : 1);
-  const damage = Math.max(2, rawDamage * (1 - BASE_STATS.defense));
+  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * (crit ? 1.65 : 1);
+  const damage = Math.max(2, rawDamage * (1 - defender.defense));
 
   defender.hp = clamp(defender.hp - damage, 0, defender.maxHp);
   attacker.hits += 1;
@@ -167,9 +165,9 @@ function getPositionalBonus(attacker, defender) {
 }
 
 function applyKnockback(attacker, defender, force) {
-  const angle = angleTo(attacker, defender);
-  defender.vx += Math.cos(angle) * force * 0.12;
-  defender.vy += Math.sin(angle) * force * 0.12;
+  const attackAngle = angleTo(attacker, defender);
+  defender.vx += Math.cos(attackAngle) * force * 0.12;
+  defender.vy += Math.sin(attackAngle) * force * 0.12;
 }
 
 function resolveBodyCollision(a, b) {
@@ -190,17 +188,18 @@ function resolveBodyCollision(a, b) {
 }
 
 function clampToArena(unit, arena) {
-  const dx = unit.x - arena.cx;
-  const dy = unit.y - arena.cy;
-  const dist = Math.hypot(dx, dy) || 1;
-  const limit = arena.radius - unit.radius - ARENA_PADDING;
+  const minX = arena.left + unit.radius;
+  const maxX = arena.right - unit.radius;
+  const minY = arena.top + unit.radius;
+  const maxY = arena.bottom - unit.radius;
+  const beforeX = unit.x;
+  const beforeY = unit.y;
 
-  if (dist <= limit) return;
+  unit.x = clamp(unit.x, minX, maxX);
+  unit.y = clamp(unit.y, minY, maxY);
 
-  unit.x = arena.cx + (dx / dist) * limit;
-  unit.y = arena.cy + (dy / dist) * limit;
-  unit.vx *= -0.18;
-  unit.vy *= -0.18;
+  if (unit.x !== beforeX) unit.vx *= -0.18;
+  if (unit.y !== beforeY) unit.vy *= -0.18;
 }
 
 function checkResult(state) {

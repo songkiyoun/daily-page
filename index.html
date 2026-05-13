@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.1.0-sandbox" />
-  <title>Circle Battle Tower Rebuild v0.1</title>
+  <meta name="build" content="circle-battle-rebuild-v0.2.0-tower-square" />
+  <title>Circle Battle Tower Rebuild v0.2</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
@@ -12,10 +12,10 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
-        <h1>1:1 전투 샌드박스</h1>
-        <p class="subtext">패치 누적 없이, 분리형 파일 구조로 다시 만든 전투 코어입니다.</p>
+        <h1>1:1 탑 등반 프로토타입</h1>
+        <p class="subtext">사각형 전장, 랜덤 상대, 층별 성장 구조를 반영한 v0.2 뼈대입니다.</p>
       </div>
-      <div class="version">v0.1.0</div>
+      <div id="versionBadge" class="version">v0.2.0</div>
     </header>
 
     <section class="layout">
@@ -23,17 +23,17 @@
         <canvas id="arena" width="760" height="500" aria-label="전투 경기장"></canvas>
         <div id="resultOverlay" class="result-overlay hidden">
           <div class="result-card">
-            <p class="eyebrow">MATCH RESULT</p>
+            <p class="eyebrow">TOWER RESULT</p>
             <h2 id="resultTitle">READY</h2>
-            <p id="resultText">무기와 성격을 선택하고 전투를 시작하세요.</p>
-            <button id="restartBtn" class="button primary">다시 시작</button>
+            <p id="resultText">무기와 성격을 선택하고 탑 등반을 시작하세요.</p>
+            <button id="overlayActionBtn" class="button primary">탑 등반 시작</button>
           </div>
         </div>
       </div>
 
       <aside class="side-panel">
         <section class="card">
-          <h2>전투 설정</h2>
+          <h2>런 설정</h2>
           <label class="field">
             <span>플레이어 무기</span>
             <select id="playerWeapon"></select>
@@ -42,18 +42,16 @@
             <span>플레이어 성격</span>
             <select id="playerPersonality"></select>
           </label>
-          <label class="field">
-            <span>상대 무기</span>
-            <select id="enemyWeapon"></select>
-          </label>
-          <label class="field">
-            <span>상대 성격</span>
-            <select id="enemyPersonality"></select>
-          </label>
+          <p id="enemyPreview" class="hint-text"></p>
           <div class="button-row">
-            <button id="startBtn" class="button primary">전투 시작</button>
+            <button id="startBtn" class="button primary">새 런 시작</button>
             <button id="pauseBtn" class="button">일시정지</button>
           </div>
+        </section>
+
+        <section class="card">
+          <h2>탑 정보</h2>
+          <div id="towerBox" class="tower-box"></div>
         </section>
 
         <section class="card">
@@ -65,9 +63,9 @@
           <h2>개발 원칙</h2>
           <ul class="rule-list">
             <li>1:1 전투만 고려합니다.</li>
-            <li>뒤에 패치 블록을 붙이지 않습니다.</li>
+            <li>맵은 원형이 아닌 사각형 전장입니다.</li>
+            <li>상대 무기와 성격은 매 층 랜덤입니다.</li>
             <li>수정은 담당 파일의 기존 함수를 직접 고칩니다.</li>
-            <li>전투 계산과 렌더링을 분리합니다.</li>
           </ul>
         </section>
       </aside>

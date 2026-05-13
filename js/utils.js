@@ -34,6 +34,14 @@ export function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
+export function randomInt(min, max) {
+  return Math.floor(randomBetween(min, max + 1));
+}
+
 export function randomSign() {
   return Math.random() < 0.5 ? -1 : 1;
+}
+
+export function sample(values) {
+  return values[Math.floor(Math.random() * values.length)];
 }

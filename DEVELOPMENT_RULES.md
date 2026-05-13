@@ -1,101 +1,73 @@
 # DEVELOPMENT RULES
 
-이 프로젝트는 기존 실험본처럼 구버전 코드 위에 신버전 패치를 덧씌우는 방식을 사용하지 않습니다.
+이 프로젝트는 기존 실험본처럼 구버전 위에 신버전 패치를 계속 덧붙이는 방식을 금지합니다.
+모든 수정은 담당 파일의 기존 함수를 직접 수정하는 방식으로 진행합니다.
 
-## 1. 절대 금지
+## 1. 프로젝트 방향 고정
 
-아래 방식은 금지합니다.
+- 1:1 전투 전용 게임입니다.
+- 2:2, 3:3, 아군, 팀전, 다수 타겟 구조를 만들지 않습니다.
+- 전장은 원형이 아니라 사각형입니다.
+- 게임 흐름은 로그라이크 탑 등반 구조입니다.
+- 상대의 무기와 성격은 매 층 랜덤으로 생성됩니다.
+- 층이 오를수록 상대는 점점 강해집니다.
+
+## 2. 패치 누적 금지
+
+금지 예시:
 
 ```javascript
-const oldUpdate = update;
-update = function () {
+const oldUpdate = updateBattle;
+updateBattle = function patchedUpdateBattle() {
   oldUpdate();
-  // 새 패치
+  // 추가 패치
 };
 ```
 
-아래 방식도 금지합니다.
+금지 예시:
 
 ```javascript
-// v0.1 함수
 function resolveAttack() {}
-
-// v0.2 patch
-function resolveAttack() {}
-
-// v0.3 patch
 function resolveAttack() {}
 ```
 
-## 2. 수정 원칙
+수정이 필요하면 기존 함수 본문을 직접 정리합니다.
 
-수정은 반드시 기존 담당 파일의 기존 함수를 직접 고칩니다.
+## 3. 파일별 책임
 
-예시:
+- `data.js`: 무기, 성격, 기본 스탯, 층 성장 규칙
+- `state.js`: 런 생성, 층 이동, 유닛 생성, 랜덤 상대 생성
+- `battle.js`: 공격 판정, 피해 계산, 승패 판정, 사각형 경계 처리
+- `ai.js`: 1:1 이동 판단
+- `render.js`: 캔버스 그리기
+- `main.js`: UI 연결과 단일 게임 루프
+- `utils.js`: 공통 수학 함수
 
-- 무기 수치 수정 → `js/data.js`
-- 명중 판정 수정 → `js/battle.js`
-- 이동 판단 수정 → `js/ai.js`
-- 화면 출력 수정 → `js/render.js`
-- 게임 루프 수정 → `js/main.js`
-
-## 3. 중복 금지 함수
-
-아래 함수는 프로젝트 안에 하나만 존재해야 합니다.
+## 4. 절대 중복되면 안 되는 함수
 
 - `updateBattle`
 - `resolveAttack`
 - `decideMovement`
 - `render`
-- `createInitialState`
+- `createRun`
+- `createBattleState`
+- `advanceRunFloor`
 - `loop`
 
-같은 이름의 새 함수를 뒤에 추가하지 않습니다.
+## 5. 수정 절차
 
-## 4. requestAnimationFrame 규칙
+1. 수정 목표를 한 문장으로 적습니다.
+2. 수정할 파일을 정합니다.
+3. 기존 함수를 직접 수정합니다.
+4. 새 패치 블록을 추가하지 않습니다.
+5. 실행 테스트를 합니다.
+6. `CHANGELOG.md`에 변경 내용을 남깁니다.
+7. GitHub에는 수정된 파일만 커밋합니다.
 
-`requestAnimationFrame`은 `js/main.js`에서만 호출합니다.
-
-다른 파일에서 루프를 만들면 중복 실행과 끊김의 원인이 됩니다.
-
-## 5. 1:1 전용 규칙
-
-이 프로젝트는 1:1 전투 전용입니다.
-
-아래 변수와 구조는 만들지 않습니다.
-
-- `mode`
-- `allies`
-- `enemies`
-- team battle
-- 2:2
-- 3:3
-
-전투 상태는 항상 아래 구조를 기준으로 합니다.
-
-```javascript
-state = {
-  player: {},
-  enemy: {},
-  result: null
-};
-```
-
-## 6. 커밋 메시지 규칙
-
-GitHub에 올릴 때 커밋 메시지는 아래처럼 씁니다.
+## 6. 커밋 메시지 예시
 
 ```text
-feat: add 1v1 combat sandbox
-fix: adjust western sword hit arc
-balance: tune spear minimum range
-refactor: simplify battle state
+v0.2.1: adjust square arena bounds
+v0.2.2: improve random enemy floor scaling
+v0.3.0: add tower reward choices
 ```
-
-## 7. 버전 업데이트 규칙
-
-작업이 끝나면 `CHANGELOG.md`에 변경 내용을 기록합니다.
-
-작은 수정은 `v0.1.1`, `v0.1.2`처럼 올립니다.
-
-큰 기능 추가는 `v0.2.0`, `v0.3.0`처럼 올립니다.
