@@ -7,6 +7,7 @@ import {
   ENEMY_NAMES,
   PERSONALITIES,
   PLAYER_START_STATS,
+  PLAYER_START_STAT_POINTS,
   REWARD_RULES,
   SKILLS,
   STAT_KEYS,
@@ -30,7 +31,7 @@ export function createRun(config) {
       personalityId: config.playerPersonality,
       level: 1,
       exp: 0,
-      statPoints: 0,
+      statPoints: PLAYER_START_STAT_POINTS,
       stats: { ...PLAYER_START_STATS },
       skills: [],
       mastery: 0,
@@ -83,19 +84,22 @@ export function spendPlayerStat(run, statKey) {
   if (!run?.player || run.player.statPoints <= 0 || !STAT_KEYS.includes(statKey)) return false;
   run.player.stats[statKey] += 1;
   run.player.statPoints -= 1;
-  const profile = derivePlayerProfile(run.player);
-  run.player.hp = clamp(run.player.hp ?? profile.maxHp, 1, profile.maxHp);
+  healPlayerToFull(run.player);
   return true;
+}
+
+export function refreshPlayerUnit(state) {
+  if (!state?.run?.player || state.running || state.result) return state;
+  state.player = createUnitFromPlayer(state.run.player, state.player.x, state.player.y);
+  return state;
 }
 
 export function completeFloorVictory(state) {
   if (state.rewardsPrepared) return;
 
   const run = state.run;
-  const profileBeforeHeal = derivePlayerProfile(run.player);
-  const remainingHp = clamp(state.player.hp, 0, profileBeforeHeal.maxHp);
-  const passiveHeal = Math.round(profileBeforeHeal.maxHp * REWARD_RULES.floorClearHealRatio);
-  run.player.hp = clamp(remainingHp + passiveHeal, 1, profileBeforeHeal.maxHp);
+  const currentProfile = derivePlayerProfile(run.player);
+  run.player.hp = clamp(state.player.hp, 0, currentProfile.maxHp);
   run.victories += 1;
 
   const expGain = REWARD_RULES.baseExp + run.floor * REWARD_RULES.expPerFloor;
@@ -113,6 +117,7 @@ export function applyRewardAndAdvance(state, rewardId) {
   run.pendingRewards = [];
   run.floor += 1;
   run.bestFloor = Math.max(run.bestFloor, run.floor);
+  healPlayerToFull(run.player);
   return createBattleState(run);
 }
 
@@ -426,10 +431,11 @@ function generateRewardChoices(run) {
     });
   } else {
     rewards.push({
-      id: 'heal',
-      type: 'heal',
-      title: '응급 정비',
-      description: `최대 체력의 ${Math.round(REWARD_RULES.healRatioReward * 100)}%를 추가 회복합니다.`
+      id: 'stat-point',
+      type: 'statPoint',
+      amount: REWARD_RULES.bonusStatPoints,
+      title: '자유 훈련권',
+      description: `스탯 포인트 +${REWARD_RULES.bonusStatPoints}. 원하는 능력치를 직접 올릴 수 있습니다.`
     });
   }
 
@@ -453,14 +459,18 @@ function applyReward(run, reward) {
     run.lastRewardLog = `스킬 습득: ${SKILLS[reward.skillId].name}`;
   }
 
-  if (reward.type === 'heal') {
-    const profile = derivePlayerProfile(player);
-    player.hp = clamp((player.hp ?? profile.maxHp) + profile.maxHp * REWARD_RULES.healRatioReward, 1, profile.maxHp);
-    run.lastRewardLog = '응급 정비 회복';
+  if (reward.type === 'statPoint') {
+    player.statPoints += reward.amount;
+    run.lastRewardLog = `스탯 포인트 +${reward.amount}`;
   }
 
   const profile = derivePlayerProfile(player);
   player.hp = clamp(player.hp ?? profile.maxHp, 1, profile.maxHp);
+}
+
+function healPlayerToFull(player) {
+  const profile = derivePlayerProfile(player);
+  player.hp = profile.maxHp;
 }
 
 function collectSkillEffects(skillIds) {

@@ -90,3 +90,11 @@ v0.3.1: fix reward button render lifecycle
 - 이동 판단은 `ai.js`의 기존 `decideMovement`와 하위 이동 함수들을 직접 수정합니다.
 - 단검 공격 각도 제한은 `battle.js`의 기존 `canStartAttack`에서만 관리합니다.
 - 별도 `v0.4.1 patch` 스크립트나 중복 함수를 추가하지 않습니다.
+
+
+## v0.4.2 성장 기본값 기준
+
+- 시작 스탯 포인트는 `data.js`의 `PLAYER_START_STAT_POINTS`에서만 관리합니다.
+- 층 이동 시 완전 회복은 `state.js`의 `applyRewardAndAdvance` 흐름에서만 처리합니다.
+- 보상 선택 이후 새 층 전투 시작 흐름은 `main.js`의 기존 보상 선택 핸들러를 직접 수정해 관리합니다.
+- 회복 보상처럼 현재 규칙과 충돌하는 보상은 새 패치로 덮지 않고 기존 보상 생성 로직에서 직접 교체합니다.

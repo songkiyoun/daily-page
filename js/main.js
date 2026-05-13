@@ -9,6 +9,7 @@ import {
   createBattleState,
   createRun,
   getNextLevelExp,
+  refreshPlayerUnit,
   spendPlayerStat,
   startState,
   togglePause
@@ -178,7 +179,7 @@ function renderPlayerInfo() {
     ? player.skills.map((skillId) => `<span class="tag">${SKILLS[skillId]?.name}</span>`).join('')
     : '<span class="muted-small">보유 스킬 없음</span>';
   const statButtons = Object.entries(player.stats).map(([key, value]) => {
-    const canSpend = player.statPoints > 0 && !state.running;
+    const canSpend = player.statPoints > 0 && !state.running && !state.result;
     return `
       <button class="stat-button" data-stat="${key}" ${canSpend ? '' : 'disabled'}>
         <span>${STAT_LABELS[key]}</span>
@@ -195,14 +196,14 @@ function renderPlayerInfo() {
     <div class="tower-row"><span>무기 숙련</span><strong>${player.mastery}</strong></div>
     <div class="stat-grid">${statButtons}</div>
     <div class="skill-list">${skillText}</div>
-    <p class="hint-text">레벨업 시 스탯 포인트를 얻습니다. 포인트가 있을 때 스탯 버튼을 누르면 즉시 반영됩니다.</p>
+    <p class="hint-text">새 런은 기본 스탯 포인트를 가지고 시작합니다. 전투가 시작되기 전 스탯 버튼을 눌러 방향성을 정하세요.</p>
   `;
 
   controls.playerBox.querySelectorAll('.stat-button').forEach((button) => {
     button.addEventListener('click', () => {
       const didSpend = spendPlayerStat(run, button.dataset.stat);
       if (!didSpend) return;
-      if (!state.running) state = createBattleState(run);
+      refreshPlayerUnit(state);
       renderAllPanels();
     });
   });
@@ -233,11 +234,15 @@ function renderRewardBox() {
   controls.rewardBox.querySelectorAll('.reward-button').forEach((button) => {
     button.addEventListener('click', () => {
       state = applyRewardAndAdvance(state, button.dataset.reward);
-      startState(state);
-      hideOverlay();
       hideRewardBox();
       updatePauseButton();
       renderAllPanels();
+      showOverlay(
+        'NEXT FLOOR',
+        `${state.run.floor}층에 도착했습니다. 체력은 완전히 회복되었습니다. 스탯 포인트가 있다면 배분한 뒤 전투를 시작하세요.`,
+        '전투 시작',
+        'start'
+      );
     });
   });
 }

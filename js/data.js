@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.4.1';
+export const VERSION = '0.4.2';
 
 export const WEAPONS = {
   spear: {
@@ -183,6 +183,8 @@ export const PLAYER_START_STATS = {
   luck: 5
 };
 
+export const PLAYER_START_STAT_POINTS = 10;
+
 export const BASE_STATS = {
   maxHp: 110,
   defenseCap: 0.46,
@@ -233,8 +235,7 @@ export const REWARD_RULES = {
   choices: 3,
   statAmount: 1,
   masteryAmount: 1,
-  healRatioReward: 0.24,
-  floorClearHealRatio: 0.26,
+  bonusStatPoints: 1,
   baseExp: 44,
   expPerFloor: 7
 };
