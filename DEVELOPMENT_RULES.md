@@ -164,3 +164,15 @@ v0.3.1: fix reward button render lifecycle
 - 무기 충돌 시 밀림은 `data.js`의 `clashKnockbackScale`과 `POSTURE_RULES.weaponClashKnockback`에서만 관리합니다.
 - 명중 품질 계산과 실제 반응은 `battle.js`의 기존 공격 판정 흐름 안에서 처리합니다.
 - 별도 패치 함수나 중복 `resolveAttack`을 추가하지 않습니다.
+
+
+## v0.5.5 이벤트 표시·단검 페이크 기준
+
+- 전투 이벤트 텍스트는 `render.js`의 캔버스 렌더링에서만 표시합니다.
+- 전투 중 DOM 요소를 새로 만들어 HIT, MISS 텍스트를 띄우지 않습니다.
+- 일반 명중과 일반 빗나감은 텍스트로 표시하지 않습니다.
+- 텍스트 표시는 PARRY, CLASH, BREAK, CRITICAL처럼 전투 흐름이 바뀌는 핵심 이벤트만 허용합니다.
+- 피격 넉백은 `battle.js`의 기존 impact stop 흐름 안에서 직접 관리합니다.
+- 단검 페이크, 반대 꺾기, 순간 침투는 `ai.js`의 단검 이동 판단 함수 안에서만 관리합니다.
+- 단검 명중 후 재정렬 시간은 유닛 상태와 `POSTURE_RULES`에서 관리하며 별도 패치 함수로 덮지 않습니다.
+- 별도 `v0.5.5 patch` 스크립트나 중복 함수를 추가하지 않습니다.

@@ -11,11 +11,12 @@ export function updateBattle(state) {
 
   state.frame += 1;
   state.elapsed += 1 / 60;
+  updateCombatEffects(state);
 
   updateUnit(state.player, state.enemy, state);
   updateUnit(state.enemy, state.player, state);
 
-  resolveWeaponClash(state.player, state.enemy);
+  resolveWeaponClash(state, state.player, state.enemy);
   resolveBodyCollision(state.player, state.enemy);
   clampToArena(state.player, state.arena);
   clampToArena(state.enemy, state.arena);
@@ -29,9 +30,8 @@ function updateUnit(unit, enemy, state) {
   tickTimers(unit);
 
   if (unit.impactStopTimer > 0) {
+    applyImpactStopDrift(unit);
     unit.impactStopTimer -= 1;
-    unit.vx *= 0.62;
-    unit.vy *= 0.62;
     unit.lastAction = unit.lastAction.includes('패링') ? unit.lastAction : '충격 정지';
     return;
   }
@@ -72,9 +72,49 @@ function tickTimers(unit) {
   if (unit.clashCooldown > 0) unit.clashCooldown -= 1;
   if (unit.flankPressureTimer > 0) unit.flankPressureTimer -= 1;
   if (unit.daggerBurstCooldown > 0) unit.daggerBurstCooldown -= 1;
+  if (unit.daggerManeuverTimer > 0) unit.daggerManeuverTimer -= 1;
+  if (unit.daggerResetTimer > 0) unit.daggerResetTimer -= 1;
   if (unit.parryCooldown > 0) unit.parryCooldown -= 1;
   if (unit.parryFlashTimer > 0) unit.parryFlashTimer -= 1;
   if (unit.counterTimer > 0) unit.counterTimer -= 1;
+}
+
+function applyImpactStopDrift(unit) {
+  const movementScale = unit.weaponId === 'dagger' && unit.lastAction.includes('치고 빠지기') ? 0.92 : 0.46;
+  unit.x += unit.vx * movementScale;
+  unit.y += unit.vy * movementScale;
+  const damping = unit.weaponId === 'dagger' && unit.lastAction.includes('치고 빠지기') ? 0.86 : 0.72;
+  unit.vx *= damping;
+  unit.vy *= damping;
+}
+
+function updateCombatEffects(state) {
+  if (!state.effects) state.effects = [];
+  state.effects = state.effects
+    .map((effect) => ({ ...effect, life: effect.life - 1, y: effect.y - 0.42 }))
+    .filter((effect) => effect.life > 0);
+}
+
+function emitCombatEvent(state, label, x, y, color) {
+  if (!state) return;
+  if (!state.effects) state.effects = [];
+  if (!state.eventLocks) state.eventLocks = {};
+
+  const lastFrame = state.eventLocks[label] ?? -9999;
+  if (state.frame - lastFrame < POSTURE_RULES.eventTextCooldownFrames) return;
+  state.eventLocks[label] = state.frame;
+
+  state.effects.push({
+    label,
+    x,
+    y,
+    color,
+    life: POSTURE_RULES.eventTextFrames
+  });
+
+  if (state.effects.length > 6) {
+    state.effects.splice(0, state.effects.length - 6);
+  }
 }
 
 function updateRetreatState(unit, movement) {
@@ -141,7 +181,7 @@ function updateOrbitDirection(unit, enemy) {
 function applyMovement(unit, movement, weapon, enemy = null) {
   const acceleration = getAcceleration(unit, movement);
   const friction = 0.865;
-  const burstScale = unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label) ? 1.46 : 1;
+  const burstScale = unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label) ? 1.76 : 1;
   const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1) * burstScale;
 
   unit.vx += movement.ax * acceleration;
@@ -178,7 +218,7 @@ function getAcceleration(unit, movement) {
   if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.25;
   if (unit.weaponId === 'spear' && movement.label.includes('측면')) value = 0.29;
   if (unit.weaponId === 'eastern') value = 0.25;
-  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.48 : 0.31;
+  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.58 : movement.label.includes('페이크') ? 0.42 : 0.31;
   if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.015;
   if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.045;
   if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
@@ -186,7 +226,7 @@ function getAcceleration(unit, movement) {
 }
 
 function isDaggerBurstLabel(label = '') {
-  return label.includes('순간') || label.includes('침투') || label.includes('후방') || label.includes('돌파') || label.includes('빠른') || label.includes('미러 짧은 교전');
+  return label.includes('순간') || label.includes('침투') || label.includes('후방') || label.includes('돌파') || label.includes('빠른') || label.includes('반대 꺾기') || label.includes('미러 짧은 교전');
 }
 
 function tryCloseRangeReset(unit, enemy, movement) {
@@ -278,6 +318,10 @@ function beginAttack(attacker, defender) {
   attacker.attackVisualPhase = 0;
   attacker.vx *= getAttackEntryBrake(attacker.weaponId);
   attacker.vy *= getAttackEntryBrake(attacker.weaponId);
+  if (attacker.weaponId === 'dagger') {
+    attacker.daggerManeuverPhase = '';
+    attacker.daggerManeuverTimer = 0;
+  }
   attacker.lastAction = getWindupLabel(attacker.weaponId);
 }
 
@@ -504,7 +548,7 @@ function resolveAttack(attacker, defender, state) {
   if (dist < weapon.minRange) return false;
   if (angleGap > hitArc) return false;
 
-  if (resolveParry(defender, attacker, weapon)) return true;
+  if (resolveParry(defender, attacker, weapon, state)) return true;
 
   const evaded = defender.staggerTimer <= 0 && Math.random() < defender.evasion;
   if (evaded) {
@@ -527,10 +571,11 @@ function resolveAttack(attacker, defender, state) {
   attacker.hits += 1;
   attacker.damageDealt += damage;
   attacker.lastAction = crit ? '치명타' : '명중';
+  if (crit) emitCombatEvent(state, 'CRITICAL', defender.x, defender.y - 34, '#ffd45a');
   defender.lastAction = defender.staggerTimer > 0 ? '흐트러짐 피격' : '피격';
 
   const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality);
-  applyPostureDamage(attacker, defender, postureDamage);
+  applyPostureDamage(attacker, defender, postureDamage, state);
   applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
   applyImpactStop(attacker, defender, weapon);
@@ -551,7 +596,7 @@ function applyImpactStop(attacker, defender, weapon) {
   defender.impactStopTimer = Math.max(defender.impactStopTimer || 0, stop + (defender.staggerTimer > 0 ? 2 : 0));
 }
 
-function resolveParry(defender, attacker, incomingWeapon) {
+function resolveParry(defender, attacker, incomingWeapon, state) {
   if (!canTryParry(defender, attacker, incomingWeapon)) return false;
 
   const chance = getParryChance(defender, attacker, incomingWeapon);
@@ -562,7 +607,7 @@ function resolveParry(defender, attacker, incomingWeapon) {
     return false;
   }
 
-  performParry(defender, attacker, incomingWeapon);
+  performParry(defender, attacker, incomingWeapon, state);
   return true;
 }
 
@@ -614,7 +659,7 @@ function getParryChance(defender, attacker, incomingWeapon) {
   );
 }
 
-function performParry(defender, attacker, incomingWeapon) {
+function performParry(defender, attacker, incomingWeapon, state) {
   const defenderWeapon = WEAPONS[defender.weaponId];
   const parryPower = getParryPower(defender, defenderWeapon, incomingWeapon);
   const impactAngle = angleTo(defender, attacker);
@@ -640,6 +685,7 @@ function performParry(defender, attacker, incomingWeapon) {
   attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, incomingWeapon.impactStopFrames || 4);
   defender.lastAction = '패링 성공';
   attacker.lastAction = '패링당함';
+  emitCombatEvent(state, 'PARRY', defender.x, defender.y - 38, '#5ae8ff');
 }
 
 function getParryKnockback(attacker, incomingWeapon) {
@@ -771,18 +817,18 @@ function getDaggerPostureBonus(attacker, defender, weapon) {
   return 1;
 }
 
-function applyPostureDamage(attacker, defender, amount) {
+function applyPostureDamage(attacker, defender, amount, state = null) {
   if (defender.isDead || defender.staggerTimer > 0) return;
 
   defender.posture = clamp(defender.posture - amount, 0, defender.maxPosture);
   defender.postureRecoveryDelay = POSTURE_RULES.recoveryDelayFrames;
 
   if (defender.posture <= 0) {
-    triggerStagger(defender, attacker);
+    triggerStagger(defender, attacker, state);
   }
 }
 
-function triggerStagger(unit, attacker) {
+function triggerStagger(unit, attacker, state = null) {
   const impactAngle = angleTo(attacker, unit);
   unit.staggerTimer = POSTURE_RULES.staggerFrames;
   unit.attackState = 'idle';
@@ -796,6 +842,7 @@ function triggerStagger(unit, attacker) {
   unit.vx += Math.cos(impactAngle) * 1.35;
   unit.vy += Math.sin(impactAngle) * 1.35;
   unit.lastAction = '스태미너 붕괴';
+  emitCombatEvent(state, 'BREAK', unit.x, unit.y - 42, '#ff5a6d');
 }
 
 function twistBodyOnImpact(defender, attacker, postureDamage, weapon) {
@@ -844,7 +891,10 @@ function applyWeaponHitReaction(attacker, defender, weapon, hitQuality = 0) {
       attacker.attackState = 'recovery';
       attacker.attackTimer = Math.max(attacker.attackTimer || 0, weapon.recovery + 4);
       attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 7);
-      attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, 2);
+      attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, 1);
+      attacker.daggerResetTimer = Math.max(attacker.daggerResetTimer || 0, POSTURE_RULES.daggerResetFrames || 28);
+      attacker.daggerManeuverPhase = '';
+      attacker.daggerManeuverTimer = 0;
       attacker.lastAction = '단검 치고 빠지기';
     }
   }
@@ -865,7 +915,7 @@ function getHitSideKnockbackScale(weapon) {
   return 0.018;
 }
 
-function resolveWeaponClash(a, b) {
+function resolveWeaponClash(state, a, b) {
   if (a.isDead || b.isDead || a.clashCooldown > 0 || b.clashCooldown > 0) return;
   if (a.attackState !== 'active' || b.attackState !== 'active') return;
   if (!isWeaponThreatening(a, b) || !isWeaponThreatening(b, a)) return;
@@ -886,8 +936,8 @@ function resolveWeaponClash(a, b) {
   a.attackTimer = Math.max(a.attackTimer, 8);
   b.attackTimer = Math.max(b.attackTimer, 8);
 
-  applyPostureDamage(b, a, damageToA);
-  applyPostureDamage(a, b, damageToB);
+  applyPostureDamage(b, a, damageToA, state);
+  applyPostureDamage(a, b, damageToB, state);
   twistBodyOnImpact(a, b, damageToA, weaponB);
   twistBodyOnImpact(b, a, damageToB, weaponA);
 
@@ -902,6 +952,7 @@ function resolveWeaponClash(a, b) {
   b.impactStopTimer = Math.max(b.impactStopTimer || 0, 3);
   a.lastAction = '무기 충돌';
   b.lastAction = '무기 충돌';
+  emitCombatEvent(state, 'CLASH', (a.x + b.x) / 2, (a.y + b.y) / 2 - 26, '#ffffff');
 }
 
 function isWeaponThreatening(attacker, defender) {

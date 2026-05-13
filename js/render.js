@@ -11,6 +11,7 @@ export function render(ctx, state) {
   drawWeaponArc(ctx, state.enemy);
   drawUnit(ctx, state.player);
   drawUnit(ctx, state.enemy);
+  drawCombatEffects(ctx, state.effects || []);
   drawTopText(ctx, state);
 }
 
@@ -219,6 +220,31 @@ function getWeaponLineWidth(weapon, attackState) {
   if (weapon.id === 'spear') return 3 + activeBonus;
   if (weapon.id === 'dagger') return 4 + activeBonus;
   return 5 + activeBonus;
+}
+
+
+function drawCombatEffects(ctx, effects) {
+  if (!effects.length) return;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  effects.forEach((effect) => {
+    const progress = effect.life / 42;
+    const alpha = clamp(progress, 0, 1);
+    const scale = 1 + (1 - alpha) * 0.22;
+    ctx.save();
+    ctx.translate(effect.x, effect.y);
+    ctx.scale(scale, scale);
+    ctx.font = '700 16px Orbitron, system-ui, sans-serif';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = `rgba(0, 0, 0, ${0.45 * alpha})`;
+    ctx.strokeText(effect.label, 0, 0);
+    ctx.fillStyle = hexToRgba(effect.color || '#ffffff', 0.88 * alpha);
+    ctx.fillText(effect.label, 0, 0);
+    ctx.restore();
+  });
+  ctx.restore();
 }
 
 function drawHealthBar(ctx, unit) {
