@@ -498,6 +498,7 @@ function resolveAttack(attacker, defender, state) {
   const daggerMirror = attacker.weaponId === 'dagger' && defender.weaponId === 'dagger';
   const hitArc = daggerMirror ? 1.22 : getHitArc(attacker, weapon);
   const reachBonus = getReachBonus(attacker, weapon);
+  const hitQuality = getHitQuality(attacker, defender, weapon, dist, angleGap, hitArc);
 
   if (dist > getHitReach(attacker, defender, weapon) + reachBonus) return false;
   if (dist < weapon.minRange) return false;
@@ -528,9 +529,9 @@ function resolveAttack(attacker, defender, state) {
   attacker.lastAction = crit ? '치명타' : '명중';
   defender.lastAction = defender.staggerTimer > 0 ? '흐트러짐 피격' : '피격';
 
-  const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit);
+  const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality);
   applyPostureDamage(attacker, defender, postureDamage);
-  applyKnockback(attacker, defender, weapon.knockback);
+  applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
   applyImpactStop(attacker, defender, weapon);
   attacker.counterTimer = 0;
@@ -625,11 +626,12 @@ function performParry(defender, attacker, incomingWeapon) {
   attacker.attackState = 'recovery';
   attacker.attackTimer = Math.max(attacker.attackTimer, incomingWeapon.recovery + POSTURE_RULES.parryRecoveryAddFrames);
   attacker.cooldownTimer = Math.max(attacker.cooldownTimer, Math.floor(incomingWeapon.cooldown * 0.32));
-  attacker.vx += Math.cos(impactAngle) * POSTURE_RULES.parryKnockback + Math.cos(sideAngle) * 0.45;
-  attacker.vy += Math.sin(impactAngle) * POSTURE_RULES.parryKnockback + Math.sin(sideAngle) * 0.45;
+  const parryKnockback = getParryKnockback(attacker, incomingWeapon);
+  attacker.vx += Math.cos(impactAngle) * parryKnockback + Math.cos(sideAngle) * 0.72;
+  attacker.vy += Math.sin(impactAngle) * parryKnockback + Math.sin(sideAngle) * 0.72;
 
-  defender.vx -= Math.cos(impactAngle) * 0.62;
-  defender.vy -= Math.sin(impactAngle) * 0.62;
+  defender.vx -= Math.cos(impactAngle) * 0.82;
+  defender.vy -= Math.sin(impactAngle) * 0.82;
   defender.parryCooldown = POSTURE_RULES.parryCooldownFrames;
   defender.parryFlashTimer = POSTURE_RULES.parryFlashFrames;
   defender.counterTimer = POSTURE_RULES.counterWindowFrames;
@@ -638,6 +640,12 @@ function performParry(defender, attacker, incomingWeapon) {
   attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, incomingWeapon.impactStopFrames || 4);
   defender.lastAction = '패링 성공';
   attacker.lastAction = '패링당함';
+}
+
+function getParryKnockback(attacker, incomingWeapon) {
+  const weaponScale = incomingWeapon.parryKnockbackTaken || 1;
+  const postureScale = attacker.posture < attacker.maxPosture * 0.35 ? 1.18 : 1;
+  return POSTURE_RULES.parryKnockback * weaponScale * postureScale;
 }
 
 function getParryPower(defender, defenderWeapon, incomingWeapon) {
@@ -651,6 +659,15 @@ function getParryPower(defender, defenderWeapon, incomingWeapon) {
         ? 0.82
         : 0.94;
   return POSTURE_RULES.parryPostureDamage * weaponScale * statScale * incomingScale;
+}
+
+function getHitQuality(attacker, defender, weapon, dist, angleGap, hitArc) {
+  const reach = getHitReach(attacker, defender, weapon);
+  const idealDistance = Math.max(weapon.minRange + defender.radius + 12, weapon.idealRange + defender.radius * 0.6);
+  const angleScore = clamp(1 - angleGap / Math.max(0.12, hitArc), 0, 1);
+  const rangeScore = clamp(1 - Math.abs(dist - idealDistance) / Math.max(24, reach * 0.45), 0, 1);
+  const activeScore = attacker.attackState === 'active' ? 1 : 0.65;
+  return clamp(angleScore * 0.62 + rangeScore * 0.3 + activeScore * 0.08, 0, 1);
 }
 
 function getHitArc(attacker, weapon) {
@@ -724,17 +741,19 @@ function getPositionalBonus(attacker, defender) {
   return 1;
 }
 
-function getPostureDamage(attacker, defender, weapon, positionalBonus, crit) {
+function getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality = 0) {
   const attackStateBonus = defender.attackState === 'windup' || defender.attackState === 'active' ? 1.18 : 1;
   const critBonus = crit ? 1.22 : 1;
   const counterPostureBonus = attacker.counterTimer > 0 ? POSTURE_RULES.counterPostureBonus : 1;
+  const weaponPostureScale = weapon.hitPostureScale || 1;
+  const qualityBonus = 1 + hitQuality * 0.16;
   const daggerPostureBonus = weapon.id === 'dagger'
     ? getDaggerPostureBonus(attacker, defender, weapon)
     : 1;
   const defenseReduction = clamp(1 - defender.defense * 0.38, 0.72, 1);
   return Math.max(
     POSTURE_RULES.minPostureDamage,
-    weapon.postureDamage * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * defenseReduction
+    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction
   );
 }
 
@@ -798,11 +817,32 @@ function twistBodyOnImpact(defender, attacker, postureDamage, weapon) {
   }
 }
 
-function applyKnockback(attacker, defender, force) {
+function applyWeaponHitReaction(attacker, defender, weapon, hitQuality = 0) {
   const attackAngle = angleTo(attacker, defender);
   const sideAngle = attackAngle + Math.PI / 2 * attacker.orbitDir;
-  defender.vx += Math.cos(attackAngle) * force * 0.12 + Math.cos(sideAngle) * force * 0.018;
-  defender.vy += Math.sin(attackAngle) * force * 0.12 + Math.sin(sideAngle) * force * 0.018;
+  const qualityScale = 1 + hitQuality * (POSTURE_RULES.preciseHitKnockbackBonus || 0.28);
+  const force = (weapon.hitKnockback || weapon.knockback || 8) * qualityScale;
+
+  defender.vx += Math.cos(attackAngle) * force * 0.14 + Math.cos(sideAngle) * force * 0.018;
+  defender.vy += Math.sin(attackAngle) * force * 0.14 + Math.sin(sideAngle) * force * 0.018;
+
+  if (weapon.id === 'western') {
+    defender.vx += Math.cos(sideAngle) * force * 0.035;
+    defender.vy += Math.sin(sideAngle) * force * 0.035;
+  }
+
+  const selfRetreat = weapon.selfRetreatOnHit || 0;
+  if (selfRetreat > 0) {
+    const retreatScale = weapon.id === 'dagger' ? 1 + hitQuality * 0.42 : 0.35;
+    attacker.vx -= Math.cos(attackAngle) * selfRetreat * retreatScale;
+    attacker.vy -= Math.sin(attackAngle) * selfRetreat * retreatScale;
+    if (weapon.id === 'dagger') {
+      attacker.vx += Math.cos(sideAngle) * attacker.orbitDir * 0.45;
+      attacker.vy += Math.sin(sideAngle) * attacker.orbitDir * 0.45;
+      attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 4);
+      attacker.lastAction = '단검 치고 빠지기';
+    }
+  }
 }
 
 function resolveWeaponClash(a, b) {
@@ -831,10 +871,13 @@ function resolveWeaponClash(a, b) {
   twistBodyOnImpact(a, b, damageToA, weaponB);
   twistBodyOnImpact(b, a, damageToB, weaponA);
 
-  a.vx -= Math.cos(angleAB) * 1.2;
-  a.vy -= Math.sin(angleAB) * 1.2;
-  b.vx += Math.cos(angleAB) * 1.2;
-  b.vy += Math.sin(angleAB) * 1.2;
+  const clashKnockbackA = getClashKnockback(a, weaponA, powerB, total);
+  const clashKnockbackB = getClashKnockback(b, weaponB, powerA, total);
+  const sideAngle = angleAB + Math.PI / 2;
+  a.vx -= Math.cos(angleAB) * clashKnockbackA + Math.cos(sideAngle) * a.orbitDir * 0.36;
+  a.vy -= Math.sin(angleAB) * clashKnockbackA + Math.sin(sideAngle) * a.orbitDir * 0.36;
+  b.vx += Math.cos(angleAB) * clashKnockbackB - Math.cos(sideAngle) * b.orbitDir * 0.36;
+  b.vy += Math.sin(angleAB) * clashKnockbackB - Math.sin(sideAngle) * b.orbitDir * 0.36;
   a.impactStopTimer = Math.max(a.impactStopTimer || 0, 3);
   b.impactStopTimer = Math.max(b.impactStopTimer || 0, 3);
   a.lastAction = '무기 충돌';
@@ -853,6 +896,13 @@ function isWeaponThreatening(attacker, defender) {
   if (dist > weapon.range + rangePadding) return false;
   if (dist < Math.max(0, weapon.minRange - 6)) return false;
   return angleGap <= weapon.arc + 0.28;
+}
+
+function getClashKnockback(unit, weapon, opposingPower, totalPower) {
+  const pressure = clamp(opposingPower / Math.max(1, totalPower), 0.25, 0.82);
+  const weaponScale = weapon.clashKnockbackScale || 1;
+  const postureScale = unit.posture < unit.maxPosture * 0.4 ? 1.12 : 1;
+  return (POSTURE_RULES.weaponClashKnockback || 2.2) * weaponScale * postureScale * (0.78 + pressure);
 }
 
 function getClashPower(unit, weapon) {

@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.5.2';
+export const VERSION = '0.5.3';
 
 export const WEAPONS = {
   spear: {
@@ -36,6 +36,11 @@ export const WEAPONS = {
     parryBreak: 0.1,
     moveSpeed: 2.55,
     knockback: 15,
+    hitKnockback: 28,
+    hitPostureScale: 1.02,
+    selfRetreatOnHit: 0.2,
+    parryKnockbackTaken: 1.28,
+    clashKnockbackScale: 1.12,
     crit: 0.03,
     description: '긴 사거리와 직선 찌르기가 강하지만 안쪽으로 파고든 적에게 약합니다.',
     movementStyle: 'keepaway',
@@ -78,6 +83,11 @@ export const WEAPONS = {
     parryBreak: 0.08,
     moveSpeed: 2.72,
     knockback: 11,
+    hitKnockback: 17,
+    hitPostureScale: 1.24,
+    selfRetreatOnHit: 0.36,
+    parryKnockbackTaken: 1.16,
+    clashKnockbackScale: 1.18,
     crit: 0.06,
     description: '넓은 베기로 정면 교전이 강하지만 후딜이 있습니다.',
     movementStyle: 'angled_slash',
@@ -120,6 +130,11 @@ export const WEAPONS = {
     parryBreak: 0.02,
     moveSpeed: 3.08,
     knockback: 7,
+    hitKnockback: 9,
+    hitPostureScale: 0.9,
+    selfRetreatOnHit: 0.55,
+    parryKnockbackTaken: 0.94,
+    clashKnockbackScale: 0.92,
     crit: 0.1,
     description: '빠른 진입과 연속 공격이 강한 무기입니다.',
     movementStyle: 'hit_and_run',
@@ -164,6 +179,11 @@ export const WEAPONS = {
     backPostureBonus: 2.25,
     moveSpeed: 3.38,
     knockback: 5,
+    hitKnockback: 4,
+    hitPostureScale: 0.82,
+    selfRetreatOnHit: 4.8,
+    parryKnockbackTaken: 0.82,
+    clashKnockbackScale: 0.74,
     crit: 0.18,
     backBonus: 2.25,
     flankBonus: 1.45,
@@ -308,7 +328,9 @@ export const POSTURE_RULES = {
   parryFlashFrames: 14,
   parryPostureDamage: 21,
   parryRecoveryAddFrames: 12,
-  parryKnockback: 2.4,
+  parryKnockback: 3.35,
+  weaponClashKnockback: 2.8,
+  preciseHitKnockbackBonus: 0.34,
   counterWindowFrames: 34,
   counterDamageBonus: 1.08,
   counterPostureBonus: 1.16

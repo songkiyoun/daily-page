@@ -155,3 +155,12 @@ v0.3.1: fix reward button render lifecycle
 - 타격 궤적과 무기 시각화는 `render.js`에서만 처리하며 전투 계산에 영향을 주지 않습니다.
 - `impactStopTimer`는 타격 순간을 보여주기 위한 짧은 전투 리듬 장치이며, 별도 패치 함수로 덧붙이지 않습니다.
 
+
+
+## v0.5.3 명중·패링·충돌 반응 기준
+
+- 명중 넉백은 `data.js`의 각 무기 `hitKnockback`, `hitPostureScale`, `selfRetreatOnHit` 수치에서 관리합니다.
+- 패링 시 밀림은 `data.js`의 `parryKnockbackTaken`과 `POSTURE_RULES.parryKnockback`에서만 관리합니다.
+- 무기 충돌 시 밀림은 `data.js`의 `clashKnockbackScale`과 `POSTURE_RULES.weaponClashKnockback`에서만 관리합니다.
+- 명중 품질 계산과 실제 반응은 `battle.js`의 기존 공격 판정 흐름 안에서 처리합니다.
+- 별도 패치 함수나 중복 `resolveAttack`을 추가하지 않습니다.
