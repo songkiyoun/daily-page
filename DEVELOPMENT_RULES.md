@@ -71,4 +71,5 @@ function resolveAttack() {}
 v0.2.1: adjust square arena bounds
 v0.2.2: improve random enemy floor scaling
 v0.3.0: add stats skills and rewards
+v0.3.1: fix reward button render lifecycle
 ```

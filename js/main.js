@@ -39,6 +39,7 @@ const controls = {
 
 let state = null;
 let run = null;
+let rewardRenderKey = '';
 
 init();
 requestAnimationFrame(loop);
@@ -213,9 +214,17 @@ function renderRewardBox() {
     return;
   }
 
+  const nextKey = `${state.run.floor}:${state.run.pendingRewards.map((reward) => reward.id).join('|')}`;
   controls.rewardCard.classList.remove('hidden');
+
+  // 보상 화면이 열린 뒤 매 프레임 버튼을 다시 만들면 클릭 중인 DOM이 교체되어
+  // 마우스 클릭이 정상적으로 완료되지 않을 수 있습니다.
+  // 따라서 같은 보상 묶음은 한 번만 렌더링하고, 실제 수정은 이 함수 내부에서 직접 처리합니다.
+  if (rewardRenderKey === nextKey) return;
+  rewardRenderKey = nextKey;
+
   controls.rewardBox.innerHTML = state.run.pendingRewards.map((reward) => `
-    <button class="reward-button" data-reward="${reward.id}">
+    <button class="reward-button" type="button" data-reward="${reward.id}">
       <strong>${reward.title}</strong>
       <span>${reward.description}</span>
     </button>
@@ -234,6 +243,7 @@ function renderRewardBox() {
 }
 
 function hideRewardBox() {
+  rewardRenderKey = '';
   controls.rewardCard.classList.add('hidden');
   controls.rewardBox.innerHTML = '';
 }
