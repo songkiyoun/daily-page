@@ -41,9 +41,9 @@ export function createRun(config) {
   };
 }
 
-export function createBattleState(run) {
-  const enemyConfig = createRandomEnemyConfig(run.floor);
-  const spawnSkew = randomSign() * randomInt(34, 82);
+export function createBattleState(run, options = {}) {
+  const enemyConfig = options.enemyConfig || createRandomEnemyConfig(run.floor);
+  const spawnSkew = options.spawnSkew ?? randomSign() * randomInt(34, 82);
   const playerY = 250 + spawnSkew;
   const enemyY = 250 - spawnSkew;
 
@@ -352,24 +352,52 @@ function createRandomEnemyConfig(floor) {
   const personalityIds = Object.keys(PERSONALITIES);
   const nameIndex = (floor + randomInt(0, ENEMY_NAMES.length - 1)) % ENEMY_NAMES.length;
   const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
-  const base = 4 + Math.floor(floor * 0.55);
-  const bossBonus = isBossFloor ? 3 : 0;
 
   return {
     name: isBossFloor ? `BOSS ${ENEMY_NAMES[nameIndex]}` : ENEMY_NAMES[nameIndex],
     weaponId: sample(weaponIds),
     personalityId: sample(personalityIds),
     level: Math.max(1, floor),
-    stats: {
-      str: base + bossBonus + randomInt(0, 2),
-      vit: base + bossBonus + randomInt(0, 3),
-      def: base + bossBonus + randomInt(0, 2),
-      agi: base + bossBonus + randomInt(0, 2),
-      luck: base + randomInt(0, 2)
-    },
+    stats: createEnemyStats(floor, isBossFloor),
     skills: createEnemySkills(floor, isBossFloor),
-    mastery: Math.floor(floor / 4) + (isBossFloor ? 2 : 0)
+    mastery: createEnemyMastery(floor, isBossFloor)
   };
+}
+
+export function createFixedEnemyConfig({ floor = TOWER_RULES.startFloor, weaponId = 'eastern', personalityId = 'balanced', stats = null, name = 'SIM ENEMY' } = {}) {
+  const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
+  return {
+    name,
+    weaponId,
+    personalityId,
+    level: Math.max(1, floor),
+    stats: stats ? { ...stats } : createEnemyStats(floor, isBossFloor),
+    skills: createEnemySkills(floor, isBossFloor),
+    mastery: createEnemyMastery(floor, isBossFloor)
+  };
+}
+
+function createEnemyStats(floor, isBossFloor) {
+  if (floor === TOWER_RULES.startFloor && !isBossFloor) {
+    return { ...PLAYER_START_STATS };
+  }
+
+  const floorIndex = Math.max(0, floor - TOWER_RULES.startFloor);
+  const base = 5 + Math.floor(floorIndex * 0.55);
+  const bossBonus = isBossFloor ? 3 : 0;
+
+  return {
+    str: base + bossBonus + randomInt(0, 2),
+    vit: base + bossBonus + randomInt(0, 3),
+    def: base + bossBonus + randomInt(0, 2),
+    agi: base + bossBonus + randomInt(0, 2),
+    luck: base + randomInt(0, 2)
+  };
+}
+
+function createEnemyMastery(floor, isBossFloor) {
+  if (floor === TOWER_RULES.startFloor && !isBossFloor) return 0;
+  return Math.floor(floor / 4) + (isBossFloor ? 2 : 0);
 }
 
 function deriveEnemyProfile(enemy, floor) {

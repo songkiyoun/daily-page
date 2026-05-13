@@ -2,11 +2,12 @@
 // 앱 초기화, UI 연결, 단일 게임 루프만 담당합니다.
 // requestAnimationFrame은 이 파일에서만 호출합니다.
 
-import { PERSONALITIES, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS } from './data.js';
+import { PERSONALITIES, PLAYER_START_STATS, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS } from './data.js';
 import {
   applyRewardAndAdvance,
   completeFloorVictory,
   createBattleState,
+  createFixedEnemyConfig,
   createRun,
   getNextLevelExp,
   refreshPlayerUnit,
@@ -35,6 +36,12 @@ const controls = {
   resultTitle: document.getElementById('resultTitle'),
   resultText: document.getElementById('resultText'),
   enemyPreview: document.getElementById('enemyPreview'),
+  simEnemyWeapon: document.getElementById('simEnemyWeapon'),
+  simEnemyPersonality: document.getElementById('simEnemyPersonality'),
+  simCount: document.getElementById('simCount'),
+  simRunBtn: document.getElementById('simRunBtn'),
+  simMatrixBtn: document.getElementById('simMatrixBtn'),
+  simResultBox: document.getElementById('simResultBox'),
   version: document.getElementById('versionBadge')
 };
 
@@ -53,6 +60,8 @@ requestAnimationFrame(loop);
 function init() {
   populateSelect(controls.playerWeapon, WEAPONS, 'eastern');
   populateSelect(controls.playerPersonality, PERSONALITIES, 'balanced');
+  populateSelect(controls.simEnemyWeapon, WEAPONS, 'spear');
+  populateSelect(controls.simEnemyPersonality, PERSONALITIES, 'balanced');
   controls.version.textContent = `v${VERSION}`;
 
   controls.startBtn.addEventListener('click', handleMainButton);
@@ -67,6 +76,8 @@ function init() {
   controls.giveUpBtn.addEventListener('click', handleGiveUp);
   controls.playerBox.addEventListener('click', handleStatClick);
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
+  controls.simRunBtn.addEventListener('click', handleSimulationRun);
+  controls.simMatrixBtn.addEventListener('click', handleSimulationMatrix);
 
   run = createRun(readConfig());
   state = createBattleState(run);
@@ -205,6 +216,159 @@ function handleRewardClick(event) {
     '전투 시작',
     'start'
   );
+}
+
+
+function handleSimulationRun() {
+  const count = readSimulationCount(50);
+  const result = simulateMatchSet({
+    playerWeapon: controls.playerWeapon.value,
+    playerPersonality: controls.playerPersonality.value,
+    enemyWeapon: controls.simEnemyWeapon.value,
+    enemyPersonality: controls.simEnemyPersonality.value,
+    count
+  });
+  renderSimulationResult(result);
+}
+
+function handleSimulationMatrix() {
+  const count = Math.min(readSimulationCount(20), 30);
+  const rows = [];
+  Object.values(WEAPONS).forEach((weapon) => {
+    Object.values(PERSONALITIES).forEach((personality) => {
+      rows.push(simulateMatchSet({
+        playerWeapon: controls.playerWeapon.value,
+        playerPersonality: controls.playerPersonality.value,
+        enemyWeapon: weapon.id,
+        enemyPersonality: personality.id,
+        count
+      }));
+    });
+  });
+  renderSimulationMatrix(rows, count);
+}
+
+function readSimulationCount(defaultCount) {
+  const value = Number.parseInt(controls.simCount.value, 10);
+  if (!Number.isFinite(value)) return defaultCount;
+  return Math.max(1, Math.min(120, value));
+}
+
+function simulateMatchSet({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality, count }) {
+  const summary = {
+    playerWeapon,
+    playerPersonality,
+    enemyWeapon,
+    enemyPersonality,
+    count,
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    playerHits: 0,
+    enemyHits: 0,
+    time: 0,
+    playerHp: 0,
+    enemyHp: 0
+  };
+
+  for (let i = 0; i < count; i += 1) {
+    const result = simulateSingleMatch({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality });
+    if (result.outcome === 'victory') summary.wins += 1;
+    else if (result.outcome === 'defeat') summary.losses += 1;
+    else summary.draws += 1;
+    summary.playerHits += result.playerHits;
+    summary.enemyHits += result.enemyHits;
+    summary.time += result.time;
+    summary.playerHp += result.playerHp;
+    summary.enemyHp += result.enemyHp;
+  }
+
+  summary.winRate = summary.wins / count;
+  summary.avgPlayerHits = summary.playerHits / count;
+  summary.avgEnemyHits = summary.enemyHits / count;
+  summary.avgTime = summary.time / count;
+  summary.avgPlayerHp = summary.playerHp / count;
+  summary.avgEnemyHp = summary.enemyHp / count;
+  return summary;
+}
+
+function simulateSingleMatch({ playerWeapon, playerPersonality, enemyWeapon, enemyPersonality }) {
+  const simRun = createRun({ playerWeapon, playerPersonality });
+  simRun.floor = TOWER_RULES.startFloor;
+  simRun.player.stats = { ...PLAYER_START_STATS };
+  simRun.player.statPoints = 0;
+  simRun.player.skills = [];
+  simRun.player.mastery = 0;
+  simRun.player.hp = null;
+
+  const enemyConfig = createFixedEnemyConfig({
+    floor: TOWER_RULES.startFloor,
+    weaponId: enemyWeapon,
+    personalityId: enemyPersonality,
+    stats: { ...PLAYER_START_STATS },
+    name: 'SIM ENEMY'
+  });
+  const simState = createBattleState(simRun, { enemyConfig });
+  startState(simState);
+
+  const maxFrames = 60 * 110;
+  while (!simState.result && simState.frame < maxFrames) {
+    updateBattle(simState);
+  }
+  if (!simState.result) {
+    simState.result = 'draw';
+    simState.running = false;
+  }
+
+  return {
+    outcome: simState.result,
+    playerHits: simState.player.hits,
+    enemyHits: simState.enemy.hits,
+    time: simState.elapsed,
+    playerHp: Math.max(0, simState.player.hp),
+    enemyHp: Math.max(0, simState.enemy.hp)
+  };
+}
+
+function renderSimulationResult(result) {
+  const playerWeapon = WEAPONS[result.playerWeapon].name;
+  const playerPersonality = PERSONALITIES[result.playerPersonality].name;
+  const enemyWeapon = WEAPONS[result.enemyWeapon].name;
+  const enemyPersonality = PERSONALITIES[result.enemyPersonality].name;
+  controls.simResultBox.innerHTML = `
+    <div class="sim-summary">
+      <strong>${playerWeapon} ${playerPersonality} vs ${enemyWeapon} ${enemyPersonality}</strong>
+      <span>${result.count}회 시뮬레이션 · 승률 ${Math.round(result.winRate * 100)}%</span>
+    </div>
+    <div class="sim-stat-grid">
+      <div><span>승/패/무</span><strong>${result.wins}/${result.losses}/${result.draws}</strong></div>
+      <div><span>평균 명중</span><strong>${result.avgPlayerHits.toFixed(1)} : ${result.avgEnemyHits.toFixed(1)}</strong></div>
+      <div><span>평균 시간</span><strong>${result.avgTime.toFixed(1)}초</strong></div>
+      <div><span>잔여 체력</span><strong>${result.avgPlayerHp.toFixed(0)} : ${result.avgEnemyHp.toFixed(0)}</strong></div>
+    </div>
+  `;
+}
+
+function renderSimulationMatrix(rows, count) {
+  const table = rows.map((row) => `
+    <tr>
+      <td>${WEAPONS[row.enemyWeapon].name}</td>
+      <td>${PERSONALITIES[row.enemyPersonality].name}</td>
+      <td>${Math.round(row.winRate * 100)}%</td>
+      <td>${row.avgPlayerHits.toFixed(1)} : ${row.avgEnemyHits.toFixed(1)}</td>
+    </tr>
+  `).join('');
+
+  controls.simResultBox.innerHTML = `
+    <div class="sim-summary">
+      <strong>전체 상대 비교</strong>
+      <span>상대 16조합 · 각 ${count}회 · 1층 기본 스탯 5 기준</span>
+    </div>
+    <table class="sim-table">
+      <thead><tr><th>상대 무기</th><th>상대 성격</th><th>승률</th><th>평균 명중</th></tr></thead>
+      <tbody>${table}</tbody>
+    </table>
+  `;
 }
 
 function loop() {

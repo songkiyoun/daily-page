@@ -222,3 +222,13 @@ v0.3.1: fix reward button render lifecycle
 - 파생 능력치 반영은 `state.js`의 기존 `derivePlayerProfile`, `deriveEnemyProfile`에서만 처리합니다.
 - 넉백·자세 피해 반영은 `battle.js`의 기존 피격·패링·충돌 함수에서만 처리합니다.
 - 별도 `v0.6.3 patch` 함수, 중복 `derivePlayerProfile`, 중복 `resolveAttack`, 중복 `getTurnSpeed`를 만들지 않습니다.
+
+## v0.6.4 1층 기준 스탯·시뮬레이터 기준
+
+- 1층 밸런스 테스트의 기준 상대 스탯은 힘·체력·방어·민첩·행운 모두 5입니다.
+- 1층 상대는 숙련도 0, 스킬 없음 상태를 기준으로 합니다.
+- 상대 스탯 생성식은 `state.js`의 기존 적 생성 흐름에서 직접 관리합니다.
+- 시뮬레이터는 별도 전투 로직을 만들지 않고 기존 `updateBattle`을 그대로 사용합니다.
+- 시뮬레이터용 고정 상대는 `createFixedEnemyConfig`로만 생성합니다.
+- 시뮬레이터 결과는 승률, 평균 명중, 평균 시간, 잔여 체력을 중심으로 봅니다.
+- 별도 `simulationBattle` 전투 판정 함수나 중복 `resolveAttack`, 중복 `updateBattle`을 만들지 않습니다.
