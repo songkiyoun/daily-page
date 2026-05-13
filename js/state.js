@@ -8,6 +8,7 @@ import {
   PERSONALITIES,
   PLAYER_START_STATS,
   PLAYER_START_STAT_POINTS,
+  POSTURE_RULES,
   REWARD_RULES,
   SKILLS,
   STAT_KEYS,
@@ -139,6 +140,13 @@ export function derivePlayerProfile(player) {
     player.level * 7
   );
 
+  const maxPosture = Math.round(
+    POSTURE_RULES.baseMax +
+    stats.def * POSTURE_RULES.defenseToMax +
+    stats.vit * POSTURE_RULES.vitalityToMax +
+    player.level * POSTURE_RULES.levelToMax
+  );
+
   const attackScale =
     1 +
     stats.str * 0.065 +
@@ -182,6 +190,7 @@ export function derivePlayerProfile(player) {
 
   return {
     maxHp,
+    maxPosture,
     attackScale,
     defense,
     evasion,
@@ -216,6 +225,10 @@ function createUnitFromPlayer(player, x, y) {
     facing: 0,
     hp,
     maxHp: profile.maxHp,
+    posture: profile.maxPosture,
+    maxPosture: profile.maxPosture,
+    postureRecoveryDelay: 0,
+    staggerTimer: 0,
     attackScale: profile.attackScale,
     defense: profile.defense,
     evasion: profile.evasion,
@@ -259,6 +272,10 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     facing: Math.PI,
     hp: profile.maxHp,
     maxHp: profile.maxHp,
+    posture: profile.maxPosture,
+    maxPosture: profile.maxPosture,
+    postureRecoveryDelay: 0,
+    staggerTimer: 0,
     attackScale: profile.attackScale,
     defense: profile.defense,
     evasion: profile.evasion,
@@ -320,6 +337,14 @@ function deriveEnemyProfile(enemy, floor) {
     bossMult
   );
 
+  const maxPosture = Math.round(
+    (POSTURE_RULES.baseMax +
+    stats.def * (POSTURE_RULES.defenseToMax - 1) +
+    stats.vit * POSTURE_RULES.vitalityToMax +
+    floorIndex * POSTURE_RULES.enemyFloorToMax) *
+    bossMult
+  );
+
   const attackScale =
     (1 +
     stats.str * 0.057 +
@@ -361,6 +386,7 @@ function deriveEnemyProfile(enemy, floor) {
 
   return {
     maxHp,
+    maxPosture,
     attackScale,
     defense,
     evasion,

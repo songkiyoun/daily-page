@@ -2,7 +2,7 @@
 // 공격 판정, 피해 계산, 승패 판정만 담당합니다.
 // 수정 원칙: 새 resolveAttack 패치 함수를 뒤에 추가하지 말고 기존 함수를 직접 수정합니다.
 
-import { PERSONALITIES, WEAPONS } from './data.js';
+import { PERSONALITIES, POSTURE_RULES, WEAPONS } from './data.js';
 import { decideMovement } from './ai.js';
 import { angleDiff, angleTo, clamp, distance, moveToward } from './utils.js';
 
@@ -25,13 +25,21 @@ function updateUnit(unit, enemy, state) {
   if (unit.isDead) return;
 
   const weapon = WEAPONS[unit.weaponId];
+  tickTimers(unit);
+
+  if (unit.staggerTimer > 0) {
+    applyStaggerDrift(unit);
+    unit.lastAction = '자세 흐트러짐';
+    return;
+  }
+
+  recoverPosture(unit);
+
   const movement = decideMovement(unit, enemy, state);
   unit.lastAction = movement.label;
   unit.facing = moveToward(unit.facing, movement.faceAngle, getTurnSpeed(unit));
 
   updateOrbitDirection(unit, enemy);
-
-  if (unit.cooldownTimer > 0) unit.cooldownTimer -= 1;
 
   if (unit.attackState === 'idle') {
     applyMovement(unit, movement, weapon);
@@ -44,12 +52,38 @@ function updateUnit(unit, enemy, state) {
   updateAttackState(unit, enemy, state);
 }
 
+function tickTimers(unit) {
+  if (unit.cooldownTimer > 0) unit.cooldownTimer -= 1;
+  if (unit.postureRecoveryDelay > 0) unit.postureRecoveryDelay -= 1;
+  if (unit.staggerTimer > 0) unit.staggerTimer -= 1;
+}
+
+function recoverPosture(unit) {
+  if (unit.postureRecoveryDelay > 0 || unit.posture >= unit.maxPosture) return;
+
+  const stateScale = unit.attackState === 'idle' ? 1 : 0.35;
+  unit.posture = clamp(
+    unit.posture + POSTURE_RULES.recoveryPerFrame * stateScale,
+    0,
+    unit.maxPosture
+  );
+}
+
 function getTurnSpeed(unit) {
-  if (unit.weaponId === 'spear') return 0.09;
-  if (unit.weaponId === 'western') return 0.1;
-  if (unit.weaponId === 'eastern') return 0.15;
-  if (unit.weaponId === 'dagger') return 0.18;
-  return 0.11;
+  const weapon = WEAPONS[unit.weaponId];
+  const personality = PERSONALITIES[unit.personalityId];
+  const agilityScale = 1 + unit.stats.agi * 0.012;
+  let scale = agilityScale;
+
+  if (personality.id === 'assassin') scale *= 1.08;
+  if (personality.id === 'defensive') scale *= 0.96;
+
+  if (unit.attackState === 'windup') scale *= weapon.windupTurnScale;
+  if (unit.attackState === 'active') scale *= weapon.activeTurnScale;
+  if (unit.attackState === 'recovery') scale *= weapon.recoveryTurnScale;
+  if (unit.staggerTimer > 0) scale *= POSTURE_RULES.staggerMoveScale;
+
+  return weapon.turnSpeed * scale;
 }
 
 function updateOrbitDirection(unit, enemy) {
@@ -105,6 +139,10 @@ function canStartAttack(attacker, defender) {
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
   const startTolerance = Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52);
 
+  if (defender.staggerTimer > 0 && dist <= weapon.range + defender.radius + getReachBonus(attacker, weapon)) {
+    return true;
+  }
+
   if (dist > weapon.range + defender.radius) return false;
   if (dist < weapon.minRange) return false;
   if (angleGap > startTolerance) return false;
@@ -126,7 +164,7 @@ function beginAttack(attacker, defender) {
   attacker.attackState = 'windup';
   attacker.attackTimer = weapon.windup;
   attacker.attackResolved = false;
-  attacker.facing = angleTo(attacker, defender);
+  attacker.attackAim = angleTo(attacker, defender);
   attacker.vx *= 0.42;
   attacker.vy *= 0.42;
   attacker.lastAction = '공격 준비';
@@ -137,19 +175,19 @@ function updateAttackState(attacker, defender, state) {
   attacker.attackTimer -= 1;
 
   if (attacker.attackState === 'windup') {
-    applyWindupDrift(attacker, defender, weapon);
+    applyWindupDrift(attacker, weapon);
     if (attacker.attackTimer <= 0) {
       attacker.attackState = 'active';
       attacker.attackTimer = getActiveFrames(attacker);
       attacker.lastAction = '타격 판정';
-      applyAttackLunge(attacker, defender, weapon);
+      applyAttackLunge(attacker, weapon);
       attacker.attackResolved = resolveAttack(attacker, defender, state);
     }
     return;
   }
 
   if (attacker.attackState === 'active') {
-    applyAttackLunge(attacker, defender, weapon, 0.36);
+    applyAttackLunge(attacker, weapon, 0.36);
     if (!attacker.attackResolved) {
       attacker.attackResolved = resolveAttack(attacker, defender, state);
     }
@@ -179,9 +217,8 @@ function getActiveFrames(attacker) {
   return 5;
 }
 
-function applyWindupDrift(attacker, defender, weapon) {
-  const targetAngle = angleTo(attacker, defender);
-  const sideAngle = targetAngle + Math.PI / 2 * attacker.orbitDir;
+function applyWindupDrift(attacker, weapon) {
+  const sideAngle = attacker.facing + Math.PI / 2 * attacker.orbitDir;
   const sidePower = weapon.strafeWeight * 0.025;
 
   attacker.vx += Math.cos(sideAngle) * sidePower;
@@ -192,14 +229,14 @@ function applyWindupDrift(attacker, defender, weapon) {
   attacker.y += attacker.vy;
 }
 
-function applyAttackLunge(attacker, defender, weapon, scale = 1) {
-  const targetAngle = angleTo(attacker, defender);
-  const sideAngle = targetAngle + Math.PI / 2 * attacker.orbitDir;
+function applyAttackLunge(attacker, weapon, scale = 1) {
+  const forwardAngle = attacker.facing;
+  const sideAngle = forwardAngle + Math.PI / 2 * attacker.orbitDir;
   const forward = weapon.lungePower * 0.42 * scale;
   const side = weapon.strafeWeight * 0.08 * scale;
 
-  attacker.vx += Math.cos(targetAngle) * forward + Math.cos(sideAngle) * side;
-  attacker.vy += Math.sin(targetAngle) * forward + Math.sin(sideAngle) * side;
+  attacker.vx += Math.cos(forwardAngle) * forward + Math.cos(sideAngle) * side;
+  attacker.vy += Math.sin(forwardAngle) * forward + Math.sin(sideAngle) * side;
   attacker.x += attacker.vx;
   attacker.y += attacker.vy;
 }
@@ -218,6 +255,13 @@ function applyRecoveryStep(attacker, defender, weapon) {
   attacker.y += attacker.vy;
 }
 
+function applyStaggerDrift(unit) {
+  unit.vx *= 0.82;
+  unit.vy *= 0.82;
+  unit.x += unit.vx * POSTURE_RULES.staggerMoveScale;
+  unit.y += unit.vy * POSTURE_RULES.staggerMoveScale;
+}
+
 function resolveAttack(attacker, defender, state) {
   if (defender.isDead) return true;
 
@@ -232,7 +276,7 @@ function resolveAttack(attacker, defender, state) {
   if (dist < weapon.minRange) return false;
   if (angleGap > hitArc) return false;
 
-  const evaded = Math.random() < defender.evasion;
+  const evaded = defender.staggerTimer <= 0 && Math.random() < defender.evasion;
   if (evaded) {
     defender.lastAction = '회피';
     return true;
@@ -243,7 +287,8 @@ function resolveAttack(attacker, defender, state) {
   const personality = PERSONALITIES[attacker.personalityId];
   const aggressionBonus = 1 + personality.aggression * 0.08;
   const lowHpAttackBonus = attacker.hp / attacker.maxHp < 0.35 && attacker.skills?.includes('survival') ? 1.06 : 1;
-  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * (crit ? attacker.critDamage : 1);
+  const staggerDamageBonus = defender.staggerTimer > 0 ? POSTURE_RULES.staggerDamageTakenBonus : 1;
+  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * (crit ? attacker.critDamage : 1);
   const effectiveDefense = getEffectiveDefense(defender);
   const damage = Math.max(2, rawDamage * (1 - effectiveDefense));
 
@@ -251,8 +296,9 @@ function resolveAttack(attacker, defender, state) {
   attacker.hits += 1;
   attacker.damageDealt += damage;
   attacker.lastAction = crit ? '치명타' : '명중';
-  defender.lastAction = '피격';
+  defender.lastAction = defender.staggerTimer > 0 ? '흐트러짐 피격' : '피격';
 
+  applyPostureDamage(attacker, defender, getPostureDamage(attacker, defender, weapon, positionalBonus, crit));
   applyKnockback(attacker, defender, weapon.knockback);
 
   if (defender.hp <= 0) {
@@ -278,6 +324,8 @@ function getReachBonus(attacker, weapon) {
 }
 
 function hasDaggerAttackAngle(attacker, defender) {
+  if (defender.staggerTimer > 0 || defender.attackState === 'recovery') return true;
+
   const attackerFromDefender = angleTo(defender, attacker);
   const backGap = Math.abs(angleDiff(defender.facing + Math.PI, attackerFromDefender));
   const sideGap = Math.min(
@@ -285,9 +333,8 @@ function hasDaggerAttackAngle(attacker, defender) {
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
   const defenderLowHp = defender.hp / defender.maxHp < 0.22;
-  const committedToFlank = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방');
 
-  return backGap < 1.08 || sideGap < 0.86 || committedToFlank || defenderLowHp;
+  return backGap < 1.12 || sideGap < 0.9 || defenderLowHp;
 }
 
 function isDirectlyInFrontOf(observer, target) {
@@ -298,7 +345,8 @@ function isDirectlyInFrontOf(observer, target) {
 
 function getEffectiveDefense(unit) {
   const lowHpBonus = unit.hp / unit.maxHp < 0.35 ? unit.lowHpDefenseBonus || 0 : 0;
-  return clamp(unit.defense + lowHpBonus, 0, 0.62);
+  const staggerPenalty = unit.staggerTimer > 0 ? -0.05 : 0;
+  return clamp(unit.defense + lowHpBonus + staggerPenalty, 0, 0.62);
 }
 
 function getPositionalBonus(attacker, defender) {
@@ -310,9 +358,58 @@ function getPositionalBonus(attacker, defender) {
   const sideGap = Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender));
   const otherSideGap = Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender));
 
-  if (backGap < 0.85) return weapon.backBonus;
-  if (sideGap < 0.72 || otherSideGap < 0.72) return weapon.flankBonus;
+  if (backGap < 0.95) return weapon.backBonus;
+  if (sideGap < 0.82 || otherSideGap < 0.82) return weapon.flankBonus;
   return 1;
+}
+
+function getPostureDamage(attacker, defender, weapon, positionalBonus, crit) {
+  const attackStateBonus = defender.attackState === 'windup' || defender.attackState === 'active' ? 1.18 : 1;
+  const critBonus = crit ? 1.22 : 1;
+  const daggerPostureBonus = weapon.id === 'dagger'
+    ? getDaggerPostureBonus(attacker, defender, weapon)
+    : 1;
+  const defenseReduction = clamp(1 - defender.defense * 0.38, 0.72, 1);
+  return Math.max(
+    POSTURE_RULES.minPostureDamage,
+    weapon.postureDamage * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * defenseReduction
+  );
+}
+
+function getDaggerPostureBonus(attacker, defender, weapon) {
+  const attackerFromDefender = angleTo(defender, attacker);
+  const backGap = Math.abs(angleDiff(defender.facing + Math.PI, attackerFromDefender));
+  const sideGap = Math.min(
+    Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender)),
+    Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
+  );
+
+  if (backGap < 0.95) return weapon.backPostureBonus || 1;
+  if (sideGap < 0.82) return weapon.flankPostureBonus || 1;
+  return 1;
+}
+
+function applyPostureDamage(attacker, defender, amount) {
+  if (defender.isDead || defender.staggerTimer > 0) return;
+
+  defender.posture = clamp(defender.posture - amount, 0, defender.maxPosture);
+  defender.postureRecoveryDelay = POSTURE_RULES.recoveryDelayFrames;
+
+  if (defender.posture <= 0) {
+    triggerStagger(defender, attacker);
+  }
+}
+
+function triggerStagger(unit, attacker) {
+  unit.staggerTimer = POSTURE_RULES.staggerFrames;
+  unit.attackState = 'idle';
+  unit.attackTimer = 0;
+  unit.cooldownTimer = Math.max(unit.cooldownTimer, 18);
+  unit.posture = Math.round(unit.maxPosture * POSTURE_RULES.staggerPostureRestoreRatio);
+  unit.postureRecoveryDelay = POSTURE_RULES.recoveryDelayFrames;
+  unit.vx += Math.cos(angleTo(attacker, unit)) * 1.5;
+  unit.vy += Math.sin(angleTo(attacker, unit)) * 1.5;
+  unit.lastAction = '자세 흐트러짐';
 }
 
 function applyKnockback(attacker, defender, force) {

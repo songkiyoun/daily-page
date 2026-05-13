@@ -227,6 +227,15 @@ select option {
   transition: width 0.12s linear;
 }
 
+.posturebar {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.posturebar > i {
+  background: linear-gradient(90deg, var(--accent), var(--gold));
+}
+
 .status-note {
   color: var(--muted);
   font-size: 0.78rem;
@@ -393,3 +402,4 @@ select option {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+

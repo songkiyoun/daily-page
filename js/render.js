@@ -101,8 +101,17 @@ function drawUnit(ctx, unit) {
   ctx.fillStyle = unit.side === 'player' ? '#67e59d' : '#ff6577';
   ctx.fill();
   ctx.lineWidth = 2;
-  ctx.strokeStyle = weapon.color;
+  ctx.strokeStyle = unit.staggerTimer > 0 ? '#ffd45a' : weapon.color;
   ctx.stroke();
+
+  if (unit.staggerTimer > 0) {
+    ctx.beginPath();
+    ctx.arc(0, 0, unit.radius + 9, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,212,90,0.72)';
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   ctx.rotate(unit.facing);
   ctx.beginPath();
@@ -116,6 +125,7 @@ function drawUnit(ctx, unit) {
   ctx.restore();
 
   drawHealthBar(ctx, unit);
+  drawPostureBar(ctx, unit);
   drawUnitLabel(ctx, unit);
 }
 
@@ -132,6 +142,23 @@ function drawHealthBar(ctx, unit) {
   ctx.fillStyle = unit.side === 'player' ? '#67e59d' : '#ff6577';
   ctx.fillRect(x, y, width * ratio, height);
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.strokeRect(x, y, width, height);
+  ctx.restore();
+}
+
+function drawPostureBar(ctx, unit) {
+  const width = 72;
+  const height = 5;
+  const ratio = clamp(unit.posture / unit.maxPosture, 0, 1);
+  const x = unit.x - width / 2;
+  const y = unit.y - unit.radius - 13;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(x, y, width, height);
+  ctx.fillStyle = unit.staggerTimer > 0 ? '#ffd45a' : '#a888ff';
+  ctx.fillRect(x, y, width * ratio, height);
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
   ctx.strokeRect(x, y, width, height);
   ctx.restore();
 }

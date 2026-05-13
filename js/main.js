@@ -133,6 +133,7 @@ function renderStatus() {
     const weapon = WEAPONS[unit.weaponId];
     const personality = PERSONALITIES[unit.personalityId];
     const ratio = Math.max(0, Math.round((unit.hp / unit.maxHp) * 100));
+    const postureRatio = Math.max(0, Math.round((unit.posture / unit.maxPosture) * 100));
     const attackScale = Math.round(unit.attackScale * 100);
     const defense = Math.round(unit.defense * 100);
     const crit = Math.round(unit.crit * 100);
@@ -143,7 +144,8 @@ function renderStatus() {
           <span>${Math.ceil(unit.hp)} / ${unit.maxHp}</span>
         </div>
         <div class="hpbar"><i style="width:${ratio}%"></i></div>
-        <div class="status-note">${weapon.name} · ${personality.name} · 공격 ${attackScale}% · 방어 ${defense}% · 치명 ${crit}% · ${unit.lastAction} · 명중 ${unit.hits}회</div>
+        <div class="hpbar posturebar"><i style="width:${postureRatio}%"></i></div>
+        <div class="status-note">${weapon.name} · ${personality.name} · 공격 ${attackScale}% · 방어 ${defense}% · 치명 ${crit}% · 자세 ${Math.round(unit.posture)}/${unit.maxPosture} · ${unit.lastAction} · 명중 ${unit.hits}회</div>
       </div>
     `;
   }).join('');

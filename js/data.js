@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.4.2';
+export const VERSION = '0.4.3';
 
 export const WEAPONS = {
   spear: {
@@ -17,6 +17,11 @@ export const WEAPONS = {
     cooldown: 66,
     windup: 15,
     recovery: 22,
+    turnSpeed: 0.052,
+    windupTurnScale: 0.5,
+    activeTurnScale: 0.22,
+    recoveryTurnScale: 0.28,
+    postureDamage: 22,
     moveSpeed: 2.55,
     knockback: 15,
     crit: 0.03,
@@ -40,6 +45,11 @@ export const WEAPONS = {
     cooldown: 58,
     windup: 12,
     recovery: 24,
+    turnSpeed: 0.07,
+    windupTurnScale: 0.58,
+    activeTurnScale: 0.28,
+    recoveryTurnScale: 0.34,
+    postureDamage: 20,
     moveSpeed: 2.72,
     knockback: 11,
     crit: 0.06,
@@ -63,6 +73,11 @@ export const WEAPONS = {
     cooldown: 31,
     windup: 6,
     recovery: 10,
+    turnSpeed: 0.118,
+    windupTurnScale: 0.72,
+    activeTurnScale: 0.42,
+    recoveryTurnScale: 0.52,
+    postureDamage: 13,
     moveSpeed: 3.08,
     knockback: 7,
     crit: 0.1,
@@ -86,6 +101,13 @@ export const WEAPONS = {
     cooldown: 22,
     windup: 4,
     recovery: 8,
+    turnSpeed: 0.148,
+    windupTurnScale: 0.82,
+    activeTurnScale: 0.52,
+    recoveryTurnScale: 0.62,
+    postureDamage: 10,
+    flankPostureBonus: 1.65,
+    backPostureBonus: 2.25,
     moveSpeed: 3.28,
     knockback: 5,
     crit: 0.18,
@@ -190,6 +212,22 @@ export const BASE_STATS = {
   defenseCap: 0.46,
   evasionCap: 0.38,
   critCap: 0.62
+};
+
+
+export const POSTURE_RULES = {
+  baseMax: 100,
+  defenseToMax: 5,
+  vitalityToMax: 2,
+  levelToMax: 2,
+  enemyFloorToMax: 2,
+  recoveryDelayFrames: 96,
+  recoveryPerFrame: 0.22,
+  staggerFrames: 46,
+  staggerPostureRestoreRatio: 0.42,
+  staggerDamageTakenBonus: 1.12,
+  staggerMoveScale: 0.16,
+  minPostureDamage: 3
 };
 
 export const SKILLS = {

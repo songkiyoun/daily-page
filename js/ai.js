@@ -20,6 +20,10 @@ export function decideMovement(self, enemy, state = null) {
     return { ax: 0, ay: 0, faceAngle: toEnemy, label: '공격 동작' };
   }
 
+  if (enemy.staggerTimer > 0) {
+    return exploitStaggerMovement(self, enemy, desired, toEnemy, dist, relation, weapon, personality);
+  }
+
   const lowHpRetreat = self.hp / self.maxHp < personality.retreatHpRatio;
   if (lowHpRetreat && personality.caution > 0.45) {
     return retreatMovement(self, enemy, desired + 28, toEnemy, fromEnemy, personality, '체력 관리 후퇴');
@@ -121,6 +125,20 @@ function easternMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relatio
   return blendAngles(orbit, strikeAngle, 0.34 + personality.pressure * 0.18, 0.9, toEnemy, '동양검 측면 압박');
 }
 
+function exploitStaggerMovement(self, enemy, desired, toEnemy, dist, relation, weapon, personality) {
+  if (weapon.id === 'dagger' || personality.id === 'assassin') {
+    const backRadius = Math.max(20, desired);
+    const backAngle = angleToRingPointByFacing(self, enemy, backRadius, Math.PI + self.orbitDir * 0.18);
+    return vectorFromAngle(backAngle, 1, toEnemy, '흐트러짐 측후방 추격');
+  }
+
+  if (dist > desired + 8) {
+    return vectorFromAngle(toEnemy, 0.96, toEnemy, '흐트러짐 추격');
+  }
+
+  return vectorFromAngle(sideAngle(toEnemy, self.orbitDir), 0.36, toEnemy, '흐트러짐 압박');
+}
+
 function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality) {
   const flankPower = clamp((weapon.flankBias || 0.5) * 0.62 + personality.flankPreference * 0.58, 0.5, 1.35);
   const sideRadius = desired + (relation.isFront ? 18 : 8);
@@ -189,6 +207,8 @@ function getDesiredRange(self, enemy, weapon, personality) {
 }
 
 function getIncomingThreat(self, enemy, relation) {
+  if (enemy.staggerTimer > 0) return '';
+
   const enemyWeapon = WEAPONS[enemy.weaponId];
   const dist = distance(self, enemy);
   const enemyToSelf = angleTo(enemy, self);
