@@ -157,7 +157,7 @@ v0.3.1: fix reward button render lifecycle
 
 
 
-## v0.5.3 명중·패링·충돌 반응 기준
+## v0.5.4 명중·패링·충돌 반응 기준
 
 - 명중 넉백은 `data.js`의 각 무기 `hitKnockback`, `hitPostureScale`, `selfRetreatOnHit` 수치에서 관리합니다.
 - 패링 시 밀림은 `data.js`의 `parryKnockbackTaken`과 `POSTURE_RULES.parryKnockback`에서만 관리합니다.
