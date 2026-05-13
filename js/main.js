@@ -25,6 +25,7 @@ const controls = {
   playerPersonality: document.getElementById('playerPersonality'),
   startBtn: document.getElementById('startBtn'),
   pauseBtn: document.getElementById('pauseBtn'),
+  giveUpBtn: document.getElementById('giveUpBtn'),
   overlayActionBtn: document.getElementById('overlayActionBtn'),
   overlayRewardBox: document.getElementById('overlayRewardBox'),
   statusBox: document.getElementById('statusBox'),
@@ -63,6 +64,7 @@ function init() {
     togglePause(state);
     updatePauseButton();
   });
+  controls.giveUpBtn.addEventListener('click', handleGiveUp);
   controls.playerBox.addEventListener('click', handleStatClick);
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
 
@@ -70,7 +72,7 @@ function init() {
   state = createBattleState(run);
   render(ctx, state);
   renderAllPanels(true);
-  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'newRun');
+  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'start');
   console.info(`Circle Battle Tower Rebuild v${VERSION}`);
 }
 
@@ -96,10 +98,10 @@ function startNewRun() {
   run = createRun(readConfig());
   state = createBattleState(run);
   clearPanelKeys();
-  startState(state);
-  hideOverlay();
-  updatePauseButton();
+  render(ctx, state);
   renderAllPanels(true);
+  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'start');
+  updatePauseButton();
 }
 
 function handleMainButton() {
@@ -127,7 +129,7 @@ function handleConfigChange() {
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
-  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'newRun');
+  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'start');
 }
 
 function startCurrentFloor() {
@@ -162,6 +164,19 @@ function handleOverlayAction() {
   if (action === 'start') {
     startCurrentFloor();
   }
+}
+
+function handleGiveUp() {
+  if (!state || state.result || !run?.active) return;
+  state.running = false;
+  state.paused = false;
+  state.result = 'defeat';
+  state.player.isDead = true;
+  state.player.lastAction = '런 포기';
+  clearPanelKeys();
+  render(ctx, state);
+  renderAllPanels(true);
+  showOverlay('DEFEAT', `${state.run.floor}층에서 런을 포기했습니다. 새 캐릭터를 생성할 수 있습니다.`, '새 캐릭터 생성', 'retry');
 }
 
 function handleStatClick(event) {
@@ -352,6 +367,8 @@ function renderControlState(force = false) {
   controls.playerWeapon.disabled = !setupEditable;
   controls.playerPersonality.disabled = !setupEditable;
   controls.pauseBtn.disabled = !state.running || !!state.result;
+  const freshReady = !state.running && !state.result && run?.floor === TOWER_RULES.startFloor && run?.victories === 0;
+  controls.giveUpBtn.disabled = !run?.active || !!state.result || freshReady;
 
   if (state.running && !state.result) {
     controls.startBtn.textContent = '전투 진행 중';

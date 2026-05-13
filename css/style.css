@@ -240,6 +240,18 @@ select option {
   font-size: 0.78rem;
 }
 
+.button.danger {
+  border-color: rgba(255, 101, 119, 0.45);
+  color: #ffd3d8;
+  background: rgba(255, 101, 119, 0.1);
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .status-box,
 .tower-box,
 .player-box {

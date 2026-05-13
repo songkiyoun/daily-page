@@ -102,6 +102,8 @@ function getTurnSpeed(unit) {
   if (unit.attackState === 'windup') scale *= weapon.windupTurnScale;
   if (unit.attackState === 'active') scale *= weapon.activeTurnScale;
   if (unit.attackState === 'recovery') scale *= weapon.recoveryTurnScale;
+  if (unit.postureRecoveryDelay > 0) scale *= 0.78;
+  if (unit.posture < unit.maxPosture * 0.35) scale *= 0.86;
   if (unit.staggerTimer > 0) scale *= POSTURE_RULES.staggerMoveScale;
 
   return weapon.turnSpeed * scale;
@@ -124,7 +126,8 @@ function updateOrbitDirection(unit, enemy) {
 function applyMovement(unit, movement, weapon) {
   const acceleration = getAcceleration(unit, movement);
   const friction = 0.865;
-  const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1);
+  const burstScale = unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label) ? 1.24 : 1;
+  const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1) * burstScale;
 
   unit.vx += movement.ax * acceleration;
   unit.vy += movement.ay * acceleration;
@@ -152,11 +155,15 @@ function getAcceleration(unit, movement) {
   if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.25;
   if (unit.weaponId === 'spear' && movement.label.includes('측면')) value = 0.29;
   if (unit.weaponId === 'eastern') value = 0.25;
-  if (unit.weaponId === 'dagger') value = 0.28;
+  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.38 : 0.29;
   if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.015;
   if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.045;
   if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
   return value;
+}
+
+function isDaggerBurstLabel(label = '') {
+  return label.includes('순간') || label.includes('침투') || label.includes('후방') || label.includes('미러 짧은 교전');
 }
 
 function tryCloseRangeReset(unit, enemy, movement) {
@@ -165,16 +172,16 @@ function tryCloseRangeReset(unit, enemy, movement) {
   const weapon = WEAPONS[unit.weaponId];
   const personality = PERSONALITIES[unit.personalityId];
   const dist = distance(unit, enemy);
-  const bodyClose = dist < unit.radius + enemy.radius + 22;
+  const bodyClose = dist < unit.radius + enemy.radius + 18;
   const spearPinned = weapon.id === 'spear' && (
-    dist < weapon.minRange + 22 ||
-    ((unit.retreatFrames || 0) > 16 && dist < weapon.idealRange - 4) ||
-    unit.retreatLockout > 0
+    dist < weapon.minRange + 16 ||
+    ((unit.retreatFrames || 0) > 12 && dist < weapon.minRange + 30) ||
+    (unit.retreatLockout > 0 && dist < weapon.minRange + 24)
   );
   const defensivePinned = personality.id === 'defensive' && (
     bodyClose ||
-    ((unit.retreatFrames || 0) > 24 && dist < weapon.idealRange + 18) ||
-    (unit.retreatLockout > 0 && dist < weapon.idealRange + 8)
+    ((unit.retreatFrames || 0) > 18 && dist < unit.radius + enemy.radius + 42) ||
+    (unit.retreatLockout > 0 && dist < unit.radius + enemy.radius + 36)
   );
 
   if (!spearPinned && !defensivePinned) return false;
@@ -210,7 +217,10 @@ function canStartAttack(attacker, defender) {
   const dist = distance(attacker, defender);
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
-  const startTolerance = Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52);
+  const daggerMirror = attacker.weaponId === 'dagger' && defender.weaponId === 'dagger';
+  const startTolerance = daggerMirror
+    ? 1.45
+    : Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52);
 
   if (defender.staggerTimer > 0 && dist <= weapon.range + defender.radius + getReachBonus(attacker, weapon)) {
     return true;
@@ -224,7 +234,7 @@ function canStartAttack(attacker, defender) {
     return false;
   }
 
-  const committedToAngle = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방');
+  const committedToAngle = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방') || attacker.lastAction.includes('미러');
   if (personality.id === 'assassin' && attacker.weaponId !== 'spear' && isDirectlyInFrontOf(defender, attacker) && !committedToAngle) {
     return false;
   }
@@ -342,7 +352,8 @@ function resolveAttack(attacker, defender, state) {
   const dist = distance(attacker, defender);
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
-  const hitArc = getHitArc(attacker, weapon);
+  const daggerMirror = attacker.weaponId === 'dagger' && defender.weaponId === 'dagger';
+  const hitArc = daggerMirror ? 1.22 : getHitArc(attacker, weapon);
   const reachBonus = getReachBonus(attacker, weapon);
 
   if (dist > weapon.range + defender.radius + reachBonus) return false;
@@ -401,15 +412,18 @@ function getReachBonus(attacker, weapon) {
 function hasDaggerAttackAngle(attacker, defender) {
   if (defender.staggerTimer > 0 || defender.attackState === 'recovery') return true;
 
+  const dist = distance(attacker, defender);
   const attackerFromDefender = angleTo(defender, attacker);
+  const frontGap = Math.abs(angleDiff(defender.facing, attackerFromDefender));
   const backGap = Math.abs(angleDiff(defender.facing + Math.PI, attackerFromDefender));
   const sideGap = Math.min(
     Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender)),
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
   const defenderLowHp = defender.hp / defender.maxHp < 0.22;
+  const daggerMirrorCommit = defender.weaponId === 'dagger' && dist < WEAPONS.dagger.range + defender.radius + 6 && frontGap < 1.52;
 
-  return backGap < 1.12 || sideGap < 0.9 || defenderLowHp;
+  return backGap < 1.12 || sideGap < 0.9 || defenderLowHp || daggerMirrorCommit;
 }
 
 function isDirectlyInFrontOf(observer, target) {
@@ -519,6 +533,7 @@ function applyKnockback(attacker, defender, force) {
 
 function resolveWeaponClash(a, b) {
   if (a.isDead || b.isDead || a.clashCooldown > 0 || b.clashCooldown > 0) return;
+  if (a.attackState !== 'active' || b.attackState !== 'active') return;
   if (!isWeaponThreatening(a, b) || !isWeaponThreatening(b, a)) return;
 
   const weaponA = WEAPONS[a.weaponId];
@@ -551,17 +566,17 @@ function resolveWeaponClash(a, b) {
 }
 
 function isWeaponThreatening(attacker, defender) {
-  if (attacker.attackState !== 'windup' && attacker.attackState !== 'active') return false;
+  if (attacker.attackState !== 'active') return false;
 
   const weapon = WEAPONS[attacker.weaponId];
   const dist = distance(attacker, defender);
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
-  const rangePadding = attacker.attackState === 'windup' ? defender.radius + 10 : defender.radius + getReachBonus(attacker, weapon) + 8;
+  const rangePadding = defender.radius + getReachBonus(attacker, weapon) + 2;
 
   if (dist > weapon.range + rangePadding) return false;
-  if (dist < Math.max(0, weapon.minRange - 8)) return false;
-  return angleGap <= weapon.arc + 0.42;
+  if (dist < Math.max(0, weapon.minRange - 6)) return false;
+  return angleGap <= weapon.arc + 0.28;
 }
 
 function getClashPower(unit, weapon) {
