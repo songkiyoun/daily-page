@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.7';
+export const VERSION = '0.6.8';
 
 export const WEAPONS = {
   spear: {
@@ -125,6 +125,8 @@ export const WEAPONS = {
     riposteCooldownScale: 0.46,
     parryFrontArcScale: 1.18,
     parryReachScale: 1.18,
+    closeGuardVsDagger: true,
+    closeGuardPostureScale: 1.06,
     comboOnHit: 0,
     hitStunFrames: 5,
     feintStrength: 0.12,
@@ -190,6 +192,8 @@ export const WEAPONS = {
     staggerRecoveryPenalty: 0.88,
     parryRecoveryPenalty: 0.82,
     riposteOnParry: true,
+    glancingSlipVsHeavy: true,
+    glancingSlipChance: 0.13,
     comboOnHit: 2,
     comboCooldownScale: 0.72,
     hitStunFrames: 2,
@@ -237,7 +241,7 @@ export const WEAPONS = {
     parryEfficiency: 0.24,
     parryBreak: -0.03,
     flankPostureBonus: 1.65,
-    backPostureBonus: 2.25,
+    backPostureBonus: 1.16,
     moveSpeed: 3.72,
     agiMoveScale: 0.0082,
     agiTurnScale: 0.0095,
@@ -247,11 +251,11 @@ export const WEAPONS = {
     knockback: 5,
     hitKnockback: 6,
     hitPostureScale: 0.82,
-    selfRetreatOnHit: 8.4,
+    selfRetreatOnHit: 5.2,
     parryKnockbackTaken: 1.06,
     clashKnockbackScale: 0.96,
     crit: 0.18,
-    backBonus: 2.25,
+    backBonus: 1.18,
     flankBonus: 1.45,
     description: '정면은 약하지만 측후방을 잡으면 강해지는 위치 선정 무기입니다.',
     identity: '측후방 암살',
@@ -270,7 +274,7 @@ export const WEAPONS = {
     lungePower: 1.36,
     entryForward: 1.34,
     entrySide: 1.36,
-    recoveryBackstep: 2.12
+    recoveryBackstep: 1.48
   }
 };
 

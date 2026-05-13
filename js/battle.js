@@ -262,17 +262,21 @@ function tryCloseRangeReset(unit, enemy, movement) {
     ((unit.retreatFrames || 0) > 18 && dist < unit.radius + enemy.radius + 42) ||
     (unit.retreatLockout > 0 && dist < unit.radius + enemy.radius + 36)
   );
+  const westernCloseGuard = weapon.id === 'western' &&
+    weapon.closeGuardVsDagger &&
+    enemy.weaponId === 'dagger' &&
+    (bodyClose || dist < unit.radius + enemy.radius + 34 || (enemy.attackState !== 'idle' && dist < weapon.range + enemy.radius * 0.4));
 
-  if (!spearPinned && !defensivePinned) return false;
+  if (!spearPinned && !defensivePinned && !westernCloseGuard) return false;
 
   const pushAngle = angleTo(unit, enemy);
   const sideAngle = pushAngle + Math.PI / 2 * unit.orbitDir;
   const enemyPersonality = PERSONALITIES[enemy.personalityId];
   const identityPush = (weapon.closePushScale || 1) * (personality.closePushScale || 1);
   const pushResistance = enemyPersonality.knockbackTakenScale || 1;
-  const force = (spearPinned ? 7.2 : 4.2) * identityPush * pushResistance;
-  const sideForce = (spearPinned ? 1.8 : 1.4) * identityPush * pushResistance;
-  const selfSide = (spearPinned ? 2.35 : 1.6) * identityPush;
+  const force = (spearPinned ? 7.2 : westernCloseGuard ? 4.8 : 4.2) * identityPush * pushResistance;
+  const sideForce = (spearPinned ? 1.8 : westernCloseGuard ? 2.2 : 1.4) * identityPush * pushResistance;
+  const selfSide = (spearPinned ? 2.35 : westernCloseGuard ? 1.28 : 1.6) * identityPush;
 
   enemy.vx += Math.cos(pushAngle) * force + Math.cos(sideAngle) * sideForce;
   enemy.vy += Math.sin(pushAngle) * force + Math.sin(sideAngle) * sideForce;
@@ -281,15 +285,15 @@ function tryCloseRangeReset(unit, enemy, movement) {
   unit.retreatFrames = 0;
   unit.retreatLockout = Math.max(unit.retreatLockout || 0, Math.floor(POSTURE_RULES.retreatLockoutFrames * 0.45));
   unit.resetMoveCooldown = POSTURE_RULES.closeResetCooldown;
-  unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : 14);
-  enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : 9);
+  unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : westernCloseGuard ? 16 : 14);
+  enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : westernCloseGuard ? 11 : 9);
 
-  const postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? 1.22 : 0.94);
+  const postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? 1.22 : westernCloseGuard ? (weapon.closeGuardPostureScale || 1.05) : 0.94);
   applyPostureDamage(unit, enemy, postureDamage);
   twistBodyOnImpact(enemy, unit, postureDamage, weapon);
 
-  unit.lastAction = spearPinned ? '창 밀어내기' : '방어 견제 밀어내기';
-  enemy.lastAction = '자세 밀림';
+  unit.lastAction = spearPinned ? '창 밀어내기' : westernCloseGuard ? '서양검 근접 견제 베기' : '방어 견제 밀어내기';
+  enemy.lastAction = westernCloseGuard ? '근접 견제당함' : '자세 밀림';
   return true;
 }
 
@@ -597,6 +601,11 @@ function resolveAttack(attacker, defender, state) {
   if (dist < weapon.minRange) return false;
   if (angleGap > hitArc) return false;
 
+  if (resolveEasternGlancingSlip(defender, attacker, weapon, hitQuality, state)) {
+    attacker.attackOutcome = 'glanced';
+    return true;
+  }
+
   if (resolveParry(defender, attacker, weapon, state)) {
     attacker.attackOutcome = 'parried';
     return true;
@@ -642,6 +651,40 @@ function resolveAttack(attacker, defender, state) {
     defender.lastAction = '전투 불능';
   }
 
+  return true;
+}
+
+
+function resolveEasternGlancingSlip(defender, attacker, incomingWeapon, hitQuality, state) {
+  if (defender.weaponId !== 'eastern') return false;
+  if (incomingWeapon.id !== 'western') return false;
+  if (!WEAPONS.eastern.glancingSlipVsHeavy) return false;
+  if (defender.staggerTimer > 0 || defender.impactStopTimer > 0) return false;
+  if (defender.posture < defender.maxPosture * 0.28) return false;
+  if (defender.attackState === 'recovery' && defender.attackTimer > 6) return false;
+
+  const incomingDirection = angleTo(defender, attacker);
+  const frontGap = Math.abs(angleDiff(defender.facing, incomingDirection));
+  const sideReadable = frontGap < 1.35 || defender.attackState === 'windup' || defender.attackState === 'active';
+  if (!sideReadable) return false;
+
+  const baseChance = WEAPONS.eastern.glancingSlipChance || 0.12;
+  const postureRatio = clamp(defender.posture / defender.maxPosture, 0, 1);
+  const activeBonus = defender.attackState === 'windup' || defender.attackState === 'active' ? 0.035 : 0;
+  const qualityPenalty = hitQuality > 0.72 ? 0.035 : 0;
+  const chance = clamp(baseChance + defender.stats.agi * 0.004 + postureRatio * 0.035 + activeBonus - qualityPenalty, 0.04, 0.24);
+
+  if (Math.random() > chance) return false;
+
+  const slipSide = defender.orbitDir || 1;
+  const sideAngle = incomingDirection + Math.PI / 2 * slipSide;
+  defender.vx += Math.cos(sideAngle) * 5.2 - Math.cos(incomingDirection) * 0.8;
+  defender.vy += Math.sin(sideAngle) * 5.2 - Math.sin(incomingDirection) * 0.8;
+  defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 8);
+  defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.28));
+  defender.lastAction = '동양검 흘리기';
+  attacker.lastAction = '베기 흘려짐';
+  emitCombatEvent(state, 'SLIP', defender.x, defender.y - 34, '#ffe18f');
   return true;
 }
 
@@ -820,7 +863,8 @@ function hasDaggerAttackAngle(attacker, defender) {
   const spearWindow = defender.weaponId === 'spear' && (defender.flankPressureTimer > 0 || defender.attackState === 'recovery' || defender.postureRecoveryDelay > 0);
   const daggerMirrorCommit = defender.weaponId === 'dagger' && dist < WEAPONS.dagger.range + defender.radius + 8 && frontGap < 1.62;
 
-  return backGap < 1.32 || sideGap < 1.04 || defenderLowHp || committedBurst || (defenderBusy && sideGap < 1.22) || (spearWindow && sideGap < 1.36) || daggerMirrorCommit;
+  const sideRearWindow = sideGap < 1.16 && backGap > 0.48;
+  return sideRearWindow || defenderLowHp || committedBurst || (defenderBusy && sideGap < 1.28) || (spearWindow && sideGap < 1.38) || daggerMirrorCommit;
 }
 
 function isDirectlyInFrontOf(observer, target) {
@@ -845,9 +889,9 @@ function getPositionalBonus(attacker, defender) {
   const otherSideGap = Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender));
   const flankGap = Math.min(sideGap, otherSideGap);
 
-  if (backGap < 1.12) return weapon.backBonus;
-  if (flankGap < 1.02) return weapon.flankBonus;
-  if (defender.flankPressureTimer > 0 && flankGap < 1.22) return defender.weaponId === 'spear' ? Math.max(weapon.flankBonus * 0.92, 1.32) : (weapon.flankBonus + 1) / 2;
+  if (flankGap < 1.08) return weapon.flankBonus;
+  if (backGap < 0.58) return weapon.backBonus || 1.12;
+  if (defender.flankPressureTimer > 0 && flankGap < 1.28) return defender.weaponId === 'spear' ? Math.max(weapon.flankBonus * 0.92, 1.32) : (weapon.flankBonus + 1) / 2;
   return 1;
 }
 
@@ -878,9 +922,9 @@ function getDaggerPostureBonus(attacker, defender, weapon) {
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
 
-  if (backGap < 1.12) return weapon.backPostureBonus || 1;
-  if (sideGap < 1.02) return weapon.flankPostureBonus || 1;
-  if (defender.flankPressureTimer > 0 && sideGap < 1.18) return Math.max(1.18, (weapon.flankPostureBonus || 1));
+  if (sideGap < 1.08) return weapon.flankPostureBonus || 1;
+  if (backGap < 0.58) return weapon.backPostureBonus || 1;
+  if (defender.flankPressureTimer > 0 && sideGap < 1.24) return Math.max(1.18, (weapon.flankPostureBonus || 1));
   return 1;
 }
 
@@ -988,7 +1032,7 @@ function applyWeaponHitReaction(attacker, defender, weapon, hitQuality = 0) {
 
   const selfRetreat = weapon.selfRetreatOnHit || 0;
   if (selfRetreat > 0) {
-    const retreatScale = weapon.id === 'dagger' ? 1.55 + hitQuality * 0.72 : 0.42;
+    const retreatScale = weapon.id === 'dagger' ? 1.18 + hitQuality * 0.44 : 0.42;
     attacker.vx -= Math.cos(attackAngle) * selfRetreat * retreatScale;
     attacker.vy -= Math.sin(attackAngle) * selfRetreat * retreatScale;
     if (weapon.id === 'dagger') {
