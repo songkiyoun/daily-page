@@ -77,6 +77,9 @@ function tickTimers(unit) {
   if (unit.parryCooldown > 0) unit.parryCooldown -= 1;
   if (unit.parryFlashTimer > 0) unit.parryFlashTimer -= 1;
   if (unit.counterTimer > 0) unit.counterTimer -= 1;
+  if (unit.comboTimer > 0) unit.comboTimer -= 1;
+  if (unit.comboTimer <= 0) unit.comboCount = 0;
+  if (unit.riposteTimer > 0) unit.riposteTimer -= 1;
 }
 
 function applyImpactStopDrift(unit) {
@@ -158,6 +161,7 @@ function getTurnSpeed(unit) {
   if (unit.postureRecoveryDelay > 0) scale *= 0.78;
   if (unit.flankPressureTimer > 0) scale *= POSTURE_RULES.daggerFlankTurnScale;
   if (unit.parryFlashTimer > 0) scale *= 0.72;
+  if (WEAPONS[unit.weaponId]?.identity === '거리 재설정' && unit.postureRecoveryDelay > 0) scale *= 0.9;
   if (unit.posture < unit.maxPosture * 0.35) scale *= 0.86;
   if (unit.staggerTimer > 0) scale *= POSTURE_RULES.staggerMoveScale;
 
@@ -217,8 +221,8 @@ function getAcceleration(unit, movement) {
   let value = 0.21 + (personality.pressure || 0.5) * 0.025;
   if (unit.weaponId === 'spear' && movement.label.includes('확보')) value = 0.25;
   if (unit.weaponId === 'spear' && movement.label.includes('측면')) value = 0.29;
-  if (unit.weaponId === 'eastern') value = 0.25;
-  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.58 : movement.label.includes('페이크') ? 0.42 : 0.31;
+  if (unit.weaponId === 'eastern') value = movement.label.includes('페이크') ? 0.29 : 0.25;
+  if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.68 : movement.label.includes('페이크') ? 0.54 : 0.33;
   if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.015;
   if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.045;
   if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
@@ -251,9 +255,10 @@ function tryCloseRangeReset(unit, enemy, movement) {
 
   const pushAngle = angleTo(unit, enemy);
   const sideAngle = pushAngle + Math.PI / 2 * unit.orbitDir;
-  const force = spearPinned ? 5.8 : 3.8;
-  const sideForce = spearPinned ? 1.45 : 1.35;
-  const selfSide = spearPinned ? 2.1 : 1.55;
+  const identityPush = (weapon.closePushScale || 1) * (personality.closePushScale || 1);
+  const force = (spearPinned ? 5.8 : 3.8) * identityPush;
+  const sideForce = (spearPinned ? 1.45 : 1.35) * identityPush;
+  const selfSide = (spearPinned ? 2.1 : 1.55) * identityPush;
 
   enemy.vx += Math.cos(pushAngle) * force + Math.cos(sideAngle) * sideForce;
   enemy.vy += Math.sin(pushAngle) * force + Math.sin(sideAngle) * sideForce;
@@ -365,7 +370,7 @@ function updateAttackState(attacker, defender, state) {
     if (attacker.attackTimer <= 0) {
       attacker.attackState = 'idle';
       attacker.attackVisualPhase = 0;
-      attacker.cooldownTimer = Math.max(8, Math.round(weapon.cooldown * (attacker.cooldownScale || 1)));
+      attacker.cooldownTimer = getRecoveryCooldown(attacker, weapon);
       attacker.lastAction = '재정비';
     }
   }
@@ -405,6 +410,17 @@ function getRecoveryLabel(weaponId) {
   if (weaponId === 'eastern') return '동양검 이탈';
   if (weaponId === 'dagger') return '단검 빠른 이탈';
   return '후딜';
+}
+
+function getRecoveryCooldown(attacker, weapon) {
+  let cooldown = Math.max(8, Math.round(weapon.cooldown * (attacker.cooldownScale || 1)));
+  if (weapon.id === 'eastern' && attacker.comboTimer > 0 && (attacker.comboCount || 0) <= (POSTURE_RULES.easternComboMax || 2)) {
+    cooldown = Math.max(4, Math.round(cooldown * (weapon.comboCooldownScale || 0.5)));
+  }
+  if (attacker.riposteTimer > 0 && (weapon.riposteOnParry || false)) {
+    cooldown = Math.max(4, Math.round(cooldown * 0.55));
+  }
+  return cooldown;
 }
 
 function applyWindupDrift(attacker, weapon) {
@@ -563,7 +579,8 @@ function resolveAttack(attacker, defender, state) {
   const lowHpAttackBonus = attacker.hp / attacker.maxHp < 0.35 && attacker.skills?.includes('survival') ? 1.06 : 1;
   const staggerDamageBonus = defender.staggerTimer > 0 ? POSTURE_RULES.staggerDamageTakenBonus : 1;
   const counterBonus = attacker.counterTimer > 0 ? POSTURE_RULES.counterDamageBonus : 1;
-  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * (crit ? attacker.critDamage : 1);
+  const comboDamageBonus = attacker.weaponId === 'eastern' && attacker.comboTimer > 0 ? 1.06 : 1;
+  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * comboDamageBonus * (crit ? attacker.critDamage : 1);
   const effectiveDefense = getEffectiveDefense(defender);
   const damage = Math.max(2, rawDamage * (1 - effectiveDefense));
 
@@ -577,6 +594,7 @@ function resolveAttack(attacker, defender, state) {
   const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality);
   applyPostureDamage(attacker, defender, postureDamage, state);
   applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
+  applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
   applyImpactStop(attacker, defender, weapon);
   attacker.counterTimer = 0;
@@ -669,7 +687,7 @@ function performParry(defender, attacker, incomingWeapon, state) {
   twistBodyOnImpact(attacker, defender, parryPower, defenderWeapon);
 
   attacker.attackState = 'recovery';
-  attacker.attackTimer = Math.max(attacker.attackTimer, incomingWeapon.recovery + POSTURE_RULES.parryRecoveryAddFrames);
+  attacker.attackTimer = Math.max(attacker.attackTimer, Math.round((incomingWeapon.recovery + POSTURE_RULES.parryRecoveryAddFrames) * (incomingWeapon.parryRecoveryPenalty || 1)));
   attacker.cooldownTimer = Math.max(attacker.cooldownTimer, Math.floor(incomingWeapon.cooldown * 0.32));
   const parryKnockback = getParryKnockback(attacker, incomingWeapon);
   attacker.vx += Math.cos(impactAngle) * parryKnockback + Math.cos(sideAngle) * 0.72;
@@ -679,7 +697,8 @@ function performParry(defender, attacker, incomingWeapon, state) {
   defender.vy -= Math.sin(impactAngle) * 0.82;
   defender.parryCooldown = POSTURE_RULES.parryCooldownFrames;
   defender.parryFlashTimer = POSTURE_RULES.parryFlashFrames;
-  defender.counterTimer = POSTURE_RULES.counterWindowFrames;
+  defender.counterTimer = Math.round(POSTURE_RULES.counterWindowFrames * ((PERSONALITIES[defender.personalityId].counterScale || 1)));
+  defender.riposteTimer = defenderWeapon.riposteOnParry ? POSTURE_RULES.riposteWindowFrames : 0;
   defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay, Math.floor(POSTURE_RULES.recoveryDelayFrames * 0.38));
   defender.impactStopTimer = Math.max(defender.impactStopTimer || 0, 3);
   attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, incomingWeapon.impactStopFrames || 4);
@@ -830,7 +849,7 @@ function applyPostureDamage(attacker, defender, amount, state = null) {
 
 function triggerStagger(unit, attacker, state = null) {
   const impactAngle = angleTo(attacker, unit);
-  unit.staggerTimer = POSTURE_RULES.staggerFrames;
+  unit.staggerTimer = Math.round(POSTURE_RULES.staggerFrames * (WEAPONS[attacker.weaponId]?.staggerRecoveryPenalty || 1));
   unit.attackState = 'idle';
   unit.attackTimer = 0;
   unit.cooldownTimer = Math.max(unit.cooldownTimer, 22);
@@ -900,11 +919,43 @@ function applyWeaponHitReaction(attacker, defender, weapon, hitQuality = 0) {
   }
 }
 
+function applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality = 0) {
+  const personality = PERSONALITIES[attacker.personalityId];
+  const identityScale = personality.weaponIdentityScale || 1;
+
+  if (weapon.id === 'eastern') {
+    const maxCombo = POSTURE_RULES.easternComboMax || 2;
+    attacker.comboCount = Math.min(maxCombo, (attacker.comboCount || 0) + 1);
+    attacker.comboTimer = Math.round((POSTURE_RULES.easternComboWindowFrames || 34) * (personality.comboScale || 1));
+    attacker.attackTimer = Math.min(attacker.attackTimer || weapon.recovery, Math.max(5, Math.round(weapon.recovery * 0.62)));
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, Math.round(POSTURE_RULES.recoveryDelayFrames * 0.42 * identityScale));
+  }
+
+  if (weapon.id === 'dagger') {
+    const positional = getPositionalBonus(attacker, defender);
+    if (positional > 1.05) {
+      const stun = Math.round((weapon.flankStunFrames || weapon.hitStunFrames || 4) * (0.72 + hitQuality * 0.35));
+      defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, stun);
+      defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, Math.round(stun * 1.6));
+      defender.flankPressureTimer = Math.max(defender.flankPressureTimer || 0, stun);
+    }
+  }
+
+  if (weapon.id === 'western') {
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, Math.round(POSTURE_RULES.recoveryDelayFrames * 0.72 * identityScale));
+    if (hitQuality > 0.55) defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, weapon.hitStunFrames || 4);
+  }
+
+  if (weapon.id === 'spear' && hitQuality > 0.45) {
+    defender.retreatLockout = Math.max(defender.retreatLockout || 0, 12);
+  }
+}
+
 function getHitForwardKnockbackScale(weapon) {
-  if (weapon.id === 'spear') return 0.36;
-  if (weapon.id === 'western') return 0.27;
+  if (weapon.id === 'spear') return 0.46;
+  if (weapon.id === 'western') return 0.24;
   if (weapon.id === 'eastern') return 0.22;
-  if (weapon.id === 'dagger') return 0.1;
+  if (weapon.id === 'dagger') return 0.08;
   return 0.22;
 }
 

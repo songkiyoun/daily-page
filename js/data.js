@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.5.5';
+export const VERSION = '0.5.6';
 
 export const WEAPONS = {
   spear: {
@@ -43,6 +43,14 @@ export const WEAPONS = {
     clashKnockbackScale: 1.34,
     crit: 0.03,
     description: '긴 사거리와 직선 찌르기가 강하지만 안쪽으로 파고든 적에게 약합니다.',
+    identity: '거리 재설정',
+    identityNote: '맞히면 상대를 크게 밀어 다시 창 사거리를 만든다. 패링당하면 회복이 느리다.',
+    closePushScale: 1.42,
+    staggerRecoveryPenalty: 1.28,
+    parryRecoveryPenalty: 1.25,
+    comboOnHit: 0,
+    hitStunFrames: 2,
+    feintStrength: 0.08,
     movementStyle: 'keepaway',
     strafeWeight: 0.44,
     approachOffset: 0.18,
@@ -90,6 +98,15 @@ export const WEAPONS = {
     clashKnockbackScale: 1.32,
     crit: 0.06,
     description: '넓은 베기로 정면 교전이 강하지만 후딜이 있습니다.',
+    identity: '자세 붕괴',
+    identityNote: '상대를 멀리 날리기보다 내 공격 범위 안에서 자세를 크게 무너뜨린다.',
+    closePushScale: 1.08,
+    staggerRecoveryPenalty: 1.04,
+    parryRecoveryPenalty: 0.9,
+    riposteOnParry: true,
+    comboOnHit: 0,
+    hitStunFrames: 4,
+    feintStrength: 0.12,
     movementStyle: 'angled_slash',
     strafeWeight: 0.62,
     approachOffset: 0.56,
@@ -137,6 +154,16 @@ export const WEAPONS = {
     clashKnockbackScale: 1.04,
     crit: 0.1,
     description: '빠른 진입과 연속 공격이 강한 무기입니다.',
+    identity: '연속 압박',
+    identityNote: '명중 시 짧은 연속베기 기회를 얻고 빠르게 다시 압박한다.',
+    closePushScale: 0.86,
+    staggerRecoveryPenalty: 0.88,
+    parryRecoveryPenalty: 0.82,
+    riposteOnParry: true,
+    comboOnHit: 2,
+    comboCooldownScale: 0.42,
+    hitStunFrames: 3,
+    feintStrength: 0.52,
     movementStyle: 'hit_and_run',
     strafeWeight: 0.82,
     approachOffset: 0.86,
@@ -165,7 +192,7 @@ export const WEAPONS = {
     missRecoveryAdd: 3,
     impactStopFrames: 2,
     swingVisualArc: 0.54,
-    windupDriftScale: 1.0,
+    windupDriftScale: 1.12,
     activeLungeScale: 1.72,
     recoveryMoveScale: 1.18,
     turnSpeed: 0.162,
@@ -188,13 +215,22 @@ export const WEAPONS = {
     backBonus: 2.25,
     flankBonus: 1.45,
     description: '정면은 약하지만 측후방을 잡으면 강해지는 위치 선정 무기입니다.',
+    identity: '측후방 암살',
+    identityNote: '좌우 페이크로 측후방을 찌르고 짧은 스턴 후 크게 이탈한다.',
+    closePushScale: 0.72,
+    staggerRecoveryPenalty: 0.78,
+    parryRecoveryPenalty: 0.74,
+    flankStunFrames: 12,
+    comboOnHit: 0,
+    hitStunFrames: 6,
+    feintStrength: 1.28,
     movementStyle: 'flank',
     strafeWeight: 1.08,
     approachOffset: 1.25,
     flankBias: 1.18,
     lungePower: 1.36,
     entryForward: 1.34,
-    entrySide: 0.72,
+    entrySide: 0.96,
     recoveryBackstep: 2.0
   }
 };
@@ -212,7 +248,12 @@ export const PERSONALITIES = {
     pressure: 0.55,
     parryBonus: 0.04,
     defenseBonus: 0.01,
-    description: '거리 조절과 공격을 적당히 섞습니다.'
+    description: '거리 조절과 공격을 적당히 섞습니다.',
+    weaponIdentityScale: 1,
+    feintScale: 1,
+    comboScale: 1,
+    closePushScale: 1,
+    counterScale: 1
   },
   aggressive: {
     id: 'aggressive',
@@ -226,7 +267,12 @@ export const PERSONALITIES = {
     pressure: 0.86,
     parryBonus: -0.03,
     attackBonus: 0.06,
-    description: '적을 빠르게 압박하고 먼저 공격하려 합니다.'
+    description: '적을 빠르게 압박하고 먼저 공격하려 합니다.',
+    weaponIdentityScale: 1.08,
+    feintScale: 1.06,
+    comboScale: 1.1,
+    closePushScale: 0.94,
+    counterScale: 0.86
   },
   defensive: {
     id: 'defensive',
@@ -240,7 +286,12 @@ export const PERSONALITIES = {
     pressure: 0.32,
     parryBonus: 0.13,
     defenseBonus: 0.04,
-    description: '낮은 체력에서는 거리를 재정렬하고, 오래 밀리면 측면 견제와 반격으로 전환합니다.'
+    description: '낮은 체력에서는 거리를 재정렬하고, 오래 밀리면 측면 견제와 반격으로 전환합니다.',
+    weaponIdentityScale: 0.98,
+    feintScale: 0.82,
+    comboScale: 0.82,
+    closePushScale: 1.16,
+    counterScale: 1.22
   },
   assassin: {
     id: 'assassin',
@@ -255,7 +306,12 @@ export const PERSONALITIES = {
     parryBonus: 0.02,
     evasionBonus: 0.035,
     critBonus: 0.04,
-    description: '정면 교전보다 측후방 진입을 노립니다.'
+    description: '정면 교전보다 측후방 진입을 노립니다.',
+    weaponIdentityScale: 1.04,
+    feintScale: 1.28,
+    comboScale: 0.96,
+    closePushScale: 0.92,
+    counterScale: 1.04
   }
 };
 
@@ -333,7 +389,16 @@ export const POSTURE_RULES = {
   preciseHitKnockbackBonus: 0.48,
   counterWindowFrames: 34,
   counterDamageBonus: 1.08,
-  counterPostureBonus: 1.16
+  counterPostureBonus: 1.16,
+  eventTextFrames: 36,
+  eventTextCooldownFrames: 24,
+  daggerFeintFrames: 14,
+  daggerCutFrames: 9,
+  daggerResetFrames: 32,
+  daggerCutTurnLagFrames: 16,
+  easternComboWindowFrames: 34,
+  easternComboMax: 2,
+  riposteWindowFrames: 38
 };
 
 export const SKILLS = {
