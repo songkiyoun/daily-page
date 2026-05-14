@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.0';
+export const VERSION = '0.7.1';
 
 export const WEAPONS = {
   spear: {
@@ -496,7 +496,7 @@ export const SKILLS = {
     owner: 'western',
     type: 'attack',
     maxLevel: 3,
-    cooldown: 1200,
+    cooldown: 720,
     description: '서양검 전용. 더 넓고 묵직한 베기로 피해와 자세 피해를 조금 높입니다.'
   },
   westernLastStand: {
@@ -589,7 +589,7 @@ export const SKILLS = {
     owner: 'dagger',
     type: 'attack',
     maxLevel: 3,
-    cooldown: 1200,
+    cooldown: 620,
     description: '단검 전용. 측면 또는 후면 찌르기 1회를 확정 치명타로 만듭니다.'
   },
   daggerDecoyDoll: {
@@ -599,7 +599,7 @@ export const SKILLS = {
     owner: 'dagger',
     type: 'survival',
     maxLevel: 3,
-    cooldown: 1200,
+    cooldown: 980,
     description: '단검 전용. 큰 피해를 받을 때 피해를 줄이고 상대 측후면으로 빠져나갑니다.'
   },
   daggerHighSpeed: {
@@ -661,7 +661,7 @@ export const SKILLS = {
     owner: 'defensive',
     type: 'passive',
     maxLevel: 3,
-    cooldown: 90,
+    cooldown: 1800,
     description: '방어형. 받은 체력 피해 일부를 적에게 되돌립니다.'
   },
   defensiveLightArmor: {
