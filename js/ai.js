@@ -193,9 +193,14 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   let opportunity = getDaggerOpportunity(enemy);
   if (weapon.id === 'dagger' && enemy.weaponId === 'spear' && !relation.isFront && dist < desired + 104) {
     const spearFacingGap = Math.abs(relation.frontGap);
-    const spearIsLate = enemy.attackState === 'recovery' || enemy.postureRecoveryDelay > 0 || enemy.flankPressureTimer > 0 || enemy.cooldownTimer > 12;
-    const realFlank = relation.isBack || (relation.isSide && spearFacingGap > 1.26);
-    opportunity = realFlank || spearIsLate || spearFacingGap > 1.38 ? 'hard' : (opportunity || 'soft');
+    const spearIsRecovering = enemy.attackState === 'recovery' || enemy.postureRecoveryDelay > 0 || enemy.flankPressureTimer > 0 || enemy.cooldownTimer > 12;
+    const spearGuardingFlank = (enemy.antiFlankGuardTimer || 0) > 0 || (enemy.antiFlankPushCooldown || 0) > 48;
+    const realFlank = relation.isBack || (relation.isSide && spearFacingGap > 1.34);
+    if (!spearGuardingFlank) {
+      opportunity = realFlank || spearIsRecovering || spearFacingGap > 1.48 ? 'hard' : (opportunity || 'soft');
+    } else {
+      opportunity = realFlank && spearIsRecovering ? 'soft' : '';
+    }
   }
   const burstReady = (self.daggerBurstCooldown || 0) <= 0;
 
@@ -207,6 +212,9 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
     if (maneuver) return maneuver;
     if (enemy.weaponId === 'dagger') {
       return daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower);
+    }
+    if (enemy.weaponId === 'eastern' && enemy.personalityId === 'assassin' && dist < desired + 18 && self.cooldownTimer <= 8) {
+      return blendAngles(toEnemy, sideAngle(toEnemy, self.orbitDir), 0.18, 1.08 + flankPower * 0.06, toEnemy, '대암살형 짧은 교전');
     }
   }
 
@@ -234,6 +242,9 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   }
 
   if (dist < Math.max(20, desired - 9)) {
+    if (weapon.id === 'dagger' && ((self.daggerCommitTimer || 0) > 0 || self.cooldownTimer <= 6)) {
+      return blendAngles(toEnemy, sideAngle(toEnemy, self.orbitDir), 0.22, 0.98, toEnemy, '단검 근접 찌르기 유지');
+    }
     return blendAngles(fromEnemy, sideAngle(toEnemy, self.orbitDir), 0.58, 0.86, toEnemy, '짧은 이탈');
   }
 
@@ -259,9 +270,10 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
 
   const hasManeuver = self.daggerManeuverPhase && self.daggerManeuverTimer > 0;
   const frontOrBadAngle = relation.isFront || (!relation.isBack && dist > desired - 10);
-  const spearSideCommit = enemy.weaponId === 'spear' && !relation.isFront && (relation.isSide || relation.isBack) && dist < desired + 96;
-  const hardWindow = (opportunity === 'hard' || spearSideCommit) && !relation.isFront && dist < desired + 88;
-  const openWindow = !!opportunity && !relation.isFront && dist < desired + 74;
+  const enemyAntiFlankReady = (enemy.antiFlankGuardTimer || 0) > 0 || (enemy.antiFlankPushCooldown || 0) > 54;
+  const spearSideCommit = enemy.weaponId === 'spear' && !enemyAntiFlankReady && !relation.isFront && (relation.isSide || relation.isBack) && dist < desired + 90;
+  const hardWindow = (opportunity === 'hard' || spearSideCommit) && !enemyAntiFlankReady && !relation.isFront && dist < desired + 84;
+  const openWindow = !!opportunity && !enemyAntiFlankReady && !relation.isFront && dist < desired + 72;
   const shouldStart = !hasManeuver && burstReady && (hardWindow || openWindow || frontOrBadAngle) && dist < desired + 98;
 
   if (shouldStart) {
