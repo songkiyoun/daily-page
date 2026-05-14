@@ -185,8 +185,10 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   const sideRadius = Math.max(26, desired + (relation.isFront ? 26 : 12));
   const backRadius = Math.max(22, desired - 1);
   let opportunity = getDaggerOpportunity(enemy);
-  if (weapon.id === 'dagger' && enemy.weaponId === 'spear' && !relation.isFront && dist < desired + 94) {
-    opportunity = relation.isBack || enemy.attackState === 'recovery' || enemy.postureRecoveryDelay > 0 ? 'hard' : (opportunity || 'soft');
+  if (weapon.id === 'dagger' && enemy.weaponId === 'spear' && !relation.isFront && dist < desired + 104) {
+    const spearFacingGap = Math.abs(relation.frontGap);
+    const spearIsLate = enemy.attackState === 'recovery' || enemy.postureRecoveryDelay > 0 || enemy.flankPressureTimer > 0 || enemy.cooldownTimer > 8;
+    opportunity = relation.isBack || relation.isSide || spearIsLate || spearFacingGap > 1.18 ? 'hard' : (opportunity || 'soft');
   }
   const burstReady = (self.daggerBurstCooldown || 0) <= 0;
 
@@ -202,10 +204,11 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   }
 
   if (enemy.weaponId === 'spear' && dist > Math.max(22, WEAPONS.spear.minRange - 34)) {
-    const targetRadius = opportunity ? 22 : 28;
-    const facingOffset = opportunity ? Math.PI + self.orbitDir * 0.24 : self.orbitDir * Math.PI / 2;
+    const targetRadius = opportunity ? 18 : 30;
+    const facingOffset = opportunity ? Math.PI + self.orbitDir * 0.18 : self.orbitDir * Math.PI / 2;
     const antiSpearAngle = angleToRingPointByFacing(self, enemy, targetRadius, facingOffset);
-    return vectorFromAngle(antiSpearAngle, opportunity ? 1.56 : 1.26, toEnemy, opportunity ? '창 빈틈 측후방 순간 침투' : '창 측면 빠른 진입');
+    const spearPower = opportunity ? 1.82 : 1.34;
+    return vectorFromAngle(antiSpearAngle, spearPower, toEnemy, opportunity ? '창 빈틈 단검 확정 침투' : '창 측면 빠른 진입');
   }
 
   if (relation.isFront) {
@@ -249,16 +252,17 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
 
   const hasManeuver = self.daggerManeuverPhase && self.daggerManeuverTimer > 0;
   const frontOrBadAngle = relation.isFront || (!relation.isBack && dist > desired - 10);
-  const hardWindow = opportunity === 'hard' && !relation.isFront && dist < desired + 78;
-  const openWindow = !!opportunity && !relation.isFront && dist < desired + 70;
-  const shouldStart = !hasManeuver && burstReady && (hardWindow || openWindow || frontOrBadAngle) && dist < desired + 92;
+  const spearSideCommit = enemy.weaponId === 'spear' && !relation.isFront && (relation.isSide || relation.isBack) && dist < desired + 96;
+  const hardWindow = (opportunity === 'hard' || spearSideCommit) && !relation.isFront && dist < desired + 88;
+  const openWindow = !!opportunity && !relation.isFront && dist < desired + 74;
+  const shouldStart = !hasManeuver && burstReady && (hardWindow || openWindow || frontOrBadAngle) && dist < desired + 98;
 
   if (shouldStart) {
     self.daggerFeintSide = self.orbitDir || 1;
-    if (hardWindow && (relation.isBack || enemy.staggerTimer > 0 || enemy.attackState === 'recovery')) {
+    if (hardWindow && (relation.isBack || relation.isSide || enemy.staggerTimer > 0 || enemy.attackState === 'recovery' || enemy.weaponId === 'spear')) {
       self.daggerManeuverPhase = 'burst';
-      self.daggerManeuverTimer = 11;
-      self.daggerCommitTimer = Math.max(self.daggerCommitTimer || 0, POSTURE_RULES.daggerCommitFrames || 18);
+      self.daggerManeuverTimer = enemy.weaponId === 'spear' ? 14 : 11;
+      self.daggerCommitTimer = Math.max(self.daggerCommitTimer || 0, (POSTURE_RULES.daggerCommitFrames || 18) + (enemy.weaponId === 'spear' ? 8 : 0));
     } else {
       self.daggerManeuverPhase = 'feint';
       self.daggerManeuverTimer = Math.round((POSTURE_RULES.daggerFeintFrames || 20) * (personality.id === 'defensive' ? 1.12 : 1));

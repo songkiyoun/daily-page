@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.5';
+export const VERSION = '0.6.6';
 
 export const WEAPONS = {
   spear: {
@@ -455,7 +455,7 @@ export const POSTURE_RULES = {
   weaponClashPostureDamage: 11,
   daggerFlankPressureFrames: 26,
   daggerFlankTurnScale: 0.32,
-  daggerBurstCooldownFrames: 19,
+  daggerBurstCooldownFrames: 16,
   parryBaseChance: 0.08,
   parryMaxChance: 0.62,
   parryFrontArc: 0.82,
@@ -471,13 +471,13 @@ export const POSTURE_RULES = {
   counterPostureBonus: 1.16,
   eventTextFrames: 36,
   eventTextCooldownFrames: 24,
-  daggerFeintFrames: 42,
-  daggerCutFrames: 15,
+  daggerFeintFrames: 46,
+  daggerCutFrames: 17,
   daggerResetFrames: 30,
   daggerMissResetFrames: 12,
-  daggerCommitFrames: 18,
+  daggerCommitFrames: 24,
   daggerShortRepositionScale: 0.42,
-  daggerCutTurnLagFrames: 44,
+  daggerCutTurnLagFrames: 52,
   easternComboWindowFrames: 28,
   easternComboMax: 2,
   riposteWindowFrames: 38

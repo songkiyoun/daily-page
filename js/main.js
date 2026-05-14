@@ -16,7 +16,7 @@ import {
 } from './state.js';
 import { updateBattle } from './battle.js';
 import { render } from './render.js';
-import { formatSimulatorSummary, runSimulator } from './simulator.js';
+import { copyableAllMatchupText, formatAllMatchupSummary, runAllMatchupSimulator } from './simulator.js';
 
 const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
@@ -37,13 +37,11 @@ const controls = {
   resultText: document.getElementById('resultText'),
   enemyPreview: document.getElementById('enemyPreview'),
   version: document.getElementById('versionBadge'),
-  simPlayerWeapon: document.getElementById('simPlayerWeapon'),
-  simPlayerPersonality: document.getElementById('simPlayerPersonality'),
-  simEnemyWeapon: document.getElementById('simEnemyWeapon'),
-  simEnemyPersonality: document.getElementById('simEnemyPersonality'),
   simRounds: document.getElementById('simRounds'),
   simRunBtn: document.getElementById('simRunBtn'),
-  simResultBox: document.getElementById('simResultBox')
+  simCopyBtn: document.getElementById('simCopyBtn'),
+  simSummaryBox: document.getElementById('simSummaryBox'),
+  simResultText: document.getElementById('simResultText')
 };
 
 let state = null;
@@ -61,10 +59,6 @@ requestAnimationFrame(loop);
 function init() {
   populateSelect(controls.playerWeapon, WEAPONS, 'eastern');
   populateSelect(controls.playerPersonality, PERSONALITIES, 'balanced');
-  populateSelect(controls.simPlayerWeapon, WEAPONS, 'dagger');
-  populateSelect(controls.simPlayerPersonality, PERSONALITIES, 'assassin');
-  populateSelect(controls.simEnemyWeapon, WEAPONS, 'spear');
-  populateSelect(controls.simEnemyPersonality, PERSONALITIES, 'balanced');
   controls.version.textContent = `v${VERSION}`;
 
   controls.startBtn.addEventListener('click', handleMainButton);
@@ -80,6 +74,7 @@ function init() {
   controls.playerBox.addEventListener('click', handleStatClick);
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
   controls.simRunBtn.addEventListener('click', handleSimulatorRun);
+  controls.simCopyBtn.addEventListener('click', handleSimulatorCopy);
 
   run = createRun(readConfig());
   state = createBattleState(run);
@@ -196,22 +191,30 @@ function handleGiveUp() {
 function handleSimulatorRun() {
   controls.simRunBtn.disabled = true;
   controls.simRunBtn.textContent = '계산 중...';
-  controls.simResultBox.innerHTML = '시뮬레이션을 실행하고 있습니다.';
+  controls.simSummaryBox.textContent = '전체 조합 시뮬레이션을 실행하고 있습니다.';
+  controls.simResultText.value = '';
 
   window.setTimeout(() => {
-    const summary = runSimulator({
-      playerWeapon: controls.simPlayerWeapon.value,
-      playerPersonality: controls.simPlayerPersonality.value,
-      enemyWeapon: controls.simEnemyWeapon.value,
-      enemyPersonality: controls.simEnemyPersonality.value,
+    const summary = runAllMatchupSimulator({
       rounds: controls.simRounds.value,
       floor: 1
     });
 
-    controls.simResultBox.innerHTML = formatSimulatorSummary(summary);
+    controls.simSummaryBox.innerHTML = formatAllMatchupSummary(summary);
+    controls.simResultText.value = copyableAllMatchupText(summary);
     controls.simRunBtn.disabled = false;
-    controls.simRunBtn.textContent = '시뮬레이션 실행';
+    controls.simRunBtn.textContent = '전체 조합 시뮬레이션';
   }, 20);
+}
+
+function handleSimulatorCopy() {
+  if (!controls.simResultText.value.trim()) return;
+  controls.simResultText.select();
+  document.execCommand('copy');
+  controls.simCopyBtn.textContent = '복사 완료';
+  window.setTimeout(() => {
+    controls.simCopyBtn.textContent = '결과 복사';
+  }, 1000);
 }
 
 function handleStatClick(event) {

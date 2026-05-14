@@ -1,5 +1,5 @@
 // simulator.js
-// 전투 코어를 반복 실행해 무기·성격 조합의 흐름을 빠르게 확인합니다.
+// 전체 무기·성격 조합을 반복 실행해 복사 가능한 밸런스 결과를 만듭니다.
 // 수정 원칙: 실제 전투 로직을 복사하지 않고 state.js와 battle.js의 기존 함수를 사용합니다.
 
 import { PERSONALITIES, WEAPONS } from './data.js';
@@ -8,32 +8,61 @@ import { updateBattle } from './battle.js';
 
 const DEFAULT_MAX_FRAMES = 60 * 90;
 
-export function runSimulator(config) {
-  const rounds = Number(config.rounds || 30);
+export function runAllMatchupSimulator(config = {}) {
+  const rounds = Number(config.rounds || 10);
   const floor = Number(config.floor || 1);
-  const summary = createSummary(config, rounds);
+  const combos = getAllCombos();
+  const rows = [];
 
-  for (let i = 0; i < rounds; i += 1) {
-    const result = runSingleSimulation(config, floor, i);
-    applyRoundResult(summary, result);
+  for (const player of combos) {
+    for (const enemy of combos) {
+      const row = runMatchup({
+        playerWeapon: player.weaponId,
+        playerPersonality: player.personalityId,
+        enemyWeapon: enemy.weaponId,
+        enemyPersonality: enemy.personalityId,
+        rounds,
+        floor
+      });
+      rows.push(row);
+    }
   }
 
-  finalizeSummary(summary);
+  return buildAllSummary(rows, rounds, floor);
+}
+
+function getAllCombos() {
+  const combos = [];
+  Object.values(WEAPONS).forEach((weapon) => {
+    Object.values(PERSONALITIES).forEach((personality) => {
+      combos.push({ weaponId: weapon.id, personalityId: personality.id });
+    });
+  });
+  return combos;
+}
+
+function runMatchup(config) {
+  const summary = createMatchupSummary(config);
+  for (let i = 0; i < config.rounds; i += 1) {
+    const result = runSingleSimulation(config, i);
+    applyRoundResult(summary, result);
+  }
+  finalizeMatchupSummary(summary);
   return summary;
 }
 
-function runSingleSimulation(config, floor, index) {
+function runSingleSimulation(config, index) {
   const run = createRun({
     playerWeapon: config.playerWeapon,
     playerPersonality: config.playerPersonality
   });
-  run.floor = floor;
+  run.floor = config.floor;
   run.player.name = 'SIM PLAYER';
 
   const enemyConfig = createFixedEnemyConfig({
     weaponId: config.enemyWeapon,
     personalityId: config.enemyPersonality,
-    floor,
+    floor: config.floor,
     name: 'SIM ENEMY'
   });
 
@@ -64,9 +93,10 @@ function runSingleSimulation(config, floor, index) {
   };
 }
 
-function createSummary(config, rounds) {
+function createMatchupSummary(config) {
   return {
-    rounds,
+    rounds: config.rounds,
+    floor: config.floor,
     playerWeapon: config.playerWeapon,
     playerPersonality: config.playerPersonality,
     enemyWeapon: config.enemyWeapon,
@@ -80,9 +110,7 @@ function createSummary(config, rounds) {
     playerDamage: 0,
     enemyDamage: 0,
     playerHpLeft: 0,
-    enemyHpLeft: 0,
-    avgSeconds: 0,
-    winRate: 0
+    enemyHpLeft: 0
   };
 }
 
@@ -100,28 +128,80 @@ function applyRoundResult(summary, result) {
   summary.enemyHpLeft += result.enemyHp;
 }
 
-function finalizeSummary(summary) {
+function finalizeMatchupSummary(summary) {
   const rounds = Math.max(1, summary.rounds);
   summary.winRate = Math.round((summary.wins / rounds) * 100);
-  summary.avgSeconds = Math.round((summary.totalFrames / rounds / 60) * 10) / 10;
-  summary.avgPlayerHits = Math.round((summary.playerHits / rounds) * 10) / 10;
-  summary.avgEnemyHits = Math.round((summary.enemyHits / rounds) * 10) / 10;
-  summary.avgPlayerDamage = Math.round((summary.playerDamage / rounds) * 10) / 10;
-  summary.avgEnemyDamage = Math.round((summary.enemyDamage / rounds) * 10) / 10;
-  summary.avgPlayerHpLeft = Math.round((summary.playerHpLeft / rounds) * 10) / 10;
-  summary.avgEnemyHpLeft = Math.round((summary.enemyHpLeft / rounds) * 10) / 10;
+  summary.avgSeconds = round1(summary.totalFrames / rounds / 60);
+  summary.avgPlayerHits = round1(summary.playerHits / rounds);
+  summary.avgEnemyHits = round1(summary.enemyHits / rounds);
+  summary.avgHitDiff = round1(summary.avgPlayerHits - summary.avgEnemyHits);
+  summary.avgPlayerDamage = round1(summary.playerDamage / rounds);
+  summary.avgEnemyDamage = round1(summary.enemyDamage / rounds);
+  summary.avgPlayerHpLeft = round1(summary.playerHpLeft / rounds);
+  summary.avgEnemyHpLeft = round1(summary.enemyHpLeft / rounds);
 }
 
-export function formatSimulatorSummary(summary) {
-  const playerLabel = `${WEAPONS[summary.playerWeapon]?.name || summary.playerWeapon} · ${PERSONALITIES[summary.playerPersonality]?.name || summary.playerPersonality}`;
-  const enemyLabel = `${WEAPONS[summary.enemyWeapon]?.name || summary.enemyWeapon} · ${PERSONALITIES[summary.enemyPersonality]?.name || summary.enemyPersonality}`;
+function buildAllSummary(rows, rounds, floor) {
+  const sortedRows = [...rows].sort((a, b) => {
+    if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+    return b.avgHitDiff - a.avgHitDiff;
+  });
+  return {
+    rounds,
+    floor,
+    rows,
+    sortedRows,
+    totalMatchups: rows.length,
+    topRows: sortedRows.slice(0, 8),
+    weakRows: sortedRows.slice(-8).reverse()
+  };
+}
 
+export function formatAllMatchupSummary(summary) {
+  const top = summary.topRows.slice(0, 3).map((row) => `${label(row.playerWeapon, row.playerPersonality)} ${row.winRate}%`).join(' · ');
+  const weak = summary.weakRows.slice(0, 3).map((row) => `${label(row.playerWeapon, row.playerPersonality)} ${row.winRate}%`).join(' · ');
   return `
-    <div class="sim-result-row"><span>조합</span><strong>${playerLabel} vs ${enemyLabel}</strong></div>
-    <div class="sim-result-row"><span>결과</span><strong>${summary.wins}승 ${summary.losses}패 ${summary.draws}무 · 승률 ${summary.winRate}%</strong></div>
-    <div class="sim-result-row"><span>평균 시간</span><strong>${summary.avgSeconds}초</strong></div>
-    <div class="sim-result-row"><span>평균 명중</span><strong>내 ${summary.avgPlayerHits}회 / 상대 ${summary.avgEnemyHits}회</strong></div>
-    <div class="sim-result-row"><span>평균 피해</span><strong>내 ${summary.avgPlayerDamage} / 상대 ${summary.avgEnemyDamage}</strong></div>
-    <div class="sim-result-row"><span>평균 잔여 HP</span><strong>내 ${summary.avgPlayerHpLeft} / 상대 ${summary.avgEnemyHpLeft}</strong></div>
+    <div class="sim-result-row"><span>전체 대진</span><strong>${summary.totalMatchups}개 조합 · 각 ${summary.rounds}회</strong></div>
+    <div class="sim-result-row"><span>상위 경향</span><strong>${top}</strong></div>
+    <div class="sim-result-row"><span>하위 경향</span><strong>${weak}</strong></div>
   `;
+}
+
+export function copyableAllMatchupText(summary) {
+  const lines = [
+    `Circle Battle Tower Rebuild v0.6.6 전체 조합 시뮬레이션`,
+    `반복 횟수	${summary.rounds}`,
+    `층	${summary.floor}`,
+    '',
+    '내 조합	상대 조합	승	패	무	승률%	평균 시간	내 평균 명중	상대 평균 명중	명중 차이	내 평균 피해	상대 평균 피해	내 평균 잔여HP	상대 평균 잔여HP'
+  ];
+
+  summary.rows.forEach((row) => {
+    lines.push([
+      label(row.playerWeapon, row.playerPersonality),
+      label(row.enemyWeapon, row.enemyPersonality),
+      row.wins,
+      row.losses,
+      row.draws,
+      row.winRate,
+      row.avgSeconds,
+      row.avgPlayerHits,
+      row.avgEnemyHits,
+      row.avgHitDiff,
+      row.avgPlayerDamage,
+      row.avgEnemyDamage,
+      row.avgPlayerHpLeft,
+      row.avgEnemyHpLeft
+    ].join('	'));
+  });
+
+  return lines.join('\n');
+}
+
+function label(weaponId, personalityId) {
+  return `${WEAPONS[weaponId]?.name || weaponId}-${PERSONALITIES[personalityId]?.name || personalityId}`;
+}
+
+function round1(value) {
+  return Math.round(value * 10) / 10;
 }
