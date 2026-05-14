@@ -702,8 +702,18 @@ function canTryParry(defender, attacker, incomingWeapon) {
   const parryReach = Math.max(defender.radius + attacker.radius + 24, defenderWeapon.range * 0.72 + attacker.radius);
   if (dist > parryReach + getReachBonus(attacker, incomingWeapon)) return false;
 
-  if (defender.attackState === 'recovery' && defender.attackTimer > 8) return false;
+  if (defender.attackState === 'recovery' && defender.attackTimer > getRecoveryParryGate(defender)) return false;
   return true;
+}
+
+function getRecoveryParryGate(defender) {
+  const weapon = WEAPONS[defender.weaponId];
+  const maxRecovery = Math.max(1, defender.attackRecoveryMax || weapon.recovery || 12);
+  if (weapon.id === 'western') return Math.max(14, Math.round(maxRecovery * 0.5));
+  if (weapon.id === 'spear') return Math.max(8, Math.round(maxRecovery * 0.28));
+  if (weapon.id === 'eastern') return Math.max(6, Math.round(maxRecovery * 0.36));
+  if (weapon.id === 'dagger') return Math.max(4, Math.round(maxRecovery * 0.32));
+  return 8;
 }
 
 function getParryChance(defender, attacker, incomingWeapon) {
@@ -718,6 +728,7 @@ function getParryChance(defender, attacker, incomingWeapon) {
         ? 0.03
         : 0;
   const pressurePenalty = attacker.weaponId === 'spear' && distance(defender, attacker) > defenderWeapon.range * 0.72 ? 0.035 : 0;
+  const westernFastGuardBonus = defenderWeapon.id === 'western' && (incomingWeapon.id === 'dagger' || incomingWeapon.id === 'eastern') ? 0.065 : 0;
 
   return clamp(
     POSTURE_RULES.parryBaseChance +
@@ -727,7 +738,8 @@ function getParryChance(defender, attacker, incomingWeapon) {
     defender.stats.agi * 0.003 +
     defender.stats.luck * 0.0015 +
     postureRatio * 0.055 +
-    timingBonus -
+    timingBonus +
+    westernFastGuardBonus -
     (incomingWeapon.parryBreak || 0) -
     pressurePenalty,
     0,
@@ -776,6 +788,7 @@ function getParryKnockback(attacker, incomingWeapon) {
 function getParryPower(defender, defenderWeapon, incomingWeapon) {
   const weaponScale = 0.82 + (defenderWeapon.parryEfficiency || 0.3);
   const statScale = 1 + defender.stats.def * 0.018 + defender.stats.agi * 0.006 + defender.mastery * 0.035;
+  const westernFastGuardScale = defenderWeapon.id === 'western' && (incomingWeapon.id === 'dagger' || incomingWeapon.id === 'eastern') ? 1.16 : 1;
   const incomingScale = incomingWeapon.id === 'western'
     ? 1.08
     : incomingWeapon.id === 'spear'
@@ -783,7 +796,7 @@ function getParryPower(defender, defenderWeapon, incomingWeapon) {
       : incomingWeapon.id === 'dagger'
         ? 0.82
         : 0.94;
-  return POSTURE_RULES.parryPostureDamage * weaponScale * statScale * incomingScale;
+  return POSTURE_RULES.parryPostureDamage * weaponScale * statScale * incomingScale * westernFastGuardScale;
 }
 
 function getHitQuality(attacker, defender, weapon, dist, angleGap, hitArc) {
@@ -1045,8 +1058,13 @@ function applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality = 0) {
   }
 
   if (weapon.id === 'western') {
-    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.72 * identityScale));
-    if (hitQuality > 0.55) defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, weapon.hitStunFrames || 4);
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.9 * identityScale));
+    if (hitQuality > 0.45) {
+      defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, (weapon.hitStunFrames || 5) + 2);
+      if (defender.weaponId === 'dagger' || defender.weaponId === 'eastern') {
+        defender.flankPressureTimer = Math.max(defender.flankPressureTimer || 0, 10);
+      }
+    }
   }
 
   if (weapon.id === 'spear' && hitQuality > 0.38) {

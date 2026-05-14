@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.6';
+export const VERSION = '0.6.7';
 
 export const WEAPONS = {
   spear: {
@@ -81,11 +81,11 @@ export const WEAPONS = {
     hitReachBonus: 4,
     arc: 0.86,
     damage: 19,
-    cooldown: 70,
+    cooldown: 68,
     windup: 15,
-    recovery: 36,
+    recovery: 32,
     activeFrames: 8,
-    missRecoveryAdd: 8,
+    missRecoveryAdd: 4,
     impactStopFrames: 5,
     swingVisualArc: 1.34,
     windupDriftScale: 0.54,
@@ -94,13 +94,13 @@ export const WEAPONS = {
     turnSpeed: 0.038,
     windupTurnScale: 0.54,
     activeTurnScale: 0.25,
-    recoveryTurnScale: 0.32,
-    shakenTurnScale: 0.58,
+    recoveryTurnScale: 0.42,
+    shakenTurnScale: 0.64,
     feintResponseTurnScale: 0.48,
-    hitRecoveryScale: 0.96,
-    failRecoveryScale: 1.12,
+    hitRecoveryScale: 0.9,
+    failRecoveryScale: 1.0,
     postureDamage: 20,
-    parryEfficiency: 0.46,
+    parryEfficiency: 0.54,
     parryBreak: 0.08,
     moveSpeed: 2.38,
     agiMoveScale: 0.0038,
@@ -118,12 +118,12 @@ export const WEAPONS = {
     description: '넓은 베기로 정면 교전이 강하지만 후딜이 있습니다.',
     identity: '자세 붕괴',
     identityNote: '상대를 멀리 날리기보다 내 공격 범위 안에서 자세를 크게 무너뜨린다.',
-    closePushScale: 1.08,
-    staggerRecoveryPenalty: 1.04,
+    closePushScale: 1.14,
+    staggerRecoveryPenalty: 1.08,
     parryRecoveryPenalty: 0.9,
     riposteOnParry: true,
     comboOnHit: 0,
-    hitStunFrames: 4,
+    hitStunFrames: 5,
     feintStrength: 0.12,
     movementStyle: 'angled_slash',
     strafeWeight: 0.62,
@@ -146,9 +146,9 @@ export const WEAPONS = {
     hitReachBonus: 4,
     arc: 0.82,
     damage: 12,
-    cooldown: 38,
+    cooldown: 42,
     windup: 7,
-    recovery: 16,
+    recovery: 18,
     activeFrames: 4,
     missRecoveryAdd: 4,
     impactStopFrames: 3,
@@ -188,7 +188,7 @@ export const WEAPONS = {
     parryRecoveryPenalty: 0.82,
     riposteOnParry: true,
     comboOnHit: 2,
-    comboCooldownScale: 0.58,
+    comboCooldownScale: 0.72,
     hitStunFrames: 3,
     feintStrength: 0.52,
     movementStyle: 'hit_and_run',
@@ -478,7 +478,7 @@ export const POSTURE_RULES = {
   daggerCommitFrames: 24,
   daggerShortRepositionScale: 0.42,
   daggerCutTurnLagFrames: 52,
-  easternComboWindowFrames: 28,
+  easternComboWindowFrames: 24,
   easternComboMax: 2,
   riposteWindowFrames: 38
 };

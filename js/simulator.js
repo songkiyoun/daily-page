@@ -44,29 +44,42 @@ function getAllCombos() {
 function runMatchup(config) {
   const summary = createMatchupSummary(config);
   for (let i = 0; i < config.rounds; i += 1) {
-    const result = runSingleSimulation(config, i);
+    const reversed = i % 2 === 1;
+    const result = runSingleSimulation(config, i, reversed);
     applyRoundResult(summary, result);
   }
   finalizeMatchupSummary(summary);
   return summary;
 }
 
-function runSingleSimulation(config, index) {
+function runSingleSimulation(config, index, reversed = false) {
+  const logicalPlayer = {
+    weaponId: config.playerWeapon,
+    personalityId: config.playerPersonality
+  };
+  const logicalEnemy = {
+    weaponId: config.enemyWeapon,
+    personalityId: config.enemyPersonality
+  };
+
+  const leftCombo = reversed ? logicalEnemy : logicalPlayer;
+  const rightCombo = reversed ? logicalPlayer : logicalEnemy;
+
   const run = createRun({
-    playerWeapon: config.playerWeapon,
-    playerPersonality: config.playerPersonality
+    playerWeapon: leftCombo.weaponId,
+    playerPersonality: leftCombo.personalityId
   });
   run.floor = config.floor;
-  run.player.name = 'SIM PLAYER';
+  run.player.name = reversed ? 'SIM RIGHT' : 'SIM LEFT';
 
   const enemyConfig = createFixedEnemyConfig({
-    weaponId: config.enemyWeapon,
-    personalityId: config.enemyPersonality,
+    weaponId: rightCombo.weaponId,
+    personalityId: rightCombo.personalityId,
     floor: config.floor,
-    name: 'SIM ENEMY'
+    name: reversed ? 'SIM LEFT' : 'SIM RIGHT'
   });
 
-  const spawnSkew = index % 2 === 0 ? 54 : -54;
+  const spawnSkew = index % 4 < 2 ? 54 : -54;
   const state = createBattleState(run, { enemyConfig, spawnSkew });
   startState(state);
 
@@ -81,15 +94,24 @@ function runSingleSimulation(config, index) {
     state.running = false;
   }
 
+  const leftWon = state.result === 'victory';
+  const rightWon = state.result === 'defeat';
+  const logicalPlayerWon = reversed ? rightWon : leftWon;
+  const logicalEnemyWon = reversed ? leftWon : rightWon;
+
+  const playerUnit = reversed ? state.enemy : state.player;
+  const enemyUnit = reversed ? state.player : state.enemy;
+
   return {
-    result: state.result,
+    result: state.result === 'draw' ? 'draw' : logicalPlayerWon ? 'victory' : logicalEnemyWon ? 'defeat' : 'draw',
     frames,
-    playerHits: state.player.hits,
-    enemyHits: state.enemy.hits,
-    playerDamage: state.player.damageDealt,
-    enemyDamage: state.enemy.damageDealt,
-    playerHp: Math.max(0, state.player.hp),
-    enemyHp: Math.max(0, state.enemy.hp)
+    playerHits: playerUnit.hits,
+    enemyHits: enemyUnit.hits,
+    playerDamage: playerUnit.damageDealt,
+    enemyDamage: enemyUnit.damageDealt,
+    playerHp: Math.max(0, playerUnit.hp),
+    enemyHp: Math.max(0, enemyUnit.hp),
+    reversed
   };
 }
 
@@ -161,7 +183,7 @@ export function formatAllMatchupSummary(summary) {
   const top = summary.topRows.slice(0, 3).map((row) => `${label(row.playerWeapon, row.playerPersonality)} ${row.winRate}%`).join(' · ');
   const weak = summary.weakRows.slice(0, 3).map((row) => `${label(row.playerWeapon, row.playerPersonality)} ${row.winRate}%`).join(' · ');
   return `
-    <div class="sim-result-row"><span>전체 대진</span><strong>${summary.totalMatchups}개 조합 · 각 ${summary.rounds}회</strong></div>
+    <div class="sim-result-row"><span>전체 대진</span><strong>${summary.totalMatchups}개 조합 · 각 ${summary.rounds}회 · 양방향 보정</strong></div>
     <div class="sim-result-row"><span>상위 경향</span><strong>${top}</strong></div>
     <div class="sim-result-row"><span>하위 경향</span><strong>${weak}</strong></div>
   `;
@@ -169,8 +191,9 @@ export function formatAllMatchupSummary(summary) {
 
 export function copyableAllMatchupText(summary) {
   const lines = [
-    `Circle Battle Tower Rebuild v0.6.6 전체 조합 시뮬레이션`,
+    `Circle Battle Tower Rebuild v0.6.7 전체 조합 시뮬레이션`,
     `반복 횟수	${summary.rounds}`,
+    `대진 방식	양방향 보정`,
     `층	${summary.floor}`,
     '',
     '내 조합	상대 조합	승	패	무	승률%	평균 시간	내 평균 명중	상대 평균 명중	명중 차이	내 평균 피해	상대 평균 피해	내 평균 잔여HP	상대 평균 잔여HP'
