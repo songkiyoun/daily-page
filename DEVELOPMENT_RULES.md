@@ -211,7 +211,7 @@ v0.3.1: fix reward button render lifecycle
 - 별도 `v0.6.0 patch` 함수, 중복 `decideMovement`, 중복 `getTurnSpeed`, 중복 `derivePlayerProfile` 선언을 만들지 않습니다.
 
 
-## v0.6.3 성격 시스템 재정의 기준
+## v0.6.4 성격 시스템 재정의 기준
 
 - 성격은 무기 정체성을 덮지 않고 전투 수치와 운용 성향을 보정합니다.
 - 공격형은 공격력, 공격속도, 밀쳐내기, 자세 압박을 올리고 방어력과 패링 확률을 낮춥니다.
@@ -221,4 +221,8 @@ v0.3.1: fix reward button render lifecycle
 - 성격 수치 변경은 `data.js`의 `PERSONALITIES`에서만 관리합니다.
 - 파생 능력치 반영은 `state.js`의 기존 `derivePlayerProfile`, `deriveEnemyProfile`에서만 처리합니다.
 - 넉백·자세 피해 반영은 `battle.js`의 기존 피격·패링·충돌 함수에서만 처리합니다.
-- 별도 `v0.6.3 patch` 함수, 중복 `derivePlayerProfile`, 중복 `resolveAttack`, 중복 `getTurnSpeed`를 만들지 않습니다.
+- 별도 `v0.6.4 patch` 함수, 중복 `derivePlayerProfile`, 중복 `resolveAttack`, 중복 `getTurnSpeed`를 만들지 않습니다.
+
+
+## v0.6.4 단검 결과 분기
+단검 이탈은 결과 기반으로 관리합니다. 명중은 큰 이탈, 패링·충돌은 튕김 이탈, 빗나감·공격 전 취소는 짧은 측면 재정렬을 기본으로 합니다.
