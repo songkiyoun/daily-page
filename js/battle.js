@@ -79,6 +79,8 @@ function tickTimers(unit) {
   if (unit.daggerManeuverTimer > 0) unit.daggerManeuverTimer -= 1;
   if (unit.daggerResetTimer > 0) unit.daggerResetTimer -= 1;
   if (unit.daggerCommitTimer > 0) unit.daggerCommitTimer -= 1;
+  if (unit.flankOrbitCutbackCooldown > 0) unit.flankOrbitCutbackCooldown -= 1;
+  if (unit.easternCutbackTimer > 0) unit.easternCutbackTimer -= 1;
   if (unit.parryCooldown > 0) unit.parryCooldown -= 1;
   if (unit.parryFlashTimer > 0) unit.parryFlashTimer -= 1;
   if (unit.counterTimer > 0) unit.counterTimer -= 1;

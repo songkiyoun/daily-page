@@ -203,12 +203,13 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
     }
   }
   const burstReady = (self.daggerBurstCooldown || 0) <= 0;
+  const orbitCutbackDir = getFlankOrbitCutbackDir(self, enemy, desired, dist, relation, weapon, personality, opportunity);
 
   if (weapon.id === 'dagger') {
     const mirrorOpportunity = enemy.weaponId === 'dagger'
       ? getDaggerMirrorOpportunity(self, enemy, dist)
       : opportunity;
-    const maneuver = daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, mirrorOpportunity, burstReady, flankPower);
+    const maneuver = daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, mirrorOpportunity, burstReady, flankPower, orbitCutbackDir);
     if (maneuver) return maneuver;
     if (enemy.weaponId === 'dagger') {
       return daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower);
@@ -216,6 +217,10 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
     if (enemy.weaponId === 'eastern' && enemy.personalityId === 'assassin' && dist < desired + 18 && self.cooldownTimer <= 8) {
       return blendAngles(toEnemy, sideAngle(toEnemy, self.orbitDir), 0.18, 1.08 + flankPower * 0.06, toEnemy, '대암살형 짧은 교전');
     }
+  }
+
+  if (orbitCutbackDir && weapon.id === 'eastern' && personality.id === 'assassin') {
+    return easternAssassinCutbackMovement(self, enemy, desired, toEnemy, dist, orbitCutbackDir, flankPower);
   }
 
   if (enemy.weaponId === 'spear' && dist > Math.max(22, WEAPONS.spear.minRange - 34)) {
@@ -253,7 +258,7 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   return blendAngles(orbit, holdAngle, 0.56, 1.04, toEnemy, '측후방 유지');
 }
 
-function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, opportunity, burstReady, flankPower) {
+function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, opportunity, burstReady, flankPower, orbitCutbackDir = 0) {
   const personality = PERSONALITIES[self.personalityId];
   const weapon = WEAPONS[self.weaponId];
   const feintBoost = clamp((weapon.feintStrength || 1) * (personality.feintScale || 1), 0.9, 2.45);
@@ -269,6 +274,15 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
   }
 
   const hasManeuver = self.daggerManeuverPhase && self.daggerManeuverTimer > 0;
+  if (orbitCutbackDir && !hasManeuver && burstReady) {
+    self.daggerFeintSide = orbitCutbackDir;
+    self.daggerManeuverPhase = 'cut';
+    self.daggerManeuverTimer = POSTURE_RULES.daggerOrbitCutbackFrames || POSTURE_RULES.daggerCutFrames || 11;
+    self.daggerCommitTimer = Math.max(self.daggerCommitTimer || 0, POSTURE_RULES.daggerCommitFrames || 18);
+    self.flankOrbitFrames = 0;
+    self.flankOrbitCutbackCooldown = POSTURE_RULES.flankOrbitCutbackCooldown || 44;
+  }
+
   const frontOrBadAngle = relation.isFront || (!relation.isBack && dist > desired - 10);
   const enemyAntiFlankReady = (enemy.antiFlankGuardTimer || 0) > 0 || (enemy.antiFlankPushCooldown || 0) > 54;
   const spearSideCommit = enemy.weaponId === 'spear' && !enemyAntiFlankReady && !relation.isFront && (relation.isSide || relation.isBack) && dist < desired + 90;
@@ -332,6 +346,57 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
   }
 
   return null;
+}
+
+
+function getFlankOrbitCutbackDir(self, enemy, desired, dist, relation, weapon, personality, opportunity) {
+  const isCutbackWeapon = weapon.id === 'dagger' || (weapon.id === 'eastern' && personality.id === 'assassin');
+  if (!isCutbackWeapon) return 0;
+  if ((self.flankOrbitCutbackCooldown || 0) > 0) return 0;
+  if (self.daggerManeuverPhase || (self.easternCutbackTimer || 0) > 0) return 0;
+  if (self.attackState !== 'idle' || self.staggerTimer > 0 || self.impactStopTimer > 0) {
+    self.flankOrbitFrames = 0;
+    return 0;
+  }
+
+  const currentDir = self.orbitDir || 1;
+  if (self.flankOrbitDir !== currentDir) {
+    self.flankOrbitDir = currentDir;
+    self.flankOrbitFrames = Math.min(self.flankOrbitFrames || 0, Math.round((POSTURE_RULES.flankOrbitLimitFrames || 58) * 0.35));
+  }
+
+  const closeEnough = dist < desired + (weapon.id === 'dagger' ? 42 : 34);
+  const notTooDeep = dist > Math.max(12, desired - (weapon.id === 'dagger' ? 20 : 14));
+  const lookingForAngle = !opportunity && !relation.isBack && (relation.isSide || !relation.isFront);
+  const readyToAct = self.cooldownTimer <= (weapon.id === 'dagger' ? 10 : 12);
+
+  if (closeEnough && notTooDeep && lookingForAngle) {
+    self.flankOrbitFrames = (self.flankOrbitFrames || 0) + 1;
+  } else {
+    self.flankOrbitFrames = Math.max(0, (self.flankOrbitFrames || 0) - 3);
+  }
+
+  const limit = POSTURE_RULES.flankOrbitLimitFrames || 58;
+  if (self.flankOrbitFrames >= limit && readyToAct) {
+    const previousDir = currentDir;
+    self.orbitDir = -currentDir;
+    self.orbitFlipTimer = Math.max(self.orbitFlipTimer || 0, 36);
+    self.flankOrbitFrames = 0;
+    self.flankOrbitCutbackCooldown = POSTURE_RULES.flankOrbitCutbackCooldown || 44;
+    enemy.flankPressureTimer = Math.max(enemy.flankPressureTimer || 0, Math.round((POSTURE_RULES.daggerCutTurnLagFrames || 22) * (weapon.id === 'dagger' ? 0.8 : 0.45)));
+    return previousDir;
+  }
+
+  return 0;
+}
+
+function easternAssassinCutbackMovement(self, enemy, desired, toEnemy, dist, previousDir, flankPower) {
+  const cutSide = -previousDir;
+  const targetRadius = Math.max(24, desired - 4);
+  const cutTarget = angleToRingPointByFacing(self, enemy, targetRadius, cutSide * Math.PI * 0.72);
+  const directWeight = dist < desired + 16 ? 0.28 : 0.14;
+  self.easternCutbackTimer = Math.max(self.easternCutbackTimer || 0, POSTURE_RULES.easternOrbitCutbackFrames || 18);
+  return blendAngles(cutTarget, toEnemy, directWeight, (POSTURE_RULES.easternOrbitCutbackPower || 1.32) + flankPower * 0.04, toEnemy, cutSide > 0 ? '동양검 우측 반대 꺾기' : '동양검 좌측 반대 꺾기');
 }
 
 
