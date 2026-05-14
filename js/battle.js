@@ -913,7 +913,7 @@ function getPositionalBonus(attacker, defender) {
 function getMatchupDamageScale(attacker, defender, weapon) {
   if (weapon.id === 'dagger' && defender.weaponId === 'spear') {
     const spearPersonality = PERSONALITIES[defender.personalityId];
-    const base = spearPersonality.id === 'defensive' ? 0.48 : spearPersonality.id === 'aggressive' ? 0.54 : 0.5;
+    const base = spearPersonality.id === 'defensive' ? 0.52 : spearPersonality.id === 'aggressive' ? 0.58 : 0.55;
     return base;
   }
   return 1;
