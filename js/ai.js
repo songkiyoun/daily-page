@@ -117,6 +117,12 @@ function spearMovement(self, enemy, desired, toEnemy, fromEnemy, dist, weapon, p
 }
 
 function westernMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality) {
+  if (enemy.weaponId === 'spear' && dist > desired - 2) {
+    const guardAngle = angleToRingPoint(self, enemy, Math.max(weapon.idealRange + enemy.radius, desired - 10), self.orbitDir * 0.34);
+    const guardPower = 0.98 + personality.pressure * 0.16 + (personality.id === 'defensive' ? 0.06 : 0);
+    return vectorFromAngle(guardAngle, guardPower, toEnemy, '서양검 전진 가드 접근');
+  }
+
   if (dist > desired + 13) {
     const entryOffset = self.orbitDir * (weapon.approachOffset + personality.flankPreference * 0.12);
     const targetAngle = angleToRingPoint(self, enemy, desired, entryOffset);
@@ -187,8 +193,9 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   let opportunity = getDaggerOpportunity(enemy);
   if (weapon.id === 'dagger' && enemy.weaponId === 'spear' && !relation.isFront && dist < desired + 104) {
     const spearFacingGap = Math.abs(relation.frontGap);
-    const spearIsLate = enemy.attackState === 'recovery' || enemy.postureRecoveryDelay > 0 || enemy.flankPressureTimer > 0 || enemy.cooldownTimer > 8;
-    opportunity = relation.isBack || relation.isSide || spearIsLate || spearFacingGap > 1.18 ? 'hard' : (opportunity || 'soft');
+    const spearIsLate = enemy.attackState === 'recovery' || enemy.postureRecoveryDelay > 0 || enemy.flankPressureTimer > 0 || enemy.cooldownTimer > 12;
+    const realFlank = relation.isBack || (relation.isSide && spearFacingGap > 1.26);
+    opportunity = realFlank || spearIsLate || spearFacingGap > 1.38 ? 'hard' : (opportunity || 'soft');
   }
   const burstReady = (self.daggerBurstCooldown || 0) <= 0;
 
@@ -204,10 +211,10 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   }
 
   if (enemy.weaponId === 'spear' && dist > Math.max(22, WEAPONS.spear.minRange - 34)) {
-    const targetRadius = opportunity ? 18 : 30;
+    const targetRadius = opportunity ? 20 : 34;
     const facingOffset = opportunity ? Math.PI + self.orbitDir * 0.18 : self.orbitDir * Math.PI / 2;
     const antiSpearAngle = angleToRingPointByFacing(self, enemy, targetRadius, facingOffset);
-    const spearPower = opportunity ? 1.82 : 1.34;
+    const spearPower = opportunity ? 1.62 : 1.16;
     return vectorFromAngle(antiSpearAngle, spearPower, toEnemy, opportunity ? '창 빈틈 단검 확정 침투' : '창 측면 빠른 진입');
   }
 

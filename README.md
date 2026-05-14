@@ -1,6 +1,6 @@
 # Circle Battle Tower Rebuild
 
-## v0.6.7 핵심 변경
+## v0.6.8 핵심 변경
 
 - 사라졌던 조합 테스트용 시뮬레이터를 별도 `js/simulator.js` 모듈로 복구했습니다.
 - 시뮬레이터는 실제 전투 로직을 복사하지 않고 `state.js`와 `battle.js`의 기존 함수를 사용해 반복 실행합니다.
