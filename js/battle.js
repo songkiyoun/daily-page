@@ -28,7 +28,6 @@ function updateUnit(unit, enemy, state) {
 
   const weapon = WEAPONS[unit.weaponId];
   tickTimers(unit);
-  updateNoEngageFrames(unit);
 
   if (unit.impactStopTimer > 0) {
     applyImpactStopDrift(unit);
@@ -68,42 +67,20 @@ function tickTimers(unit) {
   if (unit.cooldownTimer > 0) unit.cooldownTimer -= 1;
   if (unit.postureRecoveryDelay > 0) unit.postureRecoveryDelay -= 1;
   if (unit.staggerTimer > 0) unit.staggerTimer -= 1;
-  if (unit.staggerGuardTimer > 0) unit.staggerGuardTimer -= 1;
-  if (unit.postureRecoveryBoostTimer > 0) unit.postureRecoveryBoostTimer -= 1;
   if (unit.retreatLockout > 0) unit.retreatLockout -= 1;
   if (unit.resetMoveCooldown > 0) unit.resetMoveCooldown -= 1;
   if (unit.clashCooldown > 0) unit.clashCooldown -= 1;
   if (unit.flankPressureTimer > 0) unit.flankPressureTimer -= 1;
-  if (unit.flankHitTimer > 0) unit.flankHitTimer -= 1;
-  if (unit.flankHitTimer <= 0) unit.flankHitCount = 0;
-  if (unit.antiFlankGuardTimer > 0) unit.antiFlankGuardTimer -= 1;
-  if (unit.antiFlankPushCooldown > 0) unit.antiFlankPushCooldown -= 1;
   if (unit.daggerBurstCooldown > 0) unit.daggerBurstCooldown -= 1;
+  if (unit.daggerSideCommitLock > 0) unit.daggerSideCommitLock -= 1;
   if (unit.daggerManeuverTimer > 0) unit.daggerManeuverTimer -= 1;
   if (unit.daggerResetTimer > 0) unit.daggerResetTimer -= 1;
-  if (unit.daggerCommitTimer > 0) unit.daggerCommitTimer -= 1;
-  if (unit.flankOrbitCutbackCooldown > 0) unit.flankOrbitCutbackCooldown -= 1;
-  if (unit.easternCutbackTimer > 0) unit.easternCutbackTimer -= 1;
   if (unit.parryCooldown > 0) unit.parryCooldown -= 1;
   if (unit.parryFlashTimer > 0) unit.parryFlashTimer -= 1;
   if (unit.counterTimer > 0) unit.counterTimer -= 1;
   if (unit.comboTimer > 0) unit.comboTimer -= 1;
   if (unit.comboTimer <= 0) unit.comboCount = 0;
   if (unit.riposteTimer > 0) unit.riposteTimer -= 1;
-  if (unit.defensiveProbeTimer > 0) unit.defensiveProbeTimer -= 1;
-  if (unit.defensiveProbeCooldown > 0) unit.defensiveProbeCooldown -= 1;
-}
-
-function updateNoEngageFrames(unit) {
-  if (unit.attackState !== 'idle' || unit.staggerTimer > 0 || unit.impactStopTimer > 0) return;
-  unit.noEngageFrames = Math.min(999, (unit.noEngageFrames || 0) + 1);
-}
-
-function resetEngagement(...units) {
-  for (const unit of units) {
-    if (!unit) continue;
-    unit.noEngageFrames = 0;
-  }
 }
 
 function applyImpactStopDrift(unit) {
@@ -164,10 +141,7 @@ function recoverPosture(unit) {
 
   const weapon = WEAPONS[unit.weaponId];
   const stateScale = unit.attackState === 'idle' ? 1 : 0.35;
-  let recoveryScale = getPostureRecoveryScale(weapon);
-  if ((unit.postureRecoveryBoostTimer || 0) > 0) {
-    recoveryScale *= POSTURE_RULES.staggerRecoveryBoostScale || 1.5;
-  }
+  const recoveryScale = getPostureRecoveryScale(weapon);
   unit.posture = clamp(
     unit.posture + POSTURE_RULES.recoveryPerFrame * stateScale * recoveryScale,
     0,
@@ -197,13 +171,6 @@ function getTurnSpeed(unit) {
     scale *= (weapon.feintResponseTurnScale || 1) * POSTURE_RULES.daggerFlankTurnScale;
     if (unit.weaponId === 'spear') scale *= 0.86;
     if (unit.weaponId === 'western') scale *= 0.92;
-  }
-  if (unit.antiFlankGuardTimer > 0) {
-    if (unit.weaponId === 'western') scale *= 2.15;
-    if (unit.weaponId === 'spear') scale *= 1.38;
-  }
-  if (unit.weaponId === 'eastern' && unit.personalityId === 'assassin') {
-    scale *= POSTURE_RULES.easternAssassinTurnScale || 0.94;
   }
   if (unit.parryFlashTimer > 0) scale *= Math.min(0.74, weapon.shakenTurnScale || 0.72);
   if (unit.posture < unit.maxPosture * 0.35) scale *= Math.min(0.9, (weapon.shakenTurnScale || 0.86) + 0.12);
@@ -269,8 +236,8 @@ function getAcceleration(unit, movement) {
   if (unit.weaponId === 'spear' && movement.label.includes('측면')) value = 0.29;
   if (unit.weaponId === 'eastern') value = movement.label.includes('페이크') ? 0.29 : 0.25;
   if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.76 : movement.label.includes('페이크') ? 0.62 : 0.33;
-  if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.006;
-  if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.018;
+  if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.015;
+  if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.045;
   if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
   return value;
 }
@@ -296,21 +263,21 @@ function tryCloseRangeReset(unit, enemy, movement) {
     ((unit.retreatFrames || 0) > 18 && dist < unit.radius + enemy.radius + 42) ||
     (unit.retreatLockout > 0 && dist < unit.radius + enemy.radius + 36)
   );
+  const westernCloseGuard = weapon.id === 'western' &&
+    weapon.closeGuardVsDagger &&
+    enemy.weaponId === 'dagger' &&
+    (bodyClose || dist < unit.radius + enemy.radius + 34 || (enemy.attackState !== 'idle' && dist < weapon.range + enemy.radius * 0.4));
 
-  if (!spearPinned && !defensivePinned) return false;
+  if (!spearPinned && !defensivePinned && !westernCloseGuard) return false;
 
   const pushAngle = angleTo(unit, enemy);
   const sideAngle = pushAngle + Math.PI / 2 * unit.orbitDir;
   const enemyPersonality = PERSONALITIES[enemy.personalityId];
   const identityPush = (weapon.closePushScale || 1) * (personality.closePushScale || 1);
   const pushResistance = enemyPersonality.knockbackTakenScale || 1;
-  const antiDaggerScale = spearPinned && enemy.weaponId === 'dagger' ? 1.34 : 1;
-  const westernGuardScale = spearPinned && enemy.weaponId === 'western' ? 0.74 : 1;
-  const defensiveDaggerScale = unit.weaponId === 'dagger' && personality.id === 'defensive' ? 0.58 : 1;
-  const defensiveSpearVsEasternScale = unit.weaponId === 'spear' && personality.id === 'defensive' && enemy.weaponId === 'eastern' ? 0.72 : 1;
-  const force = (spearPinned ? 7.2 : 4.2) * identityPush * pushResistance * antiDaggerScale * westernGuardScale * defensiveDaggerScale * defensiveSpearVsEasternScale;
-  const sideForce = (spearPinned ? 1.8 : 1.4) * identityPush * pushResistance * antiDaggerScale * westernGuardScale * defensiveDaggerScale * defensiveSpearVsEasternScale;
-  const selfSide = (spearPinned ? 2.35 : 1.6) * identityPush * defensiveDaggerScale * defensiveSpearVsEasternScale;
+  const force = (spearPinned ? 7.2 : westernCloseGuard ? 4.8 : 4.2) * identityPush * pushResistance;
+  const sideForce = (spearPinned ? 1.8 : westernCloseGuard ? 2.2 : 1.4) * identityPush * pushResistance;
+  const selfSide = (spearPinned ? 2.35 : westernCloseGuard ? 1.28 : 1.6) * identityPush;
 
   enemy.vx += Math.cos(pushAngle) * force + Math.cos(sideAngle) * sideForce;
   enemy.vy += Math.sin(pushAngle) * force + Math.sin(sideAngle) * sideForce;
@@ -319,15 +286,15 @@ function tryCloseRangeReset(unit, enemy, movement) {
   unit.retreatFrames = 0;
   unit.retreatLockout = Math.max(unit.retreatLockout || 0, Math.floor(POSTURE_RULES.retreatLockoutFrames * 0.45));
   unit.resetMoveCooldown = POSTURE_RULES.closeResetCooldown;
-  unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : 14);
-  enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : 9);
+  unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : westernCloseGuard ? 16 : 14);
+  enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : westernCloseGuard ? 11 : 9);
 
-  const postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? 1.22 : 0.94);
+  const postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? 1.22 : westernCloseGuard ? (weapon.closeGuardPostureScale || 1.05) : 0.94);
   applyPostureDamage(unit, enemy, postureDamage);
   twistBodyOnImpact(enemy, unit, postureDamage, weapon);
 
-  unit.lastAction = spearPinned ? '창 밀어내기' : '방어 견제 밀어내기';
-  enemy.lastAction = '자세 밀림';
+  unit.lastAction = spearPinned ? '창 밀어내기' : westernCloseGuard ? '서양검 근접 견제 베기' : '방어 견제 밀어내기';
+  enemy.lastAction = westernCloseGuard ? '근접 견제당함' : '자세 밀림';
   return true;
 }
 
@@ -338,14 +305,10 @@ function canStartAttack(attacker, defender) {
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
   const daggerMirror = attacker.weaponId === 'dagger' && defender.weaponId === 'dagger';
-  const defensiveProbe = attacker.personalityId === 'defensive' && (attacker.defensiveProbeTimer || 0) > 0;
-  const attackStartReach = getAttackStartReach(attacker, defender, weapon);
-  const defensiveDaggerCloseProbe = isDefensiveDaggerCloseProbe(attacker, defender, dist, attackStartReach);
-  const startTolerance = (daggerMirror
+  const startTolerance = daggerMirror
     ? 1.45
-    : Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52))
-    + (defensiveProbe ? (POSTURE_RULES.defensiveProbeAngleBonus || 0.24) : 0)
-    + (defensiveDaggerCloseProbe ? (POSTURE_RULES.defensiveCloseDaggerAngleBonus || 0.3) : 0);
+    : Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52);
+  const attackStartReach = getAttackStartReach(attacker, defender, weapon);
 
   if (defender.staggerTimer > 0 && dist <= attackStartReach) {
     return true;
@@ -355,17 +318,11 @@ function canStartAttack(attacker, defender) {
   if (dist < weapon.minRange) return false;
   if (angleGap > startTolerance) return false;
 
-  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear' && isDirectlyInFrontOf(defender, attacker)) {
-    const spearBusy = defender.attackState !== 'idle' || defender.cooldownTimer > 14 || defender.flankPressureTimer > 0 || defender.postureRecoveryDelay > 0;
-    if (!spearBusy && !defensiveProbe && !defensiveDaggerCloseProbe) return false;
-  }
-
-  const daggerCommittedProbe = attacker.weaponId === 'dagger' && (attacker.daggerCommitTimer || 0) > 0 && dist <= attackStartReach - 4;
-  if (attacker.weaponId === 'dagger' && !daggerCommittedProbe && !defensiveProbe && !defensiveDaggerCloseProbe && !hasDaggerAttackAngle(attacker, defender)) {
+  if (attacker.weaponId === 'dagger' && !hasDaggerAttackAngle(attacker, defender)) {
     return false;
   }
 
-  const committedToAngle = daggerCommittedProbe || defensiveDaggerCloseProbe || attacker.lastAction.includes('측') || attacker.lastAction.includes('후방') || attacker.lastAction.includes('미러') || attacker.lastAction.includes('돌파') || attacker.lastAction.includes('침투');
+  const committedToAngle = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방') || attacker.lastAction.includes('미러') || attacker.lastAction.includes('돌파') || attacker.lastAction.includes('침투');
   if (personality.id === 'assassin' && attacker.weaponId !== 'spear' && isDirectlyInFrontOf(defender, attacker) && !committedToAngle) {
     return false;
   }
@@ -382,10 +339,6 @@ function beginAttack(attacker, defender) {
   attacker.attackRecoveryMax = weapon.recovery;
   attacker.attackResolved = false;
   attacker.attackOutcome = '';
-  attacker.attackMode = attacker.defensiveProbeTimer > 0 ? 'defensiveProbe' : '';
-  attacker.defensiveProbeTimer = 0;
-  attacker.defensiveProbeCooldown = Math.max(attacker.defensiveProbeCooldown || 0, POSTURE_RULES.defensiveProbeCooldownFrames || 112);
-  resetEngagement(attacker);
   attacker.attackAim = angleTo(attacker, defender);
   attacker.attackVisualPhase = 0;
   attacker.vx *= getAttackEntryBrake(attacker.weaponId);
@@ -393,7 +346,6 @@ function beginAttack(attacker, defender) {
   if (attacker.weaponId === 'dagger') {
     attacker.daggerManeuverPhase = '';
     attacker.daggerManeuverTimer = 0;
-    attacker.daggerCommitTimer = Math.max(attacker.daggerCommitTimer || 0, 6);
   }
   attacker.lastAction = getWindupLabel(attacker.weaponId);
 }
@@ -426,10 +378,7 @@ function updateAttackState(attacker, defender, state) {
       attacker.attackState = 'recovery';
       attacker.attackTimer = getAttackRecoveryDuration(attacker, weapon);
       attacker.attackRecoveryMax = attacker.attackTimer;
-      attacker.lastAction = attacker.attackResolved ? getRecoveryLabel(attacker.weaponId, attacker.attackOutcome) : getRecoveryLabel(attacker.weaponId, 'miss');
-      if (attacker.weaponId === 'dagger' && attacker.attackOutcome !== 'hit' && attacker.attackOutcome !== 'parried' && attacker.attackOutcome !== 'clash') {
-        attacker.daggerResetTimer = Math.max(attacker.daggerResetTimer || 0, POSTURE_RULES.daggerMissResetFrames || 12);
-      }
+      attacker.lastAction = attacker.attackResolved ? getRecoveryLabel(attacker.weaponId) : '헛침 후딜';
     }
     return;
   }
@@ -474,16 +423,11 @@ function getActiveLabel(weaponId) {
   return '타격 판정';
 }
 
-function getRecoveryLabel(weaponId, outcome = '') {
-  if (weaponId === 'spear') return outcome === 'miss' ? '창 헛침 회수' : '창 회수';
-  if (weaponId === 'western') return outcome === 'miss' ? '서양검 헛침 후딜' : '서양검 후딜';
-  if (weaponId === 'eastern') return outcome === 'miss' ? '동양검 빗나감 재정렬' : '동양검 이탈';
-  if (weaponId === 'dagger') {
-    if (outcome === 'hit') return '단검 명중 후 이탈';
-    if (outcome === 'parried' || outcome === 'clash') return '단검 튕김 이탈';
-    if (outcome === 'evaded' || outcome === 'miss') return '단검 빗나감 측면 재정렬';
-    return '단검 회수';
-  }
+function getRecoveryLabel(weaponId) {
+  if (weaponId === 'spear') return '창 회수';
+  if (weaponId === 'western') return '서양검 후딜';
+  if (weaponId === 'eastern') return '동양검 이탈';
+  if (weaponId === 'dagger') return '단검 빠른 이탈';
   return '후딜';
 }
 
@@ -512,7 +456,7 @@ function getRecoveryCooldown(attacker, weapon) {
     cooldown = Math.max(9, Math.round(cooldown * (weapon.comboCooldownScale || 0.58)));
   }
   if (attacker.riposteTimer > 0 && (weapon.riposteOnParry || false)) {
-    cooldown = Math.max(4, Math.round(cooldown * 0.55));
+    cooldown = Math.max(4, Math.round(cooldown * (weapon.riposteCooldownScale || 0.55)));
   }
   return cooldown;
 }
@@ -621,17 +565,8 @@ function applyRecoveryStep(attacker, defender, weapon) {
     back *= 0.74;
     side *= 0.92;
   } else {
-    const outcome = attacker.attackOutcome || 'miss';
-    if (outcome === 'hit') {
-      back *= 1.85;
-      side *= 1.18;
-    } else if (outcome === 'parried' || outcome === 'clash') {
-      back *= 1.42;
-      side *= 0.86;
-    } else {
-      back *= POSTURE_RULES.daggerShortRepositionScale || 0.42;
-      side *= 1.28;
-    }
+    back *= 1.85;
+    side *= 1.18;
   }
 
   attacker.vx += Math.cos(awayAngle) * back + Math.cos(sideAngle) * side;
@@ -667,15 +602,18 @@ function resolveAttack(attacker, defender, state) {
   if (dist < weapon.minRange) return false;
   if (angleGap > hitArc) return false;
 
+  if (resolveEasternGlancingSlip(defender, attacker, weapon, hitQuality, state)) {
+    attacker.attackOutcome = 'glanced';
+    return true;
+  }
+
   if (resolveParry(defender, attacker, weapon, state)) {
-    resetEngagement(attacker, defender);
     attacker.attackOutcome = 'parried';
     return true;
   }
 
   const evaded = defender.staggerTimer <= 0 && Math.random() < defender.evasion;
   if (evaded) {
-    resetEngagement(attacker, defender);
     attacker.attackOutcome = 'evaded';
     defender.lastAction = '회피';
     return true;
@@ -689,14 +627,11 @@ function resolveAttack(attacker, defender, state) {
   const staggerDamageBonus = defender.staggerTimer > 0 ? POSTURE_RULES.staggerDamageTakenBonus : 1;
   const counterBonus = attacker.counterTimer > 0 ? POSTURE_RULES.counterDamageBonus : 1;
   const comboDamageBonus = attacker.weaponId === 'eastern' && attacker.comboTimer > 0 ? 1.06 : 1;
-  const defensiveProbeScale = attacker.attackMode === 'defensiveProbe' ? (POSTURE_RULES.defensiveProbeDamageScale || 0.68) : 1;
-  const matchupDamageScale = getMatchupDamageScale(attacker, defender);
-  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * comboDamageBonus * defensiveProbeScale * matchupDamageScale * (crit ? attacker.critDamage : 1);
+  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * comboDamageBonus * (crit ? attacker.critDamage : 1);
   const effectiveDefense = getEffectiveDefense(defender);
   const damage = Math.max(2, rawDamage * (1 - effectiveDefense));
 
   defender.hp = clamp(defender.hp - damage, 0, defender.maxHp);
-  resetEngagement(attacker, defender);
   attacker.attackOutcome = 'hit';
   attacker.hits += 1;
   attacker.damageDealt += damage;
@@ -707,7 +642,6 @@ function resolveAttack(attacker, defender, state) {
   const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality);
   applyPostureDamage(attacker, defender, postureDamage, state);
   applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
-  applyRepeatedFlankResponse(attacker, defender, weapon, state);
   applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
   applyImpactStop(attacker, defender, weapon);
@@ -722,91 +656,37 @@ function resolveAttack(attacker, defender, state) {
 }
 
 
-function applyRepeatedFlankResponse(attacker, defender, weapon, state = null) {
-  if (defender.isDead || defender.staggerTimer > 0) return;
-  if (!isMeaningfulFlankHit(attacker, defender)) return;
+function resolveEasternGlancingSlip(defender, attacker, incomingWeapon, hitQuality, state) {
+  if (defender.weaponId !== 'eastern') return false;
+  if (incomingWeapon.id !== 'western') return false;
+  if (!WEAPONS.eastern.glancingSlipVsHeavy) return false;
+  if (defender.staggerTimer > 0 || defender.impactStopTimer > 0) return false;
+  if (defender.posture < defender.maxPosture * 0.28) return false;
+  if (defender.attackState === 'recovery' && defender.attackTimer > 6) return false;
 
-  defender.flankHitCount = (defender.flankHitCount || 0) + 1;
-  defender.flankHitTimer = POSTURE_RULES.flankResponseWindowFrames || 180;
+  const incomingDirection = angleTo(defender, attacker);
+  const frontGap = Math.abs(angleDiff(defender.facing, incomingDirection));
+  const sideReadable = frontGap < 1.35 || defender.attackState === 'windup' || defender.attackState === 'active';
+  if (!sideReadable) return false;
 
-  const trigger = POSTURE_RULES.flankResponseTrigger || 2;
-  if (defender.flankHitCount < trigger) return;
+  const baseChance = WEAPONS.eastern.glancingSlipChance || 0.12;
+  const postureRatio = clamp(defender.posture / defender.maxPosture, 0, 1);
+  const activeBonus = defender.attackState === 'windup' || defender.attackState === 'active' ? 0.035 : 0;
+  const qualityPenalty = hitQuality > 0.72 ? 0.035 : 0;
+  const chance = clamp(baseChance + defender.stats.agi * 0.004 + postureRatio * 0.035 + activeBonus - qualityPenalty, 0.04, 0.24);
 
-  defender.flankHitCount = 0;
-  defender.flankHitTimer = 0;
+  if (Math.random() > chance) return false;
 
-  if (defender.weaponId === 'spear') {
-    triggerSpearAntiFlankPush(defender, attacker, state);
-    return;
-  }
-
-  if (defender.weaponId === 'western') {
-    triggerWesternGuardReturn(defender, attacker, state);
-    return;
-  }
-
-  if (defender.weaponId === 'eastern') {
-    triggerLightAntiFlankReset(defender, attacker);
-  }
-}
-
-function isMeaningfulFlankHit(attacker, defender) {
-  const attackerFromDefender = angleTo(defender, attacker);
-  const backGap = Math.abs(angleDiff(defender.facing + Math.PI, attackerFromDefender));
-  const sideGap = Math.min(
-    Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender)),
-    Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
-  );
-
-  if (backGap < 1.18) return true;
-  if (sideGap < 0.96 && attacker.weaponId === 'dagger') return true;
-  if (sideGap < 0.86 && attacker.personalityId === 'assassin') return true;
-  return false;
-}
-
-function triggerSpearAntiFlankPush(defender, attacker, state = null) {
-  if ((defender.antiFlankPushCooldown || 0) > 0) return;
-
-  const pushAngle = angleTo(defender, attacker);
-  const sideAngle = pushAngle + Math.PI / 2 * (defender.orbitDir || 1);
-  const personality = PERSONALITIES[defender.personalityId];
-  const attackerPersonality = PERSONALITIES[attacker.personalityId];
-  const force = (POSTURE_RULES.antiFlankPushForce || 10) * (personality.closePushScale || 1) * (attackerPersonality.knockbackTakenScale || 1);
-
-  attacker.vx += Math.cos(pushAngle) * force + Math.cos(sideAngle) * force * 0.18;
-  attacker.vy += Math.sin(pushAngle) * force + Math.sin(sideAngle) * force * 0.18;
-  defender.vx -= Math.cos(pushAngle) * 1.2;
-  defender.vy -= Math.sin(pushAngle) * 1.2;
-
-  defender.facing = moveToward(defender.facing, pushAngle, POSTURE_RULES.antiFlankFacingSnap || 1.2);
-  defender.antiFlankGuardTimer = Math.max(defender.antiFlankGuardTimer || 0, Math.round((POSTURE_RULES.antiFlankGuardFrames || 30) * 0.65));
-  defender.antiFlankPushCooldown = POSTURE_RULES.antiFlankPushCooldown || 80;
-  defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 12);
-  attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 14);
-  attacker.daggerManeuverPhase = attacker.weaponId === 'dagger' ? '' : attacker.daggerManeuverPhase;
-  attacker.daggerResetTimer = attacker.weaponId === 'dagger' ? Math.max(attacker.daggerResetTimer || 0, 10) : attacker.daggerResetTimer;
-
-  applyPostureDamage(defender, attacker, POSTURE_RULES.antiFlankPushPostureDamage || 8, state);
-  defender.lastAction = '창대 측후방 견제';
-  attacker.lastAction = '창대에 밀림';
-}
-
-function triggerWesternGuardReturn(defender, attacker, state = null) {
-  const targetAngle = angleTo(defender, attacker);
-  defender.facing = moveToward(defender.facing, targetAngle, POSTURE_RULES.antiFlankFacingSnap || 1.2);
-  defender.antiFlankGuardTimer = Math.max(defender.antiFlankGuardTimer || 0, POSTURE_RULES.antiFlankGuardFrames || 30);
-  defender.parryCooldown = Math.min(defender.parryCooldown || 0, 8);
-  defender.postureRecoveryDelay = Math.min(defender.postureRecoveryDelay || 0, 18);
+  const slipSide = defender.orbitDir || 1;
+  const sideAngle = incomingDirection + Math.PI / 2 * slipSide;
+  defender.vx += Math.cos(sideAngle) * 5.2 - Math.cos(incomingDirection) * 0.8;
+  defender.vy += Math.sin(sideAngle) * 5.2 - Math.sin(incomingDirection) * 0.8;
   defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 8);
-  defender.lastAction = '서양검 방어 복귀';
-}
-
-function triggerLightAntiFlankReset(defender, attacker) {
-  const targetAngle = angleTo(defender, attacker);
-  defender.facing = moveToward(defender.facing, targetAngle, 0.74);
-  defender.antiFlankGuardTimer = Math.max(defender.antiFlankGuardTimer || 0, 16);
-  defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 6);
-  defender.lastAction = '측후방 재정렬';
+  defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.28));
+  defender.lastAction = '동양검 흘리기';
+  attacker.lastAction = '베기 흘려짐';
+  emitCombatEvent(state, 'SLIP', defender.x, defender.y - 34, '#ffe18f');
+  return true;
 }
 
 
@@ -839,25 +719,19 @@ function canTryParry(defender, attacker, incomingWeapon) {
 
   const incomingDirection = angleTo(defender, attacker);
   const frontGap = Math.abs(angleDiff(defender.facing, incomingDirection));
-  if (frontGap > POSTURE_RULES.parryFrontArc) return false;
+  const defenderWeapon = WEAPONS[defender.weaponId];
+  const frontArc = POSTURE_RULES.parryFrontArc * (defenderWeapon.parryFrontArcScale || 1);
+  if (frontGap > frontArc) return false;
 
   const dist = distance(defender, attacker);
-  const defenderWeapon = WEAPONS[defender.weaponId];
-  const parryReach = Math.max(defender.radius + attacker.radius + 24, defenderWeapon.range * 0.72 + attacker.radius);
+  const parryReach = Math.max(
+    defender.radius + attacker.radius + 24,
+    defenderWeapon.range * 0.72 * (defenderWeapon.parryReachScale || 1) + attacker.radius
+  );
   if (dist > parryReach + getReachBonus(attacker, incomingWeapon)) return false;
 
-  if (defender.attackState === 'recovery' && defender.attackTimer > getRecoveryParryGate(defender)) return false;
+  if (defender.attackState === 'recovery' && defender.attackTimer > 8) return false;
   return true;
-}
-
-function getRecoveryParryGate(defender) {
-  const weapon = WEAPONS[defender.weaponId];
-  const maxRecovery = Math.max(1, defender.attackRecoveryMax || weapon.recovery || 12);
-  if (weapon.id === 'western') return Math.max(14, Math.round(maxRecovery * 0.5));
-  if (weapon.id === 'spear') return Math.max(8, Math.round(maxRecovery * 0.28));
-  if (weapon.id === 'eastern') return Math.max(6, Math.round(maxRecovery * 0.36));
-  if (weapon.id === 'dagger') return Math.max(4, Math.round(maxRecovery * 0.32));
-  return 8;
 }
 
 function getParryChance(defender, attacker, incomingWeapon) {
@@ -872,11 +746,6 @@ function getParryChance(defender, attacker, incomingWeapon) {
         ? 0.03
         : 0;
   const pressurePenalty = attacker.weaponId === 'spear' && distance(defender, attacker) > defenderWeapon.range * 0.72 ? 0.035 : 0;
-  const westernFastGuardBonus = defenderWeapon.id === 'western' && (incomingWeapon.id === 'dagger' || incomingWeapon.id === 'eastern') ? 0.065 : 0;
-  const spearFrontGuardBonus = defenderWeapon.id === 'spear' && incomingWeapon.id === 'dagger' && getPositionalBonus(attacker, defender) <= 1.05 ? 0.11 : 0;
-  const westernVsSpearGuardPenalty = defenderWeapon.id === 'spear' && incomingWeapon.id === 'western' ? 0.045 : 0;
-  const defensiveSpearEasternGuardPenalty = defender.weaponId === 'spear' && defender.personalityId === 'defensive' && incomingWeapon.id === 'eastern' ? 0.025 : 0;
-  const defensiveDaggerSpearGuardPenalty = defender.weaponId === 'dagger' && defender.personalityId === 'defensive' && incomingWeapon.id === 'spear' ? 0.045 : 0;
 
   return clamp(
     POSTURE_RULES.parryBaseChance +
@@ -886,12 +755,7 @@ function getParryChance(defender, attacker, incomingWeapon) {
     defender.stats.agi * 0.003 +
     defender.stats.luck * 0.0015 +
     postureRatio * 0.055 +
-    timingBonus +
-    westernFastGuardBonus +
-    spearFrontGuardBonus -
-    westernVsSpearGuardPenalty -
-    defensiveSpearEasternGuardPenalty -
-    defensiveDaggerSpearGuardPenalty -
+    timingBonus -
     (incomingWeapon.parryBreak || 0) -
     pressurePenalty,
     0,
@@ -940,7 +804,6 @@ function getParryKnockback(attacker, incomingWeapon) {
 function getParryPower(defender, defenderWeapon, incomingWeapon) {
   const weaponScale = 0.82 + (defenderWeapon.parryEfficiency || 0.3);
   const statScale = 1 + defender.stats.def * 0.018 + defender.stats.agi * 0.006 + defender.mastery * 0.035;
-  const westernFastGuardScale = defenderWeapon.id === 'western' && (incomingWeapon.id === 'dagger' || incomingWeapon.id === 'eastern') ? 1.16 : 1;
   const incomingScale = incomingWeapon.id === 'western'
     ? 1.08
     : incomingWeapon.id === 'spear'
@@ -948,7 +811,7 @@ function getParryPower(defender, defenderWeapon, incomingWeapon) {
       : incomingWeapon.id === 'dagger'
         ? 0.82
         : 0.94;
-  return POSTURE_RULES.parryPostureDamage * weaponScale * statScale * incomingScale * westernFastGuardScale;
+  return POSTURE_RULES.parryPostureDamage * weaponScale * statScale * incomingScale;
 }
 
 function getHitQuality(attacker, defender, weapon, dist, angleGap, hitArc) {
@@ -984,24 +847,6 @@ function getReachBonus(attacker, weapon) {
   return 0;
 }
 
-
-function isDefensiveDaggerCloseProbe(attacker, defender, dist, attackStartReach) {
-  if (attacker.weaponId !== 'dagger' || attacker.personalityId !== 'defensive') return false;
-  if (dist > attackStartReach - 1) return false;
-  if ((attacker.noEngageFrames || 0) < (POSTURE_RULES.defensiveCloseDaggerNoEngageFrames || 90)) return false;
-
-  const attackerFromDefender = angleTo(defender, attacker);
-  const frontGap = Math.abs(angleDiff(defender.facing, attackerFromDefender));
-  const backGap = Math.abs(angleDiff(defender.facing + Math.PI, attackerFromDefender));
-  const sideGap = Math.min(
-    Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender)),
-    Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
-  );
-  const defenderBusy = defender.attackState !== 'idle' || defender.cooldownTimer > 8 || defender.postureRecoveryDelay > 0;
-
-  return backGap < 1.34 || sideGap < 1.28 || (defenderBusy && frontGap < 1.46);
-}
-
 function hasDaggerAttackAngle(attacker, defender) {
   if (defender.staggerTimer > 0 || defender.attackState === 'recovery') return true;
 
@@ -1014,13 +859,14 @@ function hasDaggerAttackAngle(attacker, defender) {
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
   const defenderLowHp = defender.hp / defender.maxHp < 0.22;
-  const committedBurst = (isDaggerBurstLabel(attacker.lastAction) || (attacker.daggerCommitTimer || 0) > 0) && dist < WEAPONS.dagger.range + defender.radius + 15;
+  const committedBurst = isDaggerBurstLabel(attacker.lastAction) && dist < WEAPONS.dagger.range + defender.radius + 12;
   const defenderBusy = defender.attackState !== 'idle' || defender.cooldownTimer > 10 || defender.flankPressureTimer > 0;
   const spearWindow = defender.weaponId === 'spear' && (defender.flankPressureTimer > 0 || defender.attackState === 'recovery' || defender.postureRecoveryDelay > 0);
   const daggerMirrorCommit = defender.weaponId === 'dagger' && dist < WEAPONS.dagger.range + defender.radius + 8 && frontGap < 1.62;
-  const antiAssassinCommit = defender.weaponId === 'eastern' && defender.personalityId === 'assassin' && dist < WEAPONS.dagger.range + defender.radius + 12 && frontGap < 1.54;
 
-  return backGap < 1.32 || sideGap < 1.04 || defenderLowHp || committedBurst || (defenderBusy && sideGap < 1.22) || (spearWindow && sideGap < 1.36) || daggerMirrorCommit || antiAssassinCommit;
+  const sideAttackWindow = sideGap < 1.12 && frontGap > 0.42;
+  const sideRearWindow = sideGap < 1.22 && backGap > 0.42;
+  return sideAttackWindow || sideRearWindow || defenderLowHp || committedBurst || (defenderBusy && sideGap < 1.32) || (spearWindow && sideGap < 1.38) || daggerMirrorCommit;
 }
 
 function isDirectlyInFrontOf(observer, target) {
@@ -1045,16 +891,9 @@ function getPositionalBonus(attacker, defender) {
   const otherSideGap = Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender));
   const flankGap = Math.min(sideGap, otherSideGap);
 
-  if (defender.weaponId === 'spear') {
-    if (backGap < 1.02) return weapon.backBonus * 0.92;
-    if (flankGap < 0.86 && defender.attackState !== 'idle') return weapon.flankBonus * 0.9;
-    if (defender.flankPressureTimer > 0 && flankGap < 1.12) return Math.max(1.18, weapon.flankBonus * 0.78);
-    return 1;
-  }
-
-  if (backGap < 1.12) return weapon.backBonus;
-  if (flankGap < 1.02) return weapon.flankBonus;
-  if (defender.flankPressureTimer > 0 && flankGap < 1.22) return (weapon.flankBonus + 1) / 2;
+  if (flankGap < 1.08) return weapon.flankBonus;
+  if (backGap < 0.58) return weapon.backBonus || 1.12;
+  if (defender.flankPressureTimer > 0 && flankGap < 1.28) return defender.weaponId === 'spear' ? Math.max(weapon.flankBonus * 0.92, 1.32) : (weapon.flankBonus + 1) / 2;
   return 1;
 }
 
@@ -1071,42 +910,10 @@ function getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hit
   const attackerPersonality = PERSONALITIES[attacker.personalityId];
   const defenderPersonality = PERSONALITIES[defender.personalityId];
   const personalityPostureScale = (attackerPersonality.postureDamageDealtScale || 1) * (defenderPersonality.postureDamageTakenScale || 1);
-  const matchupPostureScale = getMatchupPostureScale(attacker, defender);
-  const defensiveProbeScale = attacker.attackMode === 'defensiveProbe' ? (POSTURE_RULES.defensiveProbePostureScale || 0.62) : 1;
   return Math.max(
     POSTURE_RULES.minPostureDamage,
-    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction * personalityPostureScale * matchupPostureScale * defensiveProbeScale
+    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction * personalityPostureScale
   );
-}
-
-function getMatchupDamageScale(attacker, defender) {
-  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear') {
-    return attacker.personalityId === 'defensive' ? 0.48 : 0.7;
-  }
-  if (attacker.weaponId === 'spear' && defender.weaponId === 'dagger') {
-    return defender.personalityId === 'defensive' ? 1.2 : 1.1;
-  }
-  if (attacker.weaponId === 'eastern' && defender.weaponId === 'dagger') return 0.86;
-  if (attacker.weaponId === 'spear' && attacker.personalityId === 'defensive' && defender.weaponId === 'eastern') return 0.9;
-  if (attacker.weaponId === 'eastern' && defender.weaponId === 'spear' && defender.personalityId === 'defensive') return 1.06;
-  if (attacker.weaponId === 'spear' && defender.weaponId === 'western' && attacker.personalityId === 'defensive') return 0.72;
-  if (attacker.weaponId === 'western' && defender.weaponId === 'spear' && defender.personalityId === 'defensive') return 1.08;
-  return 1;
-}
-
-function getMatchupPostureScale(attacker, defender) {
-  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear') {
-    return attacker.personalityId === 'defensive' ? 0.42 : 0.66;
-  }
-  if (attacker.weaponId === 'spear' && defender.weaponId === 'dagger') {
-    return defender.personalityId === 'defensive' ? 1.08 : 1.12;
-  }
-  if (attacker.weaponId === 'eastern' && defender.weaponId === 'dagger') return 0.86;
-  if (attacker.weaponId === 'spear' && attacker.personalityId === 'defensive' && defender.weaponId === 'eastern') return 0.72;
-  if (attacker.weaponId === 'eastern' && defender.weaponId === 'spear' && defender.personalityId === 'defensive') return 1.1;
-  if (attacker.weaponId === 'spear' && defender.weaponId === 'western' && attacker.personalityId === 'defensive') return 0.72;
-  if (attacker.weaponId === 'western' && defender.weaponId === 'spear' && defender.personalityId === 'defensive') return 1.12;
-  return 1;
 }
 
 function getDaggerPostureBonus(attacker, defender, weapon) {
@@ -1117,16 +924,9 @@ function getDaggerPostureBonus(attacker, defender, weapon) {
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
 
-  if (defender.weaponId === 'spear') {
-    if (backGap < 1.02) return (weapon.backPostureBonus || 1) * 0.88;
-    if (sideGap < 0.86 && defender.attackState !== 'idle') return (weapon.flankPostureBonus || 1) * 0.88;
-    if (defender.flankPressureTimer > 0 && sideGap < 1.12) return Math.max(1.08, (weapon.flankPostureBonus || 1) * 0.72);
-    return 1;
-  }
-
-  if (backGap < 1.12) return weapon.backPostureBonus || 1;
-  if (sideGap < 1.02) return weapon.flankPostureBonus || 1;
-  if (defender.flankPressureTimer > 0 && sideGap < 1.18) return Math.max(1.18, (weapon.flankPostureBonus || 1));
+  if (sideGap < 1.08) return weapon.flankPostureBonus || 1;
+  if (backGap < 0.58) return weapon.backPostureBonus || 1;
+  if (defender.flankPressureTimer > 0 && sideGap < 1.24) return Math.max(1.18, (weapon.flankPostureBonus || 1));
   return 1;
 }
 
@@ -1154,23 +954,10 @@ function getPostureRecoveryDelay(unit, scale = 1) {
 function applyPostureDamage(attacker, defender, amount, state = null) {
   if (defender.isDead || defender.staggerTimer > 0) return;
 
-  const staggerGuardActive = (defender.staggerGuardTimer || 0) > 0;
-  const guardScale = staggerGuardActive ? (POSTURE_RULES.staggerGuardPostureScale || 0.42) : 1;
-  const adjustedAmount = amount * guardScale;
-  const guardFloor = Math.max(1, Math.round(defender.maxPosture * (POSTURE_RULES.staggerGuardPostureFloorRatio || 0.18)));
+  defender.posture = clamp(defender.posture - amount, 0, defender.maxPosture);
+  defender.postureRecoveryDelay = getPostureRecoveryDelay(defender);
 
-  defender.posture = clamp(defender.posture - adjustedAmount, 0, defender.maxPosture);
-  if (staggerGuardActive && defender.posture <= 0) {
-    defender.posture = guardFloor;
-  }
-
-  const delayScale = staggerGuardActive ? 0.55 : 1;
-  defender.postureRecoveryDelay = Math.max(
-    defender.postureRecoveryDelay || 0,
-    getPostureRecoveryDelay(defender, delayScale)
-  );
-
-  if (!staggerGuardActive && defender.posture <= 0) {
+  if (defender.posture <= 0) {
     triggerStagger(defender, attacker, state);
   }
 }
@@ -1186,8 +973,7 @@ function getStaggerDurationScale(unit, attacker) {
       : victimWeapon.id === 'eastern'
         ? 0.94
         : 0.62;
-  let attackerScale = attackerWeapon?.staggerRecoveryPenalty || 1;
-  if (attacker.weaponId === 'spear' && attacker.personalityId === 'defensive') attackerScale *= 0.82;
+  const attackerScale = attackerWeapon?.staggerRecoveryPenalty || 1;
   return victimScale * attackerScale;
 }
 
@@ -1198,9 +984,7 @@ function triggerStagger(unit, attacker, state = null) {
   unit.attackTimer = 0;
   unit.cooldownTimer = Math.max(unit.cooldownTimer, unit.weaponId === 'dagger' ? 14 : 22);
   unit.posture = Math.round(unit.maxPosture * POSTURE_RULES.staggerPostureRestoreRatio);
-  unit.postureRecoveryDelay = getPostureRecoveryDelay(unit, 0.9);
-  unit.staggerGuardTimer = POSTURE_RULES.staggerGuardFrames || 72;
-  unit.postureRecoveryBoostTimer = POSTURE_RULES.staggerRecoveryBoostFrames || 90;
+  unit.postureRecoveryDelay = getPostureRecoveryDelay(unit, 1.1);
   unit.retreatFrames = 0;
   unit.retreatLockout = Math.max(unit.retreatLockout || 0, 24);
   unit.facing = impactAngle + Math.PI + attacker.orbitDir * POSTURE_RULES.staggerFacingTwist;
@@ -1250,7 +1034,7 @@ function applyWeaponHitReaction(attacker, defender, weapon, hitQuality = 0) {
 
   const selfRetreat = weapon.selfRetreatOnHit || 0;
   if (selfRetreat > 0) {
-    const retreatScale = weapon.id === 'dagger' ? 1.55 + hitQuality * 0.72 : 0.42;
+    const retreatScale = weapon.id === 'dagger' ? 1.18 + hitQuality * 0.44 : 0.42;
     attacker.vx -= Math.cos(attackAngle) * selfRetreat * retreatScale;
     attacker.vy -= Math.sin(attackAngle) * selfRetreat * retreatScale;
     if (weapon.id === 'dagger') {
@@ -1275,46 +1059,87 @@ function applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality = 0) {
   if (weapon.id === 'eastern') {
     const maxCombo = POSTURE_RULES.easternComboMax || 2;
     attacker.comboCount = Math.min(maxCombo, (attacker.comboCount || 0) + 1);
-    const daggerOpponentScale = defender.weaponId === 'dagger' ? 0.72 : 1;
-    attacker.comboTimer = Math.round((POSTURE_RULES.easternComboWindowFrames || 34) * (personality.comboScale || 1) * daggerOpponentScale);
-    const recoveryScale = defender.weaponId === 'dagger' ? 0.74 : 0.62;
-    attacker.attackTimer = Math.min(attacker.attackTimer || weapon.recovery, Math.max(6, Math.round(weapon.recovery * recoveryScale)));
-    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.42 * identityScale));
+    attacker.comboTimer = Math.round((POSTURE_RULES.easternComboWindowFrames || 34) * (personality.comboScale || 1));
+    const comboReturnScale = defender.weaponId === 'dagger' ? 0.96 : 0.76;
+    attacker.attackTimer = Math.min(attacker.attackTimer || weapon.recovery, Math.max(7, Math.round(weapon.recovery * comboReturnScale)));
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, defender.weaponId === 'dagger' ? 0.28 : 0.5 * identityScale));
+
+    if (defender.weaponId === 'dagger') {
+      applyDaggerEscapeFromEastern(attacker, defender, weapon, hitQuality);
+    }
   }
 
   if (weapon.id === 'dagger') {
     const positional = getPositionalBonus(attacker, defender);
     if (positional > 1.05) {
-      const defenderScale = defender.weaponId === 'spear' ? 0.48 : 1;
-      const stun = Math.round((weapon.flankStunFrames || weapon.hitStunFrames || 4) * (0.72 + hitQuality * 0.35) * defenderScale);
+      const stun = Math.round((weapon.flankStunFrames || weapon.hitStunFrames || 4) * (0.72 + hitQuality * 0.35));
       defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, stun);
-      defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, Math.round(stun * (defender.weaponId === 'spear' ? 1.05 : 1.6)));
-      defender.flankPressureTimer = Math.max(defender.flankPressureTimer || 0, Math.round(stun * (defender.weaponId === 'spear' ? 0.7 : 1)));
+      defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, Math.round(stun * 1.6));
+      defender.flankPressureTimer = Math.max(defender.flankPressureTimer || 0, stun);
+    }
+
+    if (defender.weaponId === 'eastern') {
+      applyDaggerEasternFlowBreak(attacker, defender, weapon, positional, hitQuality);
     }
   }
 
   if (weapon.id === 'western') {
-    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.9 * identityScale));
-    if (hitQuality > 0.45) {
-      defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, (weapon.hitStunFrames || 5) + 2);
-      if (defender.weaponId === 'dagger' || defender.weaponId === 'eastern') {
-        defender.flankPressureTimer = Math.max(defender.flankPressureTimer || 0, 10);
-      }
-    }
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.92 * identityScale));
+    if (hitQuality > 0.48) defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, weapon.hitStunFrames || 4);
   }
 
   if (weapon.id === 'spear' && hitQuality > 0.38) {
-    defender.retreatLockout = Math.max(defender.retreatLockout || 0, defender.weaponId === 'dagger' ? 24 : 16);
-    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, defender.weaponId === 'dagger' ? 0.72 * identityScale : 0.52 * identityScale));
-    if (defender.weaponId === 'dagger') {
-      defender.daggerManeuverPhase = '';
-      defender.daggerManeuverTimer = 0;
-      defender.daggerResetTimer = Math.max(defender.daggerResetTimer || 0, 12);
-      defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 16);
-    }
+    defender.retreatLockout = Math.max(defender.retreatLockout || 0, 16);
+    defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, getPostureRecoveryDelay(defender, 0.52 * identityScale));
     attacker.cooldownTimer = Math.min(attacker.cooldownTimer || weapon.cooldown, Math.max(12, Math.round(weapon.cooldown * 0.72)));
   }
 }
+
+function applyDaggerEscapeFromEastern(attacker, defender, weapon, hitQuality = 0) {
+  const comboPressure = attacker.comboTimer > 0 || attacker.comboCount > 0 || attacker.attackState === 'active';
+  const escapeChance = comboPressure ? 0.24 + hitQuality * 0.06 : 0.09 + hitQuality * 0.035;
+  if (Math.random() > escapeChance) return;
+
+  const escapeAngle = angleTo(attacker, defender);
+  const sideAngle = escapeAngle + Math.PI / 2 * (defender.orbitDir || 1);
+  const escapePower = 2.35 + hitQuality * 0.65;
+  const backPower = 0.45 + hitQuality * 0.18;
+
+  defender.vx += Math.cos(sideAngle) * escapePower + Math.cos(escapeAngle) * backPower;
+  defender.vy += Math.sin(sideAngle) * escapePower + Math.sin(escapeAngle) * backPower;
+  defender.daggerManeuverPhase = '';
+  defender.daggerManeuverTimer = 0;
+  defender.daggerResetTimer = Math.min(defender.daggerResetTimer || 0, 8);
+  defender.daggerBurstCooldown = Math.min(defender.daggerBurstCooldown || 0, 9);
+  defender.cooldownTimer = Math.min(Math.max(defender.cooldownTimer || 0, 6), 13);
+  defender.flankPressureTimer = Math.max(defender.flankPressureTimer || 0, 8);
+
+  attacker.attackTimer = Math.max(attacker.attackTimer || 0, Math.round(weapon.recovery * 0.46));
+  attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 3);
+  attacker.flankPressureTimer = Math.max(attacker.flankPressureTimer || 0, 6);
+  defender.lastAction = '동양검 연격 탈출';
+}
+
+function applyDaggerEasternFlowBreak(attacker, defender, weapon, positional, hitQuality = 0) {
+  const interruptWindow = defender.comboTimer > 0 ||
+    defender.attackState === 'recovery' ||
+    defender.attackState === 'windup' ||
+    defender.attackState === 'active';
+
+  if (!interruptWindow || positional <= 1.04) return;
+  if (Math.random() > 0.24 + hitQuality * 0.1) return;
+
+  const breakFrames = Math.round((weapon.flankStunFrames || 4) * (0.54 + hitQuality * 0.22));
+  defender.comboTimer = Math.max(0, Math.round((defender.comboTimer || 0) * 0.25));
+  defender.comboCount = Math.max(0, (defender.comboCount || 0) - 1);
+  defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, breakFrames + 1);
+  defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, Math.round(breakFrames * 1.08));
+  defender.flankPressureTimer = Math.max(defender.flankPressureTimer || 0, breakFrames + 6);
+  attacker.daggerBurstCooldown = Math.max(attacker.daggerBurstCooldown || 0, Math.round((POSTURE_RULES.daggerBurstCooldownFrames || 17) * 0.82));
+  defender.lastAction = '연속공격 흐트러짐';
+  attacker.lastAction = '연격 끊기 찌르기';
+}
+
 
 function getHitForwardKnockbackScale(weapon) {
   if (weapon.id === 'spear') return 0.58;
@@ -1349,10 +1174,6 @@ function resolveWeaponClash(state, a, b) {
   b.clashCooldown = POSTURE_RULES.weaponClashCooldown;
   a.attackState = a.attackState === 'active' ? 'recovery' : a.attackState;
   b.attackState = b.attackState === 'active' ? 'recovery' : b.attackState;
-  a.attackOutcome = 'clash';
-  b.attackOutcome = 'clash';
-  if (a.weaponId === 'dagger') a.daggerResetTimer = Math.max(a.daggerResetTimer || 0, POSTURE_RULES.daggerMissResetFrames || 12);
-  if (b.weaponId === 'dagger') b.daggerResetTimer = Math.max(b.daggerResetTimer || 0, POSTURE_RULES.daggerMissResetFrames || 12);
   a.attackTimer = Math.max(a.attackTimer, 8);
   b.attackTimer = Math.max(b.attackTimer, 8);
 

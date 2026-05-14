@@ -44,8 +44,8 @@ export function createRun(config) {
 export function createBattleState(run, options = {}) {
   const enemyConfig = options.enemyConfig || createRandomEnemyConfig(run.floor);
   const spawnSkew = options.spawnSkew ?? randomSign() * randomInt(34, 82);
-  const playerY = options.playerY ?? 250 + spawnSkew;
-  const enemyY = options.enemyY ?? 250 - spawnSkew;
+  const playerY = 250 + spawnSkew;
+  const enemyY = 250 - spawnSkew;
 
   return {
     running: false,
@@ -67,8 +67,8 @@ export function createBattleState(run, options = {}) {
       centerX: 380,
       centerY: 250
     },
-    player: createUnitFromPlayer(run.player, options.playerX ?? 210, playerY),
-    enemy: createUnitFromEnemy(enemyConfig, run.floor, options.enemyX ?? 550, enemyY)
+    player: createUnitFromPlayer(run.player, 210, playerY),
+    enemy: createUnitFromEnemy(enemyConfig, run.floor, 550, enemyY)
   };
 }
 
@@ -128,64 +128,11 @@ export function getNextLevelExp(level) {
   return 100 + (level - 1) * 42;
 }
 
-function getWeaponPersonalityTuning(weaponId, personalityId) {
-  if (personalityId !== 'defensive') {
-    return {
-      attackScale: 1,
-      defenseScale: 1,
-      evasionScale: 1,
-      moveSpeedScale: 1,
-      cooldownScale: 1,
-      turnSpeedScale: 1,
-      postureDamageScale: 1,
-      postureMaxScale: 1
-    };
-  }
-
-  if (weaponId === 'dagger') {
-    return {
-      attackScale: 0.92,
-      defenseScale: 0.92,
-      evasionScale: 0.92,
-      moveSpeedScale: 0.91,
-      cooldownScale: 1.12,
-      turnSpeedScale: 0.94,
-      postureDamageScale: 0.86,
-      postureMaxScale: 0.96
-    };
-  }
-
-  if (weaponId === 'spear') {
-    return {
-      attackScale: 0.97,
-      defenseScale: 0.97,
-      evasionScale: 1,
-      moveSpeedScale: 0.98,
-      cooldownScale: 1.04,
-      turnSpeedScale: 0.98,
-      postureDamageScale: 0.94,
-      postureMaxScale: 0.98
-    };
-  }
-
-  return {
-    attackScale: 1,
-    defenseScale: 1,
-    evasionScale: 1,
-    moveSpeedScale: 1,
-    cooldownScale: 1,
-    turnSpeedScale: 1,
-    postureDamageScale: 1,
-    postureMaxScale: 1
-  };
-}
-
 export function derivePlayerProfile(player) {
   const weapon = WEAPONS[player.weaponId];
   const personality = PERSONALITIES[player.personalityId];
   const skillEffects = collectSkillEffects(player.skills);
   const stats = player.stats;
-  const tuning = getWeaponPersonalityTuning(player.weaponId, player.personalityId);
 
   const maxHp = Math.round(
     BASE_STATS.maxHp +
@@ -200,23 +147,22 @@ export function derivePlayerProfile(player) {
     stats.def * POSTURE_RULES.defenseToMax +
     stats.vit * POSTURE_RULES.vitalityToMax +
     player.level * POSTURE_RULES.levelToMax
-  ) * (personality.postureMaxScale || 1) * (tuning.postureMaxScale || 1));
+  ) * (personality.postureMaxScale || 1));
 
-  const attackScale = (
+  const attackScale =
     1 +
     stats.str * 0.065 +
     stats.agi * 0.012 +
     player.mastery * 0.035 +
     (personality.attackBonus || 0) +
-    (skillEffects.attackBonus || 0)
-  ) * (tuning.attackScale || 1);
+    (skillEffects.attackBonus || 0);
 
   const defense = clamp(
     0.035 +
     stats.def * 0.012 +
     stats.vit * 0.002 +
-    ((personality.defenseBonus || 0) +
-    (skillEffects.defenseBonus || 0)) * (tuning.defenseScale || 1),
+    (personality.defenseBonus || 0) +
+    (skillEffects.defenseBonus || 0),
     0,
     BASE_STATS.defenseCap
   );
@@ -225,8 +171,8 @@ export function derivePlayerProfile(player) {
     0.025 +
     stats.agi * 0.007 +
     stats.luck * 0.002 +
-    ((personality.evasionBonus || 0) +
-    (skillEffects.evasionBonus || 0)) * (tuning.evasionScale || 1),
+    (personality.evasionBonus || 0) +
+    (skillEffects.evasionBonus || 0),
     0,
     BASE_STATS.evasionCap
   );
@@ -241,9 +187,9 @@ export function derivePlayerProfile(player) {
   );
 
   const speedScales = getWeaponAgilityScales(weapon, stats, player.mastery, skillEffects, true);
-  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (tuning.moveSpeedScale || 1);
-  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1) * (tuning.cooldownScale || 1);
-  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (tuning.turnSpeedScale || 1);
+  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1);
+  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1);
+  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1);
   const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
 
   return {
@@ -288,23 +234,17 @@ function createUnitFromPlayer(player, x, y) {
     maxPosture: profile.maxPosture,
     postureRecoveryDelay: 0,
     staggerTimer: 0,
-    staggerGuardTimer: 0,
-    postureRecoveryBoostTimer: 0,
     retreatFrames: 0,
     retreatLockout: 0,
     resetMoveCooldown: 0,
     clashCooldown: 0,
     flankPressureTimer: 0,
-    flankHitCount: 0,
-    flankHitTimer: 0,
-    antiFlankGuardTimer: 0,
-    antiFlankPushCooldown: 0,
     daggerBurstCooldown: 0,
+    daggerSideCommitLock: 0,
     daggerManeuverPhase: '',
     daggerManeuverTimer: 0,
     daggerFeintSide: randomSign(),
     daggerResetTimer: 0,
-    daggerCommitTimer: 0,
     parryCooldown: 0,
     parryFlashTimer: 0,
     counterTimer: 0,
@@ -316,10 +256,6 @@ function createUnitFromPlayer(player, x, y) {
     attackActiveMax: 0,
     attackRecoveryMax: 0,
     attackVisualPhase: 0,
-    attackMode: '',
-    defensiveProbeTimer: 0,
-    defensiveProbeCooldown: 0,
-    noEngageFrames: 0,
     attackScale: profile.attackScale,
     defense: profile.defense,
     evasion: profile.evasion,
@@ -336,9 +272,6 @@ function createUnitFromPlayer(player, x, y) {
     vy: 0,
     orbitDir: randomSign(),
     orbitFlipTimer: randomInt(42, 110),
-    flankOrbitFrames: 0,
-    flankOrbitCutbackCooldown: 0,
-    easternCutbackTimer: 0,
     hits: 0,
     damageDealt: 0,
     lastAction: `${weapon.name} · ${personality.name}`,
@@ -371,23 +304,17 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     maxPosture: profile.maxPosture,
     postureRecoveryDelay: 0,
     staggerTimer: 0,
-    staggerGuardTimer: 0,
-    postureRecoveryBoostTimer: 0,
     retreatFrames: 0,
     retreatLockout: 0,
     resetMoveCooldown: 0,
     clashCooldown: 0,
     flankPressureTimer: 0,
-    flankHitCount: 0,
-    flankHitTimer: 0,
-    antiFlankGuardTimer: 0,
-    antiFlankPushCooldown: 0,
     daggerBurstCooldown: 0,
+    daggerSideCommitLock: 0,
     daggerManeuverPhase: '',
     daggerManeuverTimer: 0,
     daggerFeintSide: randomSign(),
     daggerResetTimer: 0,
-    daggerCommitTimer: 0,
     parryCooldown: 0,
     parryFlashTimer: 0,
     counterTimer: 0,
@@ -399,10 +326,6 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     attackActiveMax: 0,
     attackRecoveryMax: 0,
     attackVisualPhase: 0,
-    attackMode: '',
-    defensiveProbeTimer: 0,
-    defensiveProbeCooldown: 0,
-    noEngageFrames: 0,
     attackScale: profile.attackScale,
     defense: profile.defense,
     evasion: profile.evasion,
@@ -419,33 +342,10 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     vy: 0,
     orbitDir: randomSign(),
     orbitFlipTimer: randomInt(42, 110),
-    flankOrbitFrames: 0,
-    flankOrbitCutbackCooldown: 0,
-    easternCutbackTimer: 0,
     hits: 0,
     damageDealt: 0,
     lastAction: `${weapon.name} · ${personality.name}`,
     isDead: false
-  };
-}
-
-
-export function createFixedEnemyConfig({ weaponId, personalityId, floor = 1, name = 'SIM ENEMY' }) {
-  const base = 5 + Math.max(0, Math.floor((floor - 1) * 0.42));
-  return {
-    name,
-    weaponId,
-    personalityId,
-    level: Math.max(1, floor),
-    stats: {
-      str: base,
-      vit: base,
-      def: base,
-      agi: base,
-      luck: base
-    },
-    skills: [],
-    mastery: Math.floor(Math.max(0, floor - 1) / 4)
   };
 }
 
@@ -454,24 +354,52 @@ function createRandomEnemyConfig(floor) {
   const personalityIds = Object.keys(PERSONALITIES);
   const nameIndex = (floor + randomInt(0, ENEMY_NAMES.length - 1)) % ENEMY_NAMES.length;
   const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
-  const base = 4 + Math.floor(floor * 0.55);
-  const bossBonus = isBossFloor ? 3 : 0;
 
   return {
     name: isBossFloor ? `BOSS ${ENEMY_NAMES[nameIndex]}` : ENEMY_NAMES[nameIndex],
     weaponId: sample(weaponIds),
     personalityId: sample(personalityIds),
     level: Math.max(1, floor),
-    stats: {
-      str: base + bossBonus + randomInt(0, 2),
-      vit: base + bossBonus + randomInt(0, 3),
-      def: base + bossBonus + randomInt(0, 2),
-      agi: base + bossBonus + randomInt(0, 2),
-      luck: base + randomInt(0, 2)
-    },
+    stats: createEnemyStats(floor, isBossFloor),
     skills: createEnemySkills(floor, isBossFloor),
-    mastery: Math.floor(floor / 4) + (isBossFloor ? 2 : 0)
+    mastery: createEnemyMastery(floor, isBossFloor)
   };
+}
+
+export function createFixedEnemyConfig({ floor = TOWER_RULES.startFloor, weaponId = 'eastern', personalityId = 'balanced', stats = null, name = 'SIM ENEMY' } = {}) {
+  const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
+  return {
+    name,
+    weaponId,
+    personalityId,
+    level: Math.max(1, floor),
+    stats: stats ? { ...stats } : createEnemyStats(floor, isBossFloor),
+    skills: createEnemySkills(floor, isBossFloor),
+    mastery: createEnemyMastery(floor, isBossFloor)
+  };
+}
+
+function createEnemyStats(floor, isBossFloor) {
+  if (floor === TOWER_RULES.startFloor && !isBossFloor) {
+    return { ...PLAYER_START_STATS };
+  }
+
+  const floorIndex = Math.max(0, floor - TOWER_RULES.startFloor);
+  const base = 5 + Math.floor(floorIndex * 0.55);
+  const bossBonus = isBossFloor ? 3 : 0;
+
+  return {
+    str: base + bossBonus + randomInt(0, 2),
+    vit: base + bossBonus + randomInt(0, 3),
+    def: base + bossBonus + randomInt(0, 2),
+    agi: base + bossBonus + randomInt(0, 2),
+    luck: base + randomInt(0, 2)
+  };
+}
+
+function createEnemyMastery(floor, isBossFloor) {
+  if (floor === TOWER_RULES.startFloor && !isBossFloor) return 0;
+  return Math.floor(floor / 4) + (isBossFloor ? 2 : 0);
 }
 
 function deriveEnemyProfile(enemy, floor) {
@@ -479,7 +407,6 @@ function deriveEnemyProfile(enemy, floor) {
   const personality = PERSONALITIES[enemy.personalityId];
   const skillEffects = collectSkillEffects(enemy.skills);
   const stats = enemy.stats;
-  const tuning = getWeaponPersonalityTuning(enemy.weaponId, enemy.personalityId);
   const floorIndex = Math.max(0, floor - 1);
   const bossMult = floor % TOWER_RULES.bossInterval === 0 ? 1.18 : 1;
 
@@ -495,8 +422,7 @@ function deriveEnemyProfile(enemy, floor) {
     stats.vit * POSTURE_RULES.vitalityToMax +
     floorIndex * POSTURE_RULES.enemyFloorToMax) *
     bossMult *
-    (personality.postureMaxScale || 1) *
-    (tuning.postureMaxScale || 1)
+    (personality.postureMaxScale || 1)
   );
 
   const attackScale =
@@ -506,15 +432,15 @@ function deriveEnemyProfile(enemy, floor) {
     enemy.mastery * 0.027 +
     floorIndex * TOWER_RULES.damageGrowthPerFloor * 0.32 +
     (personality.attackBonus || 0) +
-    (skillEffects.attackBonus || 0)) * (tuning.attackScale || 1) * bossMult;
+    (skillEffects.attackBonus || 0)) * bossMult;
 
   const defense = clamp(
     0.025 +
     stats.def * 0.01 +
     stats.vit * 0.0015 +
     floorIndex * TOWER_RULES.defenseGrowthPerFloor * 0.42 +
-    ((personality.defenseBonus || 0) +
-    (skillEffects.defenseBonus || 0)) * (tuning.defenseScale || 1),
+    (personality.defenseBonus || 0) +
+    (skillEffects.defenseBonus || 0),
     0,
     TOWER_RULES.maxEnemyDefense + (floor % TOWER_RULES.bossInterval === 0 ? 0.06 : 0)
   );
@@ -523,8 +449,8 @@ function deriveEnemyProfile(enemy, floor) {
     0.018 +
     stats.agi * 0.006 +
     stats.luck * 0.0015 +
-    ((personality.evasionBonus || 0) +
-    (skillEffects.evasionBonus || 0)) * (tuning.evasionScale || 1),
+    (personality.evasionBonus || 0) +
+    (skillEffects.evasionBonus || 0),
     0,
     0.32
   );
@@ -547,9 +473,9 @@ function deriveEnemyProfile(enemy, floor) {
     defense,
     evasion,
     crit,
-    moveSpeedScale: speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (tuning.moveSpeedScale || 1),
-    cooldownScale: speedScales.cooldownScale * (personality.cooldownScale || 1) * (tuning.cooldownScale || 1),
-    turnSpeedScale: speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (tuning.turnSpeedScale || 1),
+    moveSpeedScale: speedScales.moveSpeedScale * (personality.moveSpeedScale || 1),
+    cooldownScale: speedScales.cooldownScale * (personality.cooldownScale || 1),
+    turnSpeedScale: speedScales.turnSpeedScale * (personality.turnSpeedScale || 1),
     critDamage: 1.5 + stats.luck * 0.004 + (skillEffects.critDamageBonus || 0),
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
   };
