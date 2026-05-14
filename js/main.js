@@ -719,7 +719,7 @@ function renderTowerInfo(force = false) {
   const enemyPersonality = PERSONALITIES[state.enemy.personalityId];
   const isBossFloor = state.run.floor % TOWER_RULES.bossInterval === 0;
   const enemySkillText = state.enemy.skills.length
-    ? state.enemy.skills.map((skillId) => SKILLS[skillId]?.name).join(' · ')
+    ? state.enemy.skills.map((skillId) => `${SKILLS[skillId]?.name || skillId} Lv.${state.enemy.skillLevels?.[skillId] || 1}`).join(' · ')
     : '없음';
 
   const key = [
@@ -752,7 +752,11 @@ function renderPlayerInfo(force = false) {
   const expRatio = Math.min(100, Math.round((player.exp / expNeed) * 100));
   const canSpend = player.statPoints > 0 && !state.running && !state.result;
   const skillText = player.skills.length
-    ? player.skills.map((skillId) => `<span class="tag">${SKILLS[skillId]?.name}</span>`).join('')
+    ? player.skills.map((skillId) => {
+      const skill = SKILLS[skillId];
+      const level = player.skillLevels?.[skillId] || 1;
+      return `<span class="tag" title="${skill?.description || ''}">${skill?.name || skillId} Lv.${level}</span>`;
+    }).join('')
     : '<span class="muted-small">보유 스킬 없음</span>';
   const statKey = Object.entries(player.stats).map(([key, value]) => `${key}:${value}`).join(',');
   const key = [
@@ -761,7 +765,8 @@ function renderPlayerInfo(force = false) {
     player.statPoints,
     player.mastery,
     statKey,
-    player.skills.join(','),
+    player.skills.map((skillId) => `${skillId}:${player.skillLevels?.[skillId] || 1}`).join(','),
+    player.externalSkillCount || 0,
     state.running ? 'running' : 'ready',
     state.result || 'none'
   ].join('|');

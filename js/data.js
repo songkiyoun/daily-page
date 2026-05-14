@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.16';
+export const VERSION = '0.7.0';
 
 export const WEAPONS = {
   spear: {
@@ -489,48 +489,277 @@ export const POSTURE_RULES = {
 };
 
 export const SKILLS = {
-  ironSkin: {
-    id: 'ironSkin',
-    name: '철갑 감각',
-    description: '방어력이 증가합니다.',
-    effects: { defenseBonus: 0.045 }
+  westernBash: {
+    id: 'westernBash',
+    name: '베쉬',
+    source: 'weapon',
+    owner: 'western',
+    type: 'attack',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '서양검 전용. 더 넓고 묵직한 베기로 피해와 자세 피해를 조금 높입니다.'
   },
-  quickStep: {
-    id: 'quickStep',
-    name: '순간 회피',
-    description: '회피율과 이동 속도가 증가합니다.',
-    effects: { evasionBonus: 0.045, moveSpeedBonus: 0.06 }
+  westernLastStand: {
+    id: 'westernLastStand',
+    name: '기사회생',
+    source: 'weapon',
+    owner: 'western',
+    type: 'survival',
+    maxLevel: 3,
+    cooldown: 9999,
+    description: '서양검 전용. 전투당 1회, 죽음에 이르는 피해를 버티고 체력을 약간 회복합니다.'
   },
-  battleFocus: {
-    id: 'battleFocus',
-    name: '전투 집중',
-    description: '치명타 확률이 증가합니다.',
-    effects: { critBonus: 0.07 }
+  westernKnightInstinct: {
+    id: 'westernKnightInstinct',
+    name: '기사의 직감',
+    source: 'weapon',
+    owner: 'western',
+    type: 'passive',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '서양검 전용. 측후면 공격을 감지하면 상대 방향으로 몸을 돌리고 짧게 밀어냅니다.'
   },
-  weaponMaster: {
-    id: 'weaponMaster',
-    name: '무기 숙련',
-    description: '공격력과 공격 회전이 함께 좋아집니다.',
-    effects: { attackBonus: 0.07, cooldownBonus: 0.06 }
+
+  easternComboSlash: {
+    id: 'easternComboSlash',
+    name: '연속베기',
+    source: 'weapon',
+    owner: 'eastern',
+    type: 'attack',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '동양검 전용. 명중 후 짧게 추격하며 약한 추가 베기를 시도합니다.'
   },
-  survival: {
-    id: 'survival',
-    name: '생존 본능',
-    description: '체력이 낮을 때 받는 피해가 줄어듭니다.',
-    effects: { lowHpDefenseBonus: 0.09 }
+  easternMindFocus: {
+    id: 'easternMindFocus',
+    name: '정신합일',
+    source: 'weapon',
+    owner: 'eastern',
+    type: 'survival',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '동양검 전용. 자세 게이지가 낮을 때 자세를 일부 회복합니다.'
   },
-  execution: {
-    id: 'execution',
-    name: '결정타 감각',
-    description: '치명타 피해량이 증가합니다.',
-    effects: { critDamageBonus: 0.22 }
+  easternBambooStance: {
+    id: 'easternBambooStance',
+    name: '대나무의 자세',
+    source: 'weapon',
+    owner: 'eastern',
+    type: 'passive',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '동양검 전용. 일정 간격으로 공격을 유연하게 흘려 피해와 자세 피해를 줄입니다.'
+  },
+
+  spearDoubleThrust: {
+    id: 'spearDoubleThrust',
+    name: '연속 찌르기',
+    source: 'weapon',
+    owner: 'spear',
+    type: 'attack',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '창 전용. 찌르기 명중 후 낮은 피해의 추가 찌르기를 시도합니다.'
+  },
+  spearFocus: {
+    id: 'spearFocus',
+    name: '집중',
+    source: 'weapon',
+    owner: 'spear',
+    type: 'survival',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '창 전용. 측후면 공격을 감지하면 상대를 향해 돌며 거리를 벌립니다.'
+  },
+  spearSweep: {
+    id: 'spearSweep',
+    name: '벤다!',
+    source: 'weapon',
+    owner: 'spear',
+    type: 'passive',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '창 전용. 적이 너무 가까이 붙으면 창을 휘둘러 약한 피해와 밀어내기를 줍니다.'
+  },
+
+  daggerVitalStrike: {
+    id: 'daggerVitalStrike',
+    name: '급소 찌르기',
+    source: 'weapon',
+    owner: 'dagger',
+    type: 'attack',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '단검 전용. 측면 또는 후면 찌르기 1회를 확정 치명타로 만듭니다.'
+  },
+  daggerDecoyDoll: {
+    id: 'daggerDecoyDoll',
+    name: '분신 인형',
+    source: 'weapon',
+    owner: 'dagger',
+    type: 'survival',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '단검 전용. 큰 피해를 받을 때 피해를 줄이고 상대 측후면으로 빠져나갑니다.'
+  },
+  daggerHighSpeed: {
+    id: 'daggerHighSpeed',
+    name: '고속이동',
+    source: 'weapon',
+    owner: 'dagger',
+    type: 'passive',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '단검 전용. 공격 기회를 잡을 때 짧은 시간 이동 속도가 증가합니다.'
+  },
+
+  aggressiveBestDefense: {
+    id: 'aggressiveBestDefense',
+    name: '최선의 방어',
+    source: 'personality',
+    owner: 'aggressive',
+    type: 'passive',
+    maxLevel: 3,
+    description: '공격형. 방어력을 낮추고 공격력을 올립니다.',
+    effects: { attackBonus: 0.008, defenseBonus: -0.004 }
+  },
+  aggressiveFullPower: {
+    id: 'aggressiveFullPower',
+    name: '혼신의 힘',
+    source: 'personality',
+    owner: 'aggressive',
+    type: 'passive',
+    maxLevel: 3,
+    description: '공격형. 회피율을 낮추고 이동 속도를 올립니다.',
+    effects: { moveSpeedBonus: 0.012, evasionBonus: -0.006 }
+  },
+  aggressiveBerserker: {
+    id: 'aggressiveBerserker',
+    name: '버서커',
+    source: 'personality',
+    owner: 'aggressive',
+    type: 'passive',
+    maxLevel: 3,
+    description: '공격형. 체력이 낮을 때 방어를 희생하고 공격력을 올립니다.',
+    effects: { lowHpAttackBonus: 0.025, lowHpDefenseBonus: -0.01 }
+  },
+
+  defensiveGuardStance: {
+    id: 'defensiveGuardStance',
+    name: '방어자세',
+    source: 'personality',
+    owner: 'defensive',
+    type: 'passive',
+    maxLevel: 3,
+    description: '방어형. 공격력과 이동속도를 낮추고 방어력을 올립니다.',
+    effects: { attackBonus: -0.008, defenseBonus: 0.014, moveSpeedBonus: -0.006 }
+  },
+  defensiveReflect: {
+    id: 'defensiveReflect',
+    name: '피해반사',
+    source: 'personality',
+    owner: 'defensive',
+    type: 'passive',
+    maxLevel: 3,
+    cooldown: 90,
+    description: '방어형. 받은 체력 피해 일부를 적에게 되돌립니다.'
+  },
+  defensiveLightArmor: {
+    id: 'defensiveLightArmor',
+    name: '경량무장',
+    source: 'personality',
+    owner: 'defensive',
+    type: 'passive',
+    maxLevel: 3,
+    description: '방어형. 방어력을 낮추고 이동 속도를 올립니다.',
+    effects: { defenseBonus: -0.008, moveSpeedBonus: 0.014 }
+  },
+
+  balancedAttackStance: {
+    id: 'balancedAttackStance',
+    name: '공격자세',
+    source: 'personality',
+    owner: 'balanced',
+    type: 'passive',
+    maxLevel: 3,
+    description: '밸런스형. 방어력을 소폭 낮추고 공격력을 소폭 올립니다.',
+    effects: { attackBonus: 0.008, defenseBonus: -0.004 }
+  },
+  balancedDefenseStance: {
+    id: 'balancedDefenseStance',
+    name: '방어자세',
+    source: 'personality',
+    owner: 'balanced',
+    type: 'passive',
+    maxLevel: 3,
+    description: '밸런스형. 공격력을 소폭 낮추고 방어력을 소폭 올립니다.',
+    effects: { attackBonus: -0.004, defenseBonus: 0.008 }
+  },
+  balancedCentering: {
+    id: 'balancedCentering',
+    name: '중심잡기',
+    source: 'personality',
+    owner: 'balanced',
+    type: 'survival',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '밸런스형. 자세 게이지가 낮을 때 자세를 일부 회복합니다.'
+  },
+
+  assassinOneStrike: {
+    id: 'assassinOneStrike',
+    name: '일격필살',
+    source: 'personality',
+    owner: 'assassin',
+    type: 'passive',
+    maxLevel: 3,
+    description: '암살형. 방어력을 크게 낮추고 공격력과 이동속도를 올립니다.',
+    effects: { attackBonus: 0.018, moveSpeedBonus: 0.012, defenseBonus: -0.014 }
+  },
+  assassinInstantKill: {
+    id: 'assassinInstantKill',
+    name: '즉살',
+    source: 'personality',
+    owner: 'assassin',
+    type: 'passive',
+    maxLevel: 3,
+    description: '암살형. 방어력을 낮추고 치명타 확률과 치명 피해량을 올립니다.',
+    effects: { critBonus: 0.014, critDamageBonus: 0.04, defenseBonus: -0.012 }
+  },
+  assassinShadowMove: {
+    id: 'assassinShadowMove',
+    name: '그림자이동',
+    source: 'personality',
+    owner: 'assassin',
+    type: 'survival',
+    maxLevel: 3,
+    cooldown: 1200,
+    description: '암살형. 자세가 낮을 때 뒤로 빠지며 자세를 일부 회복합니다.'
   }
 };
+
+export const WEAPON_SKILL_LOADOUTS = {
+  western: ['westernBash', 'westernLastStand', 'westernKnightInstinct'],
+  eastern: ['easternComboSlash', 'easternMindFocus', 'easternBambooStance'],
+  spear: ['spearDoubleThrust', 'spearFocus', 'spearSweep'],
+  dagger: ['daggerVitalStrike', 'daggerDecoyDoll', 'daggerHighSpeed']
+};
+
+export const PERSONALITY_SKILL_LOADOUTS = {
+  aggressive: ['aggressiveBestDefense', 'aggressiveFullPower', 'aggressiveBerserker'],
+  defensive: ['defensiveGuardStance', 'defensiveReflect', 'defensiveLightArmor'],
+  balanced: ['balancedAttackStance', 'balancedDefenseStance', 'balancedCentering'],
+  assassin: ['assassinOneStrike', 'assassinInstantKill', 'assassinShadowMove']
+};
+
 
 export const REWARD_RULES = {
   choices: 3,
   statAmount: 1,
   masteryAmount: 1,
+  skillMaxLevel: 3,
+  externalSkillLimit: 2,
+  externalSkillMaxLevel: 2,
   bonusStatPoints: 1,
   baseExp: 44,
   expPerFloor: 7

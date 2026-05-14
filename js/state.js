@@ -11,6 +11,8 @@ import {
   POSTURE_RULES,
   REWARD_RULES,
   SKILLS,
+  WEAPON_SKILL_LOADOUTS,
+  PERSONALITY_SKILL_LOADOUTS,
   STAT_KEYS,
   TOWER_RULES,
   WEAPONS
@@ -34,7 +36,9 @@ export function createRun(config) {
       exp: 0,
       statPoints: PLAYER_START_STAT_POINTS,
       stats: { ...PLAYER_START_STATS },
-      skills: [],
+      skills: getDefaultSkillIds(config.playerWeapon, config.playerPersonality),
+      skillLevels: createInitialSkillLevels(getDefaultSkillIds(config.playerWeapon, config.playerPersonality)),
+      externalSkillCount: 0,
       mastery: 0,
       hp: null
     }
@@ -131,7 +135,7 @@ export function getNextLevelExp(level) {
 export function derivePlayerProfile(player) {
   const weapon = WEAPONS[player.weaponId];
   const personality = PERSONALITIES[player.personalityId];
-  const skillEffects = collectSkillEffects(player.skills);
+  const skillEffects = collectSkillEffects(player.skills, player.skillLevels);
   const stats = player.stats;
 
   const maxHp = Math.round(
@@ -203,6 +207,7 @@ export function derivePlayerProfile(player) {
     cooldownScale,
     turnSpeedScale,
     critDamage,
+    lowHpAttackBonus: skillEffects.lowHpAttackBonus || 0,
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
   };
 }
@@ -223,6 +228,10 @@ function createUnitFromPlayer(player, x, y) {
     level: player.level,
     stats: { ...player.stats },
     skills: [...player.skills],
+    skillLevels: { ...(player.skillLevels || createInitialSkillLevels(player.skills)) },
+    skillCooldowns: {},
+    skillUsed: {},
+    skillRuntime: {},
     mastery: player.mastery,
     radius: 18,
     x,
@@ -264,6 +273,7 @@ function createUnitFromPlayer(player, x, y) {
     evasion: profile.evasion,
     crit: profile.crit,
     critDamage: profile.critDamage,
+    lowHpAttackBonus: profile.lowHpAttackBonus,
     lowHpDefenseBonus: profile.lowHpDefenseBonus,
     moveSpeedScale: profile.moveSpeedScale,
     cooldownScale: profile.cooldownScale,
@@ -296,6 +306,10 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     level: enemyConfig.level,
     stats: { ...enemyConfig.stats },
     skills: [...enemyConfig.skills],
+    skillLevels: { ...(enemyConfig.skillLevels || createInitialSkillLevels(enemyConfig.skills)) },
+    skillCooldowns: {},
+    skillUsed: {},
+    skillRuntime: {},
     mastery: enemyConfig.mastery,
     radius: floor % TOWER_RULES.bossInterval === 0 ? 20 : 17,
     x,
@@ -337,6 +351,7 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     evasion: profile.evasion,
     crit: profile.crit,
     critDamage: profile.critDamage,
+    lowHpAttackBonus: profile.lowHpAttackBonus,
     lowHpDefenseBonus: profile.lowHpDefenseBonus,
     moveSpeedScale: profile.moveSpeedScale,
     cooldownScale: profile.cooldownScale,
@@ -374,13 +389,15 @@ function createRandomEnemyConfig(floor) {
 
 export function createFixedEnemyConfig({ floor = TOWER_RULES.startFloor, weaponId = 'eastern', personalityId = 'balanced', stats = null, name = 'SIM ENEMY' } = {}) {
   const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
+  const skills = createEnemySkills(floor, isBossFloor, weaponId, personalityId);
   return {
     name,
     weaponId,
     personalityId,
     level: Math.max(1, floor),
     stats: stats ? { ...stats } : createEnemyStats(floor, isBossFloor),
-    skills: createEnemySkills(floor, isBossFloor),
+    skills,
+    skillLevels: createEnemySkillLevels(skills, floor, isBossFloor),
     mastery: createEnemyMastery(floor, isBossFloor)
   };
 }
@@ -411,7 +428,7 @@ function createEnemyMastery(floor, isBossFloor) {
 function deriveEnemyProfile(enemy, floor) {
   const weapon = WEAPONS[enemy.weaponId];
   const personality = PERSONALITIES[enemy.personalityId];
-  const skillEffects = collectSkillEffects(enemy.skills);
+  const skillEffects = collectSkillEffects(enemy.skills, enemy.skillLevels);
   const stats = enemy.stats;
   const floorIndex = Math.max(0, floor - 1);
   const bossMult = floor % TOWER_RULES.bossInterval === 0 ? 1.18 : 1;
@@ -483,19 +500,41 @@ function deriveEnemyProfile(enemy, floor) {
     cooldownScale: speedScales.cooldownScale * (personality.cooldownScale || 1),
     turnSpeedScale: speedScales.turnSpeedScale * (personality.turnSpeedScale || 1),
     critDamage: 1.5 + stats.luck * 0.004 + (skillEffects.critDamageBonus || 0),
+    lowHpAttackBonus: skillEffects.lowHpAttackBonus || 0,
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
   };
 }
 
-function createEnemySkills(floor, isBossFloor) {
-  const pool = Object.keys(SKILLS);
-  const count = Math.min(isBossFloor ? 3 : 2, Math.floor(floor / 5) + (isBossFloor ? 1 : 0));
-  const skills = [];
-  while (skills.length < count && skills.length < pool.length) {
+function createEnemySkills(floor, isBossFloor, weaponId, personalityId) {
+  const baseSkills = getDefaultSkillIds(weaponId, personalityId);
+  const skills = [...baseSkills];
+  const extraLimit = Math.min(isBossFloor ? 2 : 1, Math.floor(floor / 6));
+  const pool = Object.keys(SKILLS).filter((skillId) => {
+    const skill = SKILLS[skillId];
+    if (!skill || skills.includes(skillId)) return false;
+    if (skill.source !== 'personality') return false;
+    return skill.owner !== personalityId;
+  });
+
+  while (skills.length < baseSkills.length + extraLimit && pool.length > 0) {
     const skill = sample(pool);
     if (!skills.includes(skill)) skills.push(skill);
   }
+
   return skills;
+}
+
+function createEnemySkillLevels(skills, floor, isBossFloor) {
+  const levels = createInitialSkillLevels(skills);
+  if (floor >= 6) {
+    skills.forEach((skillId) => {
+      const skill = SKILLS[skillId];
+      const maxLevel = skill?.maxLevel || REWARD_RULES.skillMaxLevel || 3;
+      const floorBonus = Math.floor(floor / 8);
+      levels[skillId] = Math.min(maxLevel, 1 + floorBonus + (isBossFloor ? 1 : 0));
+    });
+  }
+  return levels;
 }
 
 function grantExp(player, amount) {
@@ -526,23 +565,36 @@ function generateRewardChoices(run) {
     description: `${statName(shuffledStats[0])} +${REWARD_RULES.statAmount}. 기본 전투 능력을 직접 올립니다.`
   });
 
-  rewards.push({
-    id: 'mastery',
-    type: 'mastery',
-    amount: REWARD_RULES.masteryAmount,
-    title: '무기 숙련',
-    description: `현재 무기 숙련도 +${REWARD_RULES.masteryAmount}. 공격력과 공격 회전이 조금 좋아집니다.`
-  });
-
-  const missingSkills = Object.keys(SKILLS).filter((skillId) => !run.player.skills.includes(skillId));
-  if (missingSkills.length > 0) {
-    const skillId = sample(missingSkills);
+  const levelable = getLevelableOwnedSkills(run.player);
+  if (levelable.length > 0) {
+    const skillId = sample(levelable);
+    const nextLevel = (run.player.skillLevels?.[skillId] || 1) + 1;
     rewards.push({
-      id: `skill-${skillId}`,
-      type: 'skill',
+      id: `skill-level-${skillId}`,
+      type: 'skillLevel',
       skillId,
-      title: `스킬 습득 · ${SKILLS[skillId].name}`,
-      description: SKILLS[skillId].description
+      title: `스킬 강화 · ${SKILLS[skillId].name} Lv.${nextLevel}`,
+      description: `${SKILLS[skillId].description} 현재 보유 스킬을 한 단계 강화합니다.`
+    });
+  } else {
+    rewards.push({
+      id: 'mastery',
+      type: 'mastery',
+      amount: REWARD_RULES.masteryAmount,
+      title: '무기 숙련',
+      description: `현재 무기 숙련도 +${REWARD_RULES.masteryAmount}. 공격력과 공격 회전이 조금 좋아집니다.`
+    });
+  }
+
+  const crossSkills = getLearnableExternalPersonalitySkills(run.player);
+  if (crossSkills.length > 0) {
+    const skillId = sample(crossSkills);
+    rewards.push({
+      id: `skill-learn-${skillId}`,
+      type: 'skillLearn',
+      skillId,
+      title: `외부 성격 스킬 습득 · ${SKILLS[skillId].name}`,
+      description: `${SKILLS[skillId].description} 현재 성격에 없는 스킬을 낮은 레벨로 배웁니다.`
     });
   } else {
     rewards.push({
@@ -559,6 +611,8 @@ function generateRewardChoices(run) {
 
 function applyReward(run, reward) {
   const player = run.player;
+  player.skillLevels = player.skillLevels || createInitialSkillLevels(player.skills);
+
   if (reward.type === 'stat') {
     player.stats[reward.statKey] += reward.amount;
     run.lastRewardLog = `${statName(reward.statKey)} +${reward.amount}`;
@@ -569,9 +623,16 @@ function applyReward(run, reward) {
     run.lastRewardLog = `무기 숙련 +${reward.amount}`;
   }
 
-  if (reward.type === 'skill') {
+  if (reward.type === 'skill' || reward.type === 'skillLearn') {
     if (!player.skills.includes(reward.skillId)) player.skills.push(reward.skillId);
+    if (!player.skillLevels[reward.skillId]) player.skillLevels[reward.skillId] = 1;
+    if (reward.type === 'skillLearn') player.externalSkillCount = (player.externalSkillCount || 0) + 1;
     run.lastRewardLog = `스킬 습득: ${SKILLS[reward.skillId].name}`;
+  }
+
+  if (reward.type === 'skillLevel') {
+    levelUpSkill(player, reward.skillId);
+    run.lastRewardLog = `스킬 강화: ${SKILLS[reward.skillId].name} Lv.${player.skillLevels[reward.skillId]}`;
   }
 
   if (reward.type === 'statPoint') {
@@ -611,12 +672,66 @@ function getWeaponAgilityScales(weapon, stats, mastery, skillEffects, isPlayer) 
   };
 }
 
-function collectSkillEffects(skillIds) {
+function getDefaultSkillIds(weaponId, personalityId) {
+  return [
+    ...(WEAPON_SKILL_LOADOUTS[weaponId] || []),
+    ...(PERSONALITY_SKILL_LOADOUTS[personalityId] || [])
+  ];
+}
+
+function createInitialSkillLevels(skillIds) {
+  return skillIds.reduce((levels, skillId) => {
+    levels[skillId] = 1;
+    return levels;
+  }, {});
+}
+
+function getSkillLevel(player, skillId) {
+  return player.skillLevels?.[skillId] || (player.skills?.includes(skillId) ? 1 : 0);
+}
+
+function levelUpSkill(player, skillId) {
+  if (!player.skills.includes(skillId)) player.skills.push(skillId);
+  player.skillLevels = player.skillLevels || createInitialSkillLevels(player.skills);
+  const skill = SKILLS[skillId];
+  const isExternal = skill?.source === 'personality' && skill.owner !== player.personalityId;
+  const maxLevel = isExternal
+    ? Math.min(REWARD_RULES.externalSkillMaxLevel || 2, skill?.maxLevel || 3)
+    : (skill?.maxLevel || REWARD_RULES.skillMaxLevel || 3);
+  player.skillLevels[skillId] = Math.min(maxLevel, (player.skillLevels[skillId] || 1) + 1);
+}
+
+function getLevelableOwnedSkills(player) {
+  player.skillLevels = player.skillLevels || createInitialSkillLevels(player.skills);
+  return player.skills.filter((skillId) => {
+    const skill = SKILLS[skillId];
+    if (!skill) return false;
+    const isExternal = skill.source === 'personality' && skill.owner !== player.personalityId;
+    const maxLevel = isExternal
+      ? Math.min(REWARD_RULES.externalSkillMaxLevel || 2, skill.maxLevel || 3)
+      : (skill.maxLevel || REWARD_RULES.skillMaxLevel || 3);
+    return (player.skillLevels[skillId] || 1) < maxLevel;
+  });
+}
+
+function getLearnableExternalPersonalitySkills(player) {
+  if ((player.externalSkillCount || 0) >= (REWARD_RULES.externalSkillLimit || 2)) return [];
+  return Object.keys(SKILLS).filter((skillId) => {
+    const skill = SKILLS[skillId];
+    if (!skill || skill.source !== 'personality') return false;
+    if (skill.owner === player.personalityId) return false;
+    return !player.skills.includes(skillId);
+  });
+}
+
+function collectSkillEffects(skillIds, skillLevels = {}) {
   return skillIds.reduce((effects, skillId) => {
     const skill = SKILLS[skillId];
-    if (!skill) return effects;
+    if (!skill?.effects) return effects;
+    const level = skillLevels?.[skillId] || 1;
+    const scale = 1 + (level - 1) * 0.45;
     Object.entries(skill.effects).forEach(([key, value]) => {
-      effects[key] = (effects[key] || 0) + value;
+      effects[key] = (effects[key] || 0) + value * scale;
     });
     return effects;
   }, {});

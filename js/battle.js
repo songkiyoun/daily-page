@@ -2,7 +2,7 @@
 // 공격 판정, 피해 계산, 승패 판정만 담당합니다.
 // 수정 원칙: 새 resolveAttack 패치 함수를 뒤에 추가하지 말고 기존 함수를 직접 수정합니다.
 
-import { PERSONALITIES, POSTURE_RULES, WEAPONS } from './data.js';
+import { PERSONALITIES, POSTURE_RULES, SKILLS, WEAPONS } from './data.js';
 import { decideMovement } from './ai.js';
 import { angleDiff, angleTo, clamp, distance, moveToward } from './utils.js';
 
@@ -43,6 +43,7 @@ function updateUnit(unit, enemy, state) {
   }
 
   recoverPosture(unit);
+  triggerPostureSkill(unit, enemy, state);
 
   const movement = decideMovement(unit, enemy, state);
   updateRetreatState(unit, movement);
@@ -83,6 +84,10 @@ function tickTimers(unit) {
   if (unit.comboTimer > 0) unit.comboTimer -= 1;
   if (unit.comboTimer <= 0) unit.comboCount = 0;
   if (unit.riposteTimer > 0) unit.riposteTimer -= 1;
+  if (unit.skillRuntime?.highSpeedTimer > 0) unit.skillRuntime.highSpeedTimer -= 1;
+  Object.keys(unit.skillCooldowns || {}).forEach((skillId) => {
+    if (unit.skillCooldowns[skillId] > 0) unit.skillCooldowns[skillId] -= 1;
+  });
 }
 
 function applyImpactStopDrift(unit) {
@@ -201,7 +206,8 @@ function applyMovement(unit, movement, weapon, enemy = null) {
   const daggerBurst = unit.weaponId === 'dagger' && isDaggerBurstLabel(movement.label);
   const daggerFeint = unit.weaponId === 'dagger' && movement.label.includes('페이크');
   const burstScale = daggerBurst ? 1.92 : daggerFeint ? 1.52 : 1;
-  const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1) * burstScale;
+  const highSpeedScale = unit.skillRuntime?.highSpeedTimer > 0 ? 1.24 + getUnitSkillLevel(unit, 'daggerHighSpeed') * 0.08 : 1;
+  const maxSpeed = weapon.moveSpeed * (unit.moveSpeedScale || 1) * burstScale * highSpeedScale;
 
   unit.vx += movement.ax * acceleration;
   unit.vy += movement.ay * acceleration;
@@ -345,6 +351,7 @@ function beginAttack(attacker, defender) {
   attacker.attackResolved = false;
   attacker.attackOutcome = '';
   attacker.attackAim = angleTo(attacker, defender);
+  attacker.activeSkillAttack = chooseAttackSkill(attacker, defender);
   attacker.attackVisualPhase = 0;
   attacker.vx *= getAttackEntryBrake(attacker.weaponId);
   attacker.vy *= getAttackEntryBrake(attacker.weaponId);
@@ -591,6 +598,259 @@ function applyStaggerDrift(unit) {
   unit.y += unit.vy * POSTURE_RULES.staggerMoveScale;
 }
 
+
+function chooseAttackSkill(attacker, defender) {
+  if (hasReadySkill(attacker, 'westernBash') && attacker.weaponId === 'western') {
+    useSkill(attacker, 'westernBash');
+    attacker.lastAction = '베쉬 준비';
+    return 'westernBash';
+  }
+
+  if (hasReadySkill(attacker, 'daggerVitalStrike') && attacker.weaponId === 'dagger' && isFlankOrBack(attacker, defender)) {
+    useSkill(attacker, 'daggerVitalStrike');
+    attacker.lastAction = '급소 찌르기 준비';
+    return 'daggerVitalStrike';
+  }
+
+  return '';
+}
+
+function getSkillArcBonus(attacker) {
+  if (attacker.activeSkillAttack === 'westernBash') return 0.18 + getUnitSkillLevel(attacker, 'westernBash') * 0.03;
+  return 0;
+}
+
+function getSkillDamageBonus(attacker, defender, skillId) {
+  if (skillId === 'westernBash') return 1.04 + getUnitSkillLevel(attacker, skillId) * 0.015;
+  if (skillId === 'daggerVitalStrike') return 1.0 + getUnitSkillLevel(attacker, skillId) * 0.025;
+  return 1;
+}
+
+function getSkillPostureDamageScale(attacker, skillId) {
+  if (skillId === 'westernBash') return 1.04 + getUnitSkillLevel(attacker, skillId) * 0.015;
+  if (skillId === 'daggerVitalStrike') return 0.94;
+  return 1;
+}
+
+function applyOffensiveSkillFollowUp(attacker, defender, weapon, skillId, hitQuality, state) {
+  if (defender.isDead || defender.hp <= 0) return;
+
+  if (weapon.id === 'spear' && hasReadySkill(attacker, 'spearDoubleThrust')) {
+    const level = getUnitSkillLevel(attacker, 'spearDoubleThrust');
+    useSkill(attacker, 'spearDoubleThrust');
+    const extra = Math.max(1, weapon.damage * attacker.attackScale * (0.04 + level * 0.008) * (1 - getEffectiveDefense(defender)));
+    defender.hp = clamp(defender.hp - extra, 0, defender.maxHp);
+    attacker.damageDealt += extra;
+    attacker.lastAction = '연속 찌르기';
+    defender.lastAction = '추가 찌르기 피격';
+    const push = 1.2 + level * 0.18;
+    const a = angleTo(attacker, defender);
+    defender.vx += Math.cos(a) * push;
+    defender.vy += Math.sin(a) * push;
+    emitCombatEvent(state, '연속 찌르기', defender.x, defender.y - 42, '#9fe8ff');
+  }
+
+  if (weapon.id === 'eastern' && hasReadySkill(attacker, 'easternComboSlash')) {
+    const level = getUnitSkillLevel(attacker, 'easternComboSlash');
+    useSkill(attacker, 'easternComboSlash');
+    const extra = Math.max(1, weapon.damage * attacker.attackScale * (0.06 + level * 0.012) * (1 - getEffectiveDefense(defender)));
+    defender.hp = clamp(defender.hp - extra, 0, defender.maxHp);
+    attacker.damageDealt += extra;
+    attacker.hits += 1;
+    attacker.comboTimer = Math.max(attacker.comboTimer || 0, 20 + level * 4);
+    attacker.lastAction = '연속베기';
+    emitCombatEvent(state, '연속베기', defender.x, defender.y - 42, '#ffe28a');
+  }
+
+  if (defender.hp <= 0) {
+    defender.isDead = true;
+    defender.lastAction = '전투 불능';
+  }
+}
+
+function applyIncomingSkillMitigation(defender, attacker, damage, state) {
+  let finalDamage = damage;
+
+  if (defender.skillRuntime?.reactiveGuardMitigation) {
+    finalDamage *= defender.skillRuntime.reactiveGuardMitigation;
+    defender.skillRuntime.reactiveGuardMitigation = 0;
+  }
+
+  if (hasReadySkill(defender, 'westernLastStand') && finalDamage >= defender.hp) {
+    const level = getUnitSkillLevel(defender, 'westernLastStand');
+    useSkill(defender, 'westernLastStand', 99999);
+    defender.hp = Math.max(defender.hp, Math.round(defender.maxHp * (0.06 + level * 0.025)));
+    finalDamage *= 0.62;
+    defender.lastAction = '기사회생';
+    emitCombatEvent(state, '기사회생', defender.x, defender.y - 46, '#ffe28a');
+  }
+
+  if (hasReadySkill(defender, 'daggerDecoyDoll') && finalDamage > defender.maxHp * 0.18) {
+    const level = getUnitSkillLevel(defender, 'daggerDecoyDoll');
+    useSkill(defender, 'daggerDecoyDoll');
+    finalDamage *= Math.max(0.56, 0.74 - level * 0.055);
+    teleportNearRear(defender, attacker, 36 + level * 3);
+    defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 10);
+    defender.lastAction = '분신 인형';
+    emitCombatEvent(state, '분신', defender.x, defender.y - 46, '#d7b9ff');
+  }
+
+  if (hasReadySkill(defender, 'easternBambooStance')) {
+    const level = getUnitSkillLevel(defender, 'easternBambooStance');
+    if (Math.random() < 0.22 + level * 0.04) {
+      useSkill(defender, 'easternBambooStance');
+      finalDamage *= Math.max(0.62, 0.82 - level * 0.05);
+      const a = angleTo(attacker, defender) + Math.PI / 2 * (defender.orbitDir || 1);
+      defender.vx += Math.cos(a) * (1.2 + level * 0.18);
+      defender.vy += Math.sin(a) * (1.2 + level * 0.18);
+      defender.lastAction = '대나무의 자세';
+      emitCombatEvent(state, '흘림', defender.x, defender.y - 42, '#b5ffcf');
+    }
+  }
+
+  return finalDamage;
+}
+
+function resolveReactiveGuard(defender, attacker, state) {
+  const sideOrBack = isFlankOrBack(attacker, defender);
+  if (!sideOrBack) return false;
+
+  const skillId = defender.weaponId === 'western'
+    ? 'westernKnightInstinct'
+    : defender.weaponId === 'spear'
+      ? 'spearFocus'
+      : '';
+
+  if (!skillId || !hasReadySkill(defender, skillId)) return false;
+
+  const level = getUnitSkillLevel(defender, skillId);
+  if (Math.random() > 0.08 + level * 0.025) return false;
+
+  useSkill(defender, skillId, (SKILLS[skillId]?.cooldown || 560) * 1.25);
+  defender.facing = angleTo(defender, attacker);
+  defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 6);
+  defender.skillRuntime.reactiveGuardMitigation = skillId === 'spearFocus' ? Math.max(0.88, 0.98 - level * 0.025) : Math.max(0.9, 0.98 - level * 0.025);
+  const push = skillId === 'spearFocus' ? 0.65 + level * 0.12 : 0.55 + level * 0.1;
+  const a = angleTo(defender, attacker);
+  attacker.vx += Math.cos(a) * push;
+  attacker.vy += Math.sin(a) * push;
+  attacker.postureRecoveryDelay = Math.max(attacker.postureRecoveryDelay || 0, 5 + level);
+  defender.lastAction = SKILLS[skillId].name;
+  emitCombatEvent(state, SKILLS[skillId].name, defender.x, defender.y - 44, '#9fe8ff');
+  return true;
+}
+
+function triggerPostureSkill(unit, enemy, state) {
+  if (unit.posture / unit.maxPosture < 0.18 && hasReadySkill(unit, 'easternMindFocus')) {
+    const level = getUnitSkillLevel(unit, 'easternMindFocus');
+    useSkill(unit, 'easternMindFocus');
+    unit.posture = Math.min(unit.maxPosture, unit.posture + unit.maxPosture * (0.16 + level * 0.04));
+    unit.postureRecoveryDelay = Math.max(0, unit.postureRecoveryDelay - 12);
+    unit.lastAction = '정신합일';
+    emitCombatEvent(state, '정신합일', unit.x, unit.y - 42, '#ffe28a');
+  }
+
+  if (unit.posture / unit.maxPosture < 0.16 && hasReadySkill(unit, 'balancedCentering')) {
+    const level = getUnitSkillLevel(unit, 'balancedCentering');
+    useSkill(unit, 'balancedCentering');
+    unit.posture = Math.min(unit.maxPosture, unit.posture + unit.maxPosture * (0.14 + level * 0.035));
+    unit.lastAction = '중심잡기';
+    emitCombatEvent(state, '중심잡기', unit.x, unit.y - 42, '#ffffff');
+  }
+
+  if (unit.posture / unit.maxPosture < 0.16 && hasReadySkill(unit, 'assassinShadowMove')) {
+    const level = getUnitSkillLevel(unit, 'assassinShadowMove');
+    useSkill(unit, 'assassinShadowMove');
+    const away = angleTo(enemy, unit);
+    unit.vx += Math.cos(away) * (3.4 + level * 0.45);
+    unit.vy += Math.sin(away) * (3.4 + level * 0.45);
+    unit.posture = Math.min(unit.maxPosture, unit.posture + unit.maxPosture * (0.1 + level * 0.03));
+    unit.lastAction = '그림자이동';
+    emitCombatEvent(state, '그림자이동', unit.x, unit.y - 42, '#d7b9ff');
+  }
+
+  if (unit.weaponId === 'dagger' && hasReadySkill(unit, 'daggerHighSpeed') && unit.skillRuntime?.highSpeedTimer <= 0) {
+    const distToEnemy = distance(unit, enemy);
+    if (distToEnemy < 128 && (unit.lastAction.includes('측') || unit.lastAction.includes('후') || enemy.attackState !== 'idle')) {
+      const level = getUnitSkillLevel(unit, 'daggerHighSpeed');
+      useSkill(unit, 'daggerHighSpeed');
+      unit.skillRuntime.highSpeedTimer = 48 + level * 10;
+      unit.lastAction = '고속이동';
+      emitCombatEvent(state, '고속이동', unit.x, unit.y - 42, '#d7b9ff');
+    }
+  }
+
+  if (unit.weaponId === 'spear' && hasReadySkill(unit, 'spearSweep')) {
+    const distToEnemy = distance(unit, enemy);
+    if (distToEnemy < unit.radius + enemy.radius + 10) {
+      const level = getUnitSkillLevel(unit, 'spearSweep');
+      useSkill(unit, 'spearSweep');
+      const a = angleTo(unit, enemy);
+      const damage = Math.max(1, WEAPONS.spear.damage * unit.attackScale * (0.04 + level * 0.01) * (1 - getEffectiveDefense(enemy)));
+      enemy.hp = clamp(enemy.hp - damage, 0, enemy.maxHp);
+      enemy.vx += Math.cos(a) * (1.7 + level * 0.22);
+      enemy.vy += Math.sin(a) * (1.7 + level * 0.22);
+      applyPostureDamage(unit, enemy, POSTURE_RULES.closeResetPostureDamage * (0.16 + level * 0.025), state);
+      unit.lastAction = '벤다!';
+      emitCombatEvent(state, '벤다!', enemy.x, enemy.y - 42, '#9fe8ff');
+      if (enemy.hp <= 0) enemy.isDead = true;
+    }
+  }
+}
+
+function applyReflectDamage(defender, attacker, damage, state) {
+  if (!hasReadySkill(defender, 'defensiveReflect') || damage <= 0) return;
+  const level = getUnitSkillLevel(defender, 'defensiveReflect');
+  useSkill(defender, 'defensiveReflect');
+  const reflected = Math.max(1, damage * (0.05 + level * 0.025));
+  attacker.hp = clamp(attacker.hp - reflected, 0, attacker.maxHp);
+  defender.lastAction = '피해반사';
+  emitCombatEvent(state, '반사', attacker.x, attacker.y - 44, '#aee6ff');
+  if (attacker.hp <= 0) attacker.isDead = true;
+}
+
+function hasSkill(unit, skillId) {
+  return !!unit.skills?.includes(skillId);
+}
+
+function getUnitSkillLevel(unit, skillId) {
+  return unit.skillLevels?.[skillId] || (hasSkill(unit, skillId) ? 1 : 0);
+}
+
+function hasReadySkill(unit, skillId) {
+  return hasSkill(unit, skillId) && (unit.skillCooldowns?.[skillId] || 0) <= 0;
+}
+
+function useSkill(unit, skillId, overrideCooldown = null) {
+  if (!unit.skillCooldowns) unit.skillCooldowns = {};
+  if (!unit.skillRuntime) unit.skillRuntime = {};
+  const level = getUnitSkillLevel(unit, skillId);
+  const skill = SKILLS[skillId];
+  const baseCooldown = overrideCooldown ?? (skill?.cooldown || 300);
+  const cooldownScale = Math.max(0.64, 1 - (level - 1) * 0.11);
+  unit.skillCooldowns[skillId] = Math.round(baseCooldown * cooldownScale);
+}
+
+function isFlankOrBack(attacker, defender) {
+  const attackerFromDefender = angleTo(defender, attacker);
+  const sideGap = Math.min(
+    Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender)),
+    Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
+  );
+  const backGap = Math.abs(angleDiff(defender.facing + Math.PI, attackerFromDefender));
+  return sideGap < 1.02 || backGap < 0.78;
+}
+
+function teleportNearRear(unit, enemy, radius = 38) {
+  const side = unit.orbitDir || 1;
+  const angle = enemy.facing + Math.PI + side * 0.32;
+  unit.x = enemy.x + Math.cos(angle) * radius;
+  unit.y = enemy.y + Math.sin(angle) * radius;
+  unit.facing = angleTo(unit, enemy);
+  unit.vx = 0;
+  unit.vy = 0;
+}
+
 function resolveAttack(attacker, defender, state) {
   if (defender.isDead) return true;
 
@@ -605,7 +865,9 @@ function resolveAttack(attacker, defender, state) {
 
   if (dist > getHitReach(attacker, defender, weapon) + reachBonus) return false;
   if (dist < weapon.minRange) return false;
-  if (angleGap > hitArc) return false;
+  if (angleGap > hitArc + getSkillArcBonus(attacker)) return false;
+
+  resolveReactiveGuard(defender, attacker, state);
 
   if (resolveEasternGlancingSlip(defender, attacker, weapon, hitQuality, state)) {
     attacker.attackOutcome = 'glanced';
@@ -624,18 +886,22 @@ function resolveAttack(attacker, defender, state) {
     return true;
   }
 
-  const crit = Math.random() < attacker.crit;
   const positionalBonus = getPositionalBonus(attacker, defender);
+  const skillAttack = attacker.activeSkillAttack || '';
+  const forcedCrit = skillAttack === 'daggerVitalStrike';
+  const crit = forcedCrit || Math.random() < attacker.crit;
   const personality = PERSONALITIES[attacker.personalityId];
   const aggressionBonus = 1 + personality.aggression * 0.08;
-  const lowHpAttackBonus = attacker.hp / attacker.maxHp < 0.35 && attacker.skills?.includes('survival') ? 1.06 : 1;
+  const lowHpAttackBonus = attacker.hp / attacker.maxHp < 0.35 ? 1 + (attacker.lowHpAttackBonus || 0) : 1;
   const staggerDamageBonus = defender.staggerTimer > 0 ? POSTURE_RULES.staggerDamageTakenBonus : 1;
   const counterBonus = attacker.counterTimer > 0 ? POSTURE_RULES.counterDamageBonus : 1;
   const comboDamageBonus = attacker.weaponId === 'eastern' && attacker.comboTimer > 0 ? 1.06 : 1;
+  const skillDamageBonus = getSkillDamageBonus(attacker, defender, skillAttack);
   const matchupDamageScale = getMatchupDamageScale(attacker, defender, weapon);
-  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * comboDamageBonus * matchupDamageScale * (crit ? attacker.critDamage : 1);
+  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * comboDamageBonus * skillDamageBonus * matchupDamageScale * (crit ? attacker.critDamage : 1);
   const effectiveDefense = getEffectiveDefense(defender);
-  const damage = Math.max(2, rawDamage * (1 - effectiveDefense));
+  let damage = Math.max(2, rawDamage * (1 - effectiveDefense));
+  damage = applyIncomingSkillMitigation(defender, attacker, damage, state);
 
   defender.hp = clamp(defender.hp - damage, 0, defender.maxHp);
   attacker.attackOutcome = 'hit';
@@ -645,13 +911,16 @@ function resolveAttack(attacker, defender, state) {
   if (crit) emitCombatEvent(state, 'CRITICAL', defender.x, defender.y - 34, '#ffd45a');
   defender.lastAction = defender.staggerTimer > 0 ? '흐트러짐 피격' : '피격';
 
-  const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality);
+  const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality) * getSkillPostureDamageScale(attacker, skillAttack);
   applyPostureDamage(attacker, defender, postureDamage, state);
   applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
   applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
   applyImpactStop(attacker, defender, weapon);
+  applyReflectDamage(defender, attacker, damage, state);
+  applyOffensiveSkillFollowUp(attacker, defender, weapon, skillAttack, hitQuality, state);
   attacker.counterTimer = 0;
+  attacker.activeSkillAttack = '';
 
   if (defender.hp <= 0) {
     defender.isDead = true;
