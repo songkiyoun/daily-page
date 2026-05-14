@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.11';
+export const VERSION = '0.6.12';
 
 export const WEAPONS = {
   spear: {
@@ -35,7 +35,7 @@ export const WEAPONS = {
     feintResponseTurnScale: 0.42,
     hitRecoveryScale: 0.82,
     failRecoveryScale: 1.3,
-    postureDamage: 24,
+    postureDamage: 23,
     parryEfficiency: 0.36,
     parryBreak: 0.1,
     moveSpeed: 2.42,
@@ -46,7 +46,7 @@ export const WEAPONS = {
     maxTurnScale: 1.2,
     knockback: 22,
     hitKnockback: 66,
-    hitPostureScale: 1.08,
+    hitPostureScale: 1.02,
     selfRetreatOnHit: 0.12,
     parryKnockbackTaken: 1.68,
     clashKnockbackScale: 1.46,
@@ -251,7 +251,7 @@ export const WEAPONS = {
     knockback: 5,
     hitKnockback: 6,
     hitPostureScale: 0.82,
-    selfRetreatOnHit: 5.2,
+    selfRetreatOnHit: 5.05,
     parryKnockbackTaken: 1.06,
     clashKnockbackScale: 0.96,
     crit: 0.18,
@@ -274,7 +274,7 @@ export const WEAPONS = {
     lungePower: 1.36,
     entryForward: 1.34,
     entrySide: 1.36,
-    recoveryBackstep: 1.48
+    recoveryBackstep: 1.42
   }
 };
 
@@ -481,7 +481,7 @@ export const POSTURE_RULES = {
   eventTextCooldownFrames: 24,
   daggerFeintFrames: 42,
   daggerCutFrames: 15,
-  daggerResetFrames: 30,
+  daggerResetFrames: 28,
   daggerCutTurnLagFrames: 44,
   easternComboWindowFrames: 24,
   easternComboMax: 2,

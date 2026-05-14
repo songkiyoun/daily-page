@@ -73,6 +73,7 @@ function tickTimers(unit) {
   if (unit.flankPressureTimer > 0) unit.flankPressureTimer -= 1;
   if (unit.daggerBurstCooldown > 0) unit.daggerBurstCooldown -= 1;
   if (unit.daggerSideCommitLock > 0) unit.daggerSideCommitLock -= 1;
+  if (unit.daggerThreatStepCooldown > 0) unit.daggerThreatStepCooldown -= 1;
   if (unit.daggerManeuverTimer > 0) unit.daggerManeuverTimer -= 1;
   if (unit.daggerResetTimer > 0) unit.daggerResetTimer -= 1;
   if (unit.parryCooldown > 0) unit.parryCooldown -= 1;
@@ -285,11 +286,11 @@ function tryCloseRangeReset(unit, enemy, movement) {
   unit.vy += -Math.sin(pushAngle) * 0.75 + Math.sin(sideAngle) * selfSide;
   unit.retreatFrames = 0;
   unit.retreatLockout = Math.max(unit.retreatLockout || 0, Math.floor(POSTURE_RULES.retreatLockoutFrames * 0.45));
-  unit.resetMoveCooldown = POSTURE_RULES.closeResetCooldown;
+  unit.resetMoveCooldown = spearPinned ? Math.round(POSTURE_RULES.closeResetCooldown * (personality.id === 'defensive' ? 1.18 : 1.08)) : POSTURE_RULES.closeResetCooldown;
   unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : westernCloseGuard ? 16 : 14);
   enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : westernCloseGuard ? 11 : 9);
 
-  const postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? 1.22 : westernCloseGuard ? (weapon.closeGuardPostureScale || 1.05) : 0.94);
+  const postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? (personality.id === 'defensive' ? 0.84 : 1.02) : westernCloseGuard ? (weapon.closeGuardPostureScale || 1.05) : 0.94);
   applyPostureDamage(unit, enemy, postureDamage);
   twistBodyOnImpact(enemy, unit, postureDamage, weapon);
 
@@ -1034,20 +1035,20 @@ function applyWeaponHitReaction(attacker, defender, weapon, hitQuality = 0) {
 
   const selfRetreat = weapon.selfRetreatOnHit || 0;
   if (selfRetreat > 0) {
-    const retreatScale = weapon.id === 'dagger' ? 1.18 + hitQuality * 0.44 : 0.42;
+    const retreatScale = weapon.id === 'dagger' ? 1.15 + hitQuality * 0.42 : 0.42;
     attacker.vx -= Math.cos(attackAngle) * selfRetreat * retreatScale;
     attacker.vy -= Math.sin(attackAngle) * selfRetreat * retreatScale;
     if (weapon.id === 'dagger') {
-      attacker.vx += Math.cos(sideAngle) * attacker.orbitDir * 1.1;
-      attacker.vy += Math.sin(sideAngle) * attacker.orbitDir * 1.1;
+      attacker.vx += Math.cos(sideAngle) * attacker.orbitDir * (1.14 + hitQuality * 0.12);
+      attacker.vy += Math.sin(sideAngle) * attacker.orbitDir * (1.14 + hitQuality * 0.12);
       attacker.attackState = 'recovery';
-      attacker.attackTimer = Math.max(attacker.attackTimer || 0, weapon.recovery + 4);
-      attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 7);
+      attacker.attackTimer = Math.max(attacker.attackTimer || 0, weapon.recovery + 3);
+      attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 6);
       attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, 1);
-      attacker.daggerResetTimer = Math.max(attacker.daggerResetTimer || 0, POSTURE_RULES.daggerResetFrames || 28);
+      attacker.daggerResetTimer = Math.max(attacker.daggerResetTimer || 0, POSTURE_RULES.daggerResetFrames || 24);
       attacker.daggerManeuverPhase = '';
       attacker.daggerManeuverTimer = 0;
-      attacker.lastAction = '단검 치고 빠지기';
+      attacker.lastAction = '단검 짧은 사선 이탈';
     }
   }
 }
@@ -1156,6 +1157,15 @@ function getHitSideKnockbackScale(weapon) {
   return 0.018;
 }
 
+function getNonHitPostureScale(attacker, weapon) {
+  const personality = PERSONALITIES[attacker.personalityId];
+  let scale = 1;
+  if (weapon.id === 'spear') scale *= 0.94;
+  if (weapon.id === 'spear' && personality.id === 'defensive') scale *= 0.86;
+  return scale;
+}
+
+
 function resolveWeaponClash(state, a, b) {
   if (a.isDead || b.isDead || a.clashCooldown > 0 || b.clashCooldown > 0) return;
   if (a.attackState !== 'active' || b.attackState !== 'active') return;
@@ -1166,8 +1176,10 @@ function resolveWeaponClash(state, a, b) {
   const powerA = getClashPower(a, weaponA);
   const powerB = getClashPower(b, weaponB);
   const total = Math.max(1, powerA + powerB);
-  const damageToA = POSTURE_RULES.weaponClashPostureDamage * (powerB / total) * 1.8;
-  const damageToB = POSTURE_RULES.weaponClashPostureDamage * (powerA / total) * 1.8;
+  let damageToA = POSTURE_RULES.weaponClashPostureDamage * (powerB / total) * 1.72;
+  let damageToB = POSTURE_RULES.weaponClashPostureDamage * (powerA / total) * 1.72;
+  damageToA *= getNonHitPostureScale(b, weaponB);
+  damageToB *= getNonHitPostureScale(a, weaponA);
   const angleAB = angleTo(a, b);
 
   a.clashCooldown = POSTURE_RULES.weaponClashCooldown;
