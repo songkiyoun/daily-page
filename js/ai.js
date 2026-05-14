@@ -44,6 +44,9 @@ export function decideMovement(self, enemy, state = null) {
     return threatMovement(self, enemy, toEnemy, fromEnemy, threat, personality);
   }
 
+  const stallProbe = defensiveStallProbeMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality);
+  if (stallProbe) return stallProbe;
+
   if (weapon.id === 'dagger' || personality.id === 'assassin') {
     return flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality);
   }
@@ -81,6 +84,59 @@ function applyBattleUrgency(personality, urgency) {
     rangeScale: clamp((personality.rangeScale || 1) * (1 - urgency * 0.14), 0.82, 1.16),
     retreatHpRatio: clamp((personality.retreatHpRatio || 0.3) - urgency * 0.22, 0.12, 0.48)
   };
+}
+
+
+function defensiveStallProbeMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality) {
+  if (personality.id !== 'defensive') return null;
+  if ((self.defensiveProbeCooldown || 0) > 0 || self.attackState !== 'idle') return null;
+
+  const selfIdle = self.noEngageFrames || 0;
+  const enemyIdle = enemy.noEngageFrames || 0;
+  const mutualStall = selfIdle > (POSTURE_RULES.defensiveMutualStallFrames || 170) && enemyIdle > (POSTURE_RULES.defensiveMutualStallFrames || 170);
+  const selfStall = selfIdle > (POSTURE_RULES.defensiveStallFrames || 210);
+  if (!mutualStall && !selfStall) return null;
+
+  const nearEnough = dist < desired + 42;
+  const tooFar = dist > desired + 12;
+  const tooClose = dist < Math.max(weapon.minRange + enemy.radius + 5, desired - 18);
+  if (!nearEnough && weapon.id !== 'spear') return null;
+
+  self.defensiveProbeTimer = Math.max(self.defensiveProbeTimer || 0, POSTURE_RULES.defensiveProbeFrames || 42);
+
+  if (weapon.id === 'dagger') {
+    if (tooFar) {
+      const angle = angleToRingPointByFacing(self, enemy, Math.max(24, desired - 3), self.orbitDir * Math.PI / 2);
+      return vectorFromAngle(angle, 1.22, toEnemy, '방어형 단검 견제 진입');
+    }
+    if (tooClose || relation.isFront) {
+      return blendAngles(toEnemy, sideAngle(toEnemy, self.orbitDir), 0.36, 1.08, toEnemy, '방어형 단검 짧은 견제');
+    }
+    return blendAngles(toEnemy, angleToRingPointByFacing(self, enemy, Math.max(22, desired - 2), self.orbitDir * 0.8), 0.28, 1.12, toEnemy, '방어형 단검 견제 찌르기');
+  }
+
+  if (weapon.id === 'spear') {
+    if (dist < weapon.minRange + 8) {
+      return blendAngles(sideAngle(toEnemy, self.orbitDir), fromEnemy, 0.16, 0.92, toEnemy, '방어형 창 교착 탈출 재정렬');
+    }
+    return blendAngles(toEnemy, sideAngle(toEnemy, self.orbitDir), 0.12, 0.96, toEnemy, '방어형 창 정면 견제 찌르기');
+  }
+
+  if (weapon.id === 'western') {
+    const guardAngle = tooFar
+      ? angleToRingPoint(self, enemy, Math.max(weapon.idealRange + enemy.radius - 2, desired - 8), self.orbitDir * 0.22)
+      : toEnemy;
+    return blendAngles(guardAngle, sideAngle(toEnemy, self.orbitDir), 0.12, 0.88, toEnemy, '방어형 서양검 전진 견제');
+  }
+
+  if (weapon.id === 'eastern') {
+    const slashAngle = relation.isFront
+      ? angleToRingPoint(self, enemy, desired, self.orbitDir * 0.72)
+      : toEnemy;
+    return blendAngles(slashAngle, sideAngle(toEnemy, self.orbitDir), 0.22, 1.0, toEnemy, '방어형 동양검 사선 견제');
+  }
+
+  return null;
 }
 
 function spearMovement(self, enemy, desired, toEnemy, fromEnemy, dist, weapon, personality, state) {

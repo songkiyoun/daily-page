@@ -28,6 +28,7 @@ function updateUnit(unit, enemy, state) {
 
   const weapon = WEAPONS[unit.weaponId];
   tickTimers(unit);
+  updateNoEngageFrames(unit);
 
   if (unit.impactStopTimer > 0) {
     applyImpactStopDrift(unit);
@@ -87,6 +88,20 @@ function tickTimers(unit) {
   if (unit.comboTimer > 0) unit.comboTimer -= 1;
   if (unit.comboTimer <= 0) unit.comboCount = 0;
   if (unit.riposteTimer > 0) unit.riposteTimer -= 1;
+  if (unit.defensiveProbeTimer > 0) unit.defensiveProbeTimer -= 1;
+  if (unit.defensiveProbeCooldown > 0) unit.defensiveProbeCooldown -= 1;
+}
+
+function updateNoEngageFrames(unit) {
+  if (unit.attackState !== 'idle' || unit.staggerTimer > 0 || unit.impactStopTimer > 0) return;
+  unit.noEngageFrames = Math.min(999, (unit.noEngageFrames || 0) + 1);
+}
+
+function resetEngagement(...units) {
+  for (const unit of units) {
+    if (!unit) continue;
+    unit.noEngageFrames = 0;
+  }
 }
 
 function applyImpactStopDrift(unit) {
@@ -318,9 +333,10 @@ function canStartAttack(attacker, defender) {
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
   const daggerMirror = attacker.weaponId === 'dagger' && defender.weaponId === 'dagger';
-  const startTolerance = daggerMirror
+  const defensiveProbe = attacker.personalityId === 'defensive' && (attacker.defensiveProbeTimer || 0) > 0;
+  const startTolerance = (daggerMirror
     ? 1.45
-    : Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52);
+    : Math.max(weapon.arc * 1.28, attacker.weaponId === 'spear' ? 0.3 : 0.52)) + (defensiveProbe ? (POSTURE_RULES.defensiveProbeAngleBonus || 0.24) : 0);
   const attackStartReach = getAttackStartReach(attacker, defender, weapon);
 
   if (defender.staggerTimer > 0 && dist <= attackStartReach) {
@@ -333,11 +349,11 @@ function canStartAttack(attacker, defender) {
 
   if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear' && isDirectlyInFrontOf(defender, attacker)) {
     const spearBusy = defender.attackState !== 'idle' || defender.cooldownTimer > 14 || defender.flankPressureTimer > 0 || defender.postureRecoveryDelay > 0;
-    if (!spearBusy) return false;
+    if (!spearBusy && !defensiveProbe) return false;
   }
 
   const daggerCommittedProbe = attacker.weaponId === 'dagger' && (attacker.daggerCommitTimer || 0) > 0 && dist <= attackStartReach - 4;
-  if (attacker.weaponId === 'dagger' && !daggerCommittedProbe && !hasDaggerAttackAngle(attacker, defender)) {
+  if (attacker.weaponId === 'dagger' && !daggerCommittedProbe && !defensiveProbe && !hasDaggerAttackAngle(attacker, defender)) {
     return false;
   }
 
@@ -358,6 +374,10 @@ function beginAttack(attacker, defender) {
   attacker.attackRecoveryMax = weapon.recovery;
   attacker.attackResolved = false;
   attacker.attackOutcome = '';
+  attacker.attackMode = attacker.defensiveProbeTimer > 0 ? 'defensiveProbe' : '';
+  attacker.defensiveProbeTimer = 0;
+  attacker.defensiveProbeCooldown = Math.max(attacker.defensiveProbeCooldown || 0, POSTURE_RULES.defensiveProbeCooldownFrames || 112);
+  resetEngagement(attacker);
   attacker.attackAim = angleTo(attacker, defender);
   attacker.attackVisualPhase = 0;
   attacker.vx *= getAttackEntryBrake(attacker.weaponId);
@@ -640,12 +660,14 @@ function resolveAttack(attacker, defender, state) {
   if (angleGap > hitArc) return false;
 
   if (resolveParry(defender, attacker, weapon, state)) {
+    resetEngagement(attacker, defender);
     attacker.attackOutcome = 'parried';
     return true;
   }
 
   const evaded = defender.staggerTimer <= 0 && Math.random() < defender.evasion;
   if (evaded) {
+    resetEngagement(attacker, defender);
     attacker.attackOutcome = 'evaded';
     defender.lastAction = '회피';
     return true;
@@ -659,12 +681,14 @@ function resolveAttack(attacker, defender, state) {
   const staggerDamageBonus = defender.staggerTimer > 0 ? POSTURE_RULES.staggerDamageTakenBonus : 1;
   const counterBonus = attacker.counterTimer > 0 ? POSTURE_RULES.counterDamageBonus : 1;
   const comboDamageBonus = attacker.weaponId === 'eastern' && attacker.comboTimer > 0 ? 1.06 : 1;
+  const defensiveProbeScale = attacker.attackMode === 'defensiveProbe' ? (POSTURE_RULES.defensiveProbeDamageScale || 0.68) : 1;
   const matchupDamageScale = getMatchupDamageScale(attacker, defender);
-  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * comboDamageBonus * matchupDamageScale * (crit ? attacker.critDamage : 1);
+  const rawDamage = weapon.damage * attacker.attackScale * positionalBonus * aggressionBonus * lowHpAttackBonus * staggerDamageBonus * counterBonus * comboDamageBonus * defensiveProbeScale * matchupDamageScale * (crit ? attacker.critDamage : 1);
   const effectiveDefense = getEffectiveDefense(defender);
   const damage = Math.max(2, rawDamage * (1 - effectiveDefense));
 
   defender.hp = clamp(defender.hp - damage, 0, defender.maxHp);
+  resetEngagement(attacker, defender);
   attacker.attackOutcome = 'hit';
   attacker.hits += 1;
   attacker.damageDealt += damage;
@@ -1022,9 +1046,10 @@ function getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hit
   const defenderPersonality = PERSONALITIES[defender.personalityId];
   const personalityPostureScale = (attackerPersonality.postureDamageDealtScale || 1) * (defenderPersonality.postureDamageTakenScale || 1);
   const matchupPostureScale = getMatchupPostureScale(attacker, defender);
+  const defensiveProbeScale = attacker.attackMode === 'defensiveProbe' ? (POSTURE_RULES.defensiveProbePostureScale || 0.62) : 1;
   return Math.max(
     POSTURE_RULES.minPostureDamage,
-    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction * personalityPostureScale * matchupPostureScale
+    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction * personalityPostureScale * matchupPostureScale * defensiveProbeScale
   );
 }
 

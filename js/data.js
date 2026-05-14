@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.11';
+export const VERSION = '0.6.12';
 
 export const WEAPONS = {
   spear: {
@@ -493,7 +493,14 @@ export const POSTURE_RULES = {
   easternAssassinTurnScale: 0.94,
   easternComboWindowFrames: 24,
   easternComboMax: 2,
-  riposteWindowFrames: 38
+  riposteWindowFrames: 38,
+  defensiveStallFrames: 210,
+  defensiveMutualStallFrames: 170,
+  defensiveProbeFrames: 54,
+  defensiveProbeCooldownFrames: 84,
+  defensiveProbeDamageScale: 0.84,
+  defensiveProbePostureScale: 0.78,
+  defensiveProbeAngleBonus: 0.36
 };
 
 export const SKILLS = {
