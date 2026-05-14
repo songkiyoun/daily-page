@@ -16,6 +16,7 @@ import {
 } from './state.js';
 import { updateBattle } from './battle.js';
 import { render } from './render.js';
+import { formatSimulatorSummary, runSimulator } from './simulator.js';
 
 const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
@@ -35,7 +36,14 @@ const controls = {
   resultTitle: document.getElementById('resultTitle'),
   resultText: document.getElementById('resultText'),
   enemyPreview: document.getElementById('enemyPreview'),
-  version: document.getElementById('versionBadge')
+  version: document.getElementById('versionBadge'),
+  simPlayerWeapon: document.getElementById('simPlayerWeapon'),
+  simPlayerPersonality: document.getElementById('simPlayerPersonality'),
+  simEnemyWeapon: document.getElementById('simEnemyWeapon'),
+  simEnemyPersonality: document.getElementById('simEnemyPersonality'),
+  simRounds: document.getElementById('simRounds'),
+  simRunBtn: document.getElementById('simRunBtn'),
+  simResultBox: document.getElementById('simResultBox')
 };
 
 let state = null;
@@ -53,6 +61,10 @@ requestAnimationFrame(loop);
 function init() {
   populateSelect(controls.playerWeapon, WEAPONS, 'eastern');
   populateSelect(controls.playerPersonality, PERSONALITIES, 'balanced');
+  populateSelect(controls.simPlayerWeapon, WEAPONS, 'dagger');
+  populateSelect(controls.simPlayerPersonality, PERSONALITIES, 'assassin');
+  populateSelect(controls.simEnemyWeapon, WEAPONS, 'spear');
+  populateSelect(controls.simEnemyPersonality, PERSONALITIES, 'balanced');
   controls.version.textContent = `v${VERSION}`;
 
   controls.startBtn.addEventListener('click', handleMainButton);
@@ -67,6 +79,7 @@ function init() {
   controls.giveUpBtn.addEventListener('click', handleGiveUp);
   controls.playerBox.addEventListener('click', handleStatClick);
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
+  controls.simRunBtn.addEventListener('click', handleSimulatorRun);
 
   run = createRun(readConfig());
   state = createBattleState(run);
@@ -177,6 +190,28 @@ function handleGiveUp() {
   render(ctx, state);
   renderAllPanels(true);
   showOverlay('DEFEAT', `${state.run.floor}층에서 런을 포기했습니다. 새 캐릭터를 생성할 수 있습니다.`, '새 캐릭터 생성', 'retry');
+}
+
+
+function handleSimulatorRun() {
+  controls.simRunBtn.disabled = true;
+  controls.simRunBtn.textContent = '계산 중...';
+  controls.simResultBox.innerHTML = '시뮬레이션을 실행하고 있습니다.';
+
+  window.setTimeout(() => {
+    const summary = runSimulator({
+      playerWeapon: controls.simPlayerWeapon.value,
+      playerPersonality: controls.simPlayerPersonality.value,
+      enemyWeapon: controls.simEnemyWeapon.value,
+      enemyPersonality: controls.simEnemyPersonality.value,
+      rounds: controls.simRounds.value,
+      floor: 1
+    });
+
+    controls.simResultBox.innerHTML = formatSimulatorSummary(summary);
+    controls.simRunBtn.disabled = false;
+    controls.simRunBtn.textContent = '시뮬레이션 실행';
+  }, 20);
 }
 
 function handleStatClick(event) {

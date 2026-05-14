@@ -448,3 +448,52 @@ select option {
     grid-template-columns: 1fr;
   }
 }
+
+
+.simulator-card {
+  border-color: rgba(168, 136, 255, 0.22);
+}
+
+.sim-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sim-grid .field {
+  margin-bottom: 8px;
+}
+
+.sim-result-box {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 11px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.sim-result-box strong {
+  color: var(--text);
+}
+
+.sim-result-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  padding: 4px 0;
+}
+
+.sim-result-row:last-child {
+  border-bottom: 0;
+}
+
+@media (max-width: 520px) {
+  .sim-grid {
+    grid-template-columns: 1fr;
+  }
+}

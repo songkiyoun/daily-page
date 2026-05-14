@@ -41,11 +41,11 @@ export function createRun(config) {
   };
 }
 
-export function createBattleState(run) {
-  const enemyConfig = createRandomEnemyConfig(run.floor);
-  const spawnSkew = randomSign() * randomInt(34, 82);
-  const playerY = 250 + spawnSkew;
-  const enemyY = 250 - spawnSkew;
+export function createBattleState(run, options = {}) {
+  const enemyConfig = options.enemyConfig || createRandomEnemyConfig(run.floor);
+  const spawnSkew = options.spawnSkew ?? randomSign() * randomInt(34, 82);
+  const playerY = options.playerY ?? 250 + spawnSkew;
+  const enemyY = options.enemyY ?? 250 - spawnSkew;
 
   return {
     running: false,
@@ -67,8 +67,8 @@ export function createBattleState(run) {
       centerX: 380,
       centerY: 250
     },
-    player: createUnitFromPlayer(run.player, 210, playerY),
-    enemy: createUnitFromEnemy(enemyConfig, run.floor, 550, enemyY)
+    player: createUnitFromPlayer(run.player, options.playerX ?? 210, playerY),
+    enemy: createUnitFromEnemy(enemyConfig, run.floor, options.enemyX ?? 550, enemyY)
   };
 }
 
@@ -346,6 +346,26 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     damageDealt: 0,
     lastAction: `${weapon.name} · ${personality.name}`,
     isDead: false
+  };
+}
+
+
+export function createFixedEnemyConfig({ weaponId, personalityId, floor = 1, name = 'SIM ENEMY' }) {
+  const base = 5 + Math.max(0, Math.floor((floor - 1) * 0.42));
+  return {
+    name,
+    weaponId,
+    personalityId,
+    level: Math.max(1, floor),
+    stats: {
+      str: base,
+      vit: base,
+      def: base,
+      agi: base,
+      luck: base
+    },
+    skills: [],
+    mastery: Math.floor(Math.max(0, floor - 1) / 4)
   };
 }
 

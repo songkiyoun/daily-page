@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v0.6.5
+- 조합 반복 테스트용 시뮬레이터를 `js/simulator.js`로 복구했습니다.
+- 시뮬레이터는 실제 전투 로직을 복사하지 않고 `createRun`, `createBattleState`, `updateBattle`을 사용합니다.
+- 플레이어 무기·성격, 상대 무기·성격, 반복 횟수를 선택해 승률, 평균 명중, 평균 피해, 평균 전투 시간, 평균 잔여 체력을 확인할 수 있도록 UI를 추가했습니다.
+- `state.js`의 `createBattleState`가 고정 상대 설정을 받을 수 있도록 기존 함수 시그니처를 직접 확장했습니다.
+- 고정 상대 생성을 위한 `createFixedEnemyConfig`를 추가해 시뮬레이터가 랜덤 상대 생성에 의존하지 않도록 했습니다.
+- 패치 덧붙이기 없이 기존 파일 책임에 맞춰 `main.js`, `state.js`, `data.js`, `style.css`, `index.html`을 직접 수정했습니다.
+
 ## v0.6.4
 
 - 성격별 전투 보정 구조를 재정의했습니다.

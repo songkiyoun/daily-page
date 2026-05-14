@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.6.4-personality-stat-system" />
-  <title>Circle Battle Tower Rebuild v0.6.4</title>
+  <meta name="build" content="circle-battle-rebuild-v0.6.5-simulator-restore" />
+  <title>Circle Battle Tower Rebuild v0.6.5</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
@@ -12,10 +12,10 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
-        <h1>1:1 탑 등반 무기별 진입 동작</h1>
-        <p class="subtext">성격별 공격·방어·패링·이동·밀림 보정 구조를 재정의한 v0.6.4 뼈대입니다.</p>
+        <h1>1:1 탑 등반 전투 시뮬레이터 복구</h1>
+        <p class="subtext">무기·성격 조합의 승률과 명중 수를 반복 테스트할 수 있는 v0.6.5 뼈대입니다.</p>
       </div>
-      <div id="versionBadge" class="version">v0.6.4</div>
+      <div id="versionBadge" class="version">v0.6.5</div>
     </header>
 
     <section class="layout">
@@ -86,6 +86,39 @@
           <h2>상태</h2>
           <div id="statusBox" class="status-box"></div>
         </section>
+        <section class="card simulator-card">
+          <h2>시뮬레이터</h2>
+          <div class="sim-grid">
+            <label class="field">
+              <span>내 무기</span>
+              <select id="simPlayerWeapon"></select>
+            </label>
+            <label class="field">
+              <span>내 성격</span>
+              <select id="simPlayerPersonality"></select>
+            </label>
+            <label class="field">
+              <span>상대 무기</span>
+              <select id="simEnemyWeapon"></select>
+            </label>
+            <label class="field">
+              <span>상대 성격</span>
+              <select id="simEnemyPersonality"></select>
+            </label>
+          </div>
+          <label class="field">
+            <span>반복 횟수</span>
+            <select id="simRounds">
+              <option value="10">10회</option>
+              <option value="30" selected>30회</option>
+              <option value="100">100회</option>
+            </select>
+          </label>
+          <button id="simRunBtn" class="button primary">시뮬레이션 실행</button>
+          <div id="simResultBox" class="sim-result-box">무기와 성격을 고른 뒤 반복 테스트를 실행하세요.</div>
+          <p class="hint-text">시뮬레이터는 현재 전투 코어를 빠르게 반복 실행합니다. 실제 탑 등반 보상과 층 성장까지 완전히 반영하는 고급 분석은 이후 단계에서 확장합니다.</p>
+        </section>
+
       </aside>
     </section>
   </main>
