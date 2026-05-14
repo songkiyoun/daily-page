@@ -74,6 +74,7 @@ function tickTimers(unit) {
   if (unit.daggerBurstCooldown > 0) unit.daggerBurstCooldown -= 1;
   if (unit.daggerManeuverTimer > 0) unit.daggerManeuverTimer -= 1;
   if (unit.daggerResetTimer > 0) unit.daggerResetTimer -= 1;
+  if (unit.daggerCommitTimer > 0) unit.daggerCommitTimer -= 1;
   if (unit.parryCooldown > 0) unit.parryCooldown -= 1;
   if (unit.parryFlashTimer > 0) unit.parryFlashTimer -= 1;
   if (unit.counterTimer > 0) unit.counterTimer -= 1;
@@ -313,11 +314,12 @@ function canStartAttack(attacker, defender) {
   if (dist < weapon.minRange) return false;
   if (angleGap > startTolerance) return false;
 
-  if (attacker.weaponId === 'dagger' && !hasDaggerAttackAngle(attacker, defender)) {
+  const daggerCommittedProbe = attacker.weaponId === 'dagger' && (attacker.daggerCommitTimer || 0) > 0 && dist <= attackStartReach - 4;
+  if (attacker.weaponId === 'dagger' && !daggerCommittedProbe && !hasDaggerAttackAngle(attacker, defender)) {
     return false;
   }
 
-  const committedToAngle = attacker.lastAction.includes('측') || attacker.lastAction.includes('후방') || attacker.lastAction.includes('미러') || attacker.lastAction.includes('돌파') || attacker.lastAction.includes('침투');
+  const committedToAngle = daggerCommittedProbe || attacker.lastAction.includes('측') || attacker.lastAction.includes('후방') || attacker.lastAction.includes('미러') || attacker.lastAction.includes('돌파') || attacker.lastAction.includes('침투');
   if (personality.id === 'assassin' && attacker.weaponId !== 'spear' && isDirectlyInFrontOf(defender, attacker) && !committedToAngle) {
     return false;
   }
@@ -341,6 +343,7 @@ function beginAttack(attacker, defender) {
   if (attacker.weaponId === 'dagger') {
     attacker.daggerManeuverPhase = '';
     attacker.daggerManeuverTimer = 0;
+    attacker.daggerCommitTimer = Math.max(attacker.daggerCommitTimer || 0, 6);
   }
   attacker.lastAction = getWindupLabel(attacker.weaponId);
 }
@@ -373,7 +376,10 @@ function updateAttackState(attacker, defender, state) {
       attacker.attackState = 'recovery';
       attacker.attackTimer = getAttackRecoveryDuration(attacker, weapon);
       attacker.attackRecoveryMax = attacker.attackTimer;
-      attacker.lastAction = attacker.attackResolved ? getRecoveryLabel(attacker.weaponId) : '헛침 후딜';
+      attacker.lastAction = attacker.attackResolved ? getRecoveryLabel(attacker.weaponId, attacker.attackOutcome) : getRecoveryLabel(attacker.weaponId, 'miss');
+      if (attacker.weaponId === 'dagger' && attacker.attackOutcome !== 'hit' && attacker.attackOutcome !== 'parried' && attacker.attackOutcome !== 'clash') {
+        attacker.daggerResetTimer = Math.max(attacker.daggerResetTimer || 0, POSTURE_RULES.daggerMissResetFrames || 12);
+      }
     }
     return;
   }
@@ -418,11 +424,16 @@ function getActiveLabel(weaponId) {
   return '타격 판정';
 }
 
-function getRecoveryLabel(weaponId) {
-  if (weaponId === 'spear') return '창 회수';
-  if (weaponId === 'western') return '서양검 후딜';
-  if (weaponId === 'eastern') return '동양검 이탈';
-  if (weaponId === 'dagger') return '단검 빠른 이탈';
+function getRecoveryLabel(weaponId, outcome = '') {
+  if (weaponId === 'spear') return outcome === 'miss' ? '창 헛침 회수' : '창 회수';
+  if (weaponId === 'western') return outcome === 'miss' ? '서양검 헛침 후딜' : '서양검 후딜';
+  if (weaponId === 'eastern') return outcome === 'miss' ? '동양검 빗나감 재정렬' : '동양검 이탈';
+  if (weaponId === 'dagger') {
+    if (outcome === 'hit') return '단검 명중 후 이탈';
+    if (outcome === 'parried' || outcome === 'clash') return '단검 튕김 이탈';
+    if (outcome === 'evaded' || outcome === 'miss') return '단검 빗나감 측면 재정렬';
+    return '단검 회수';
+  }
   return '후딜';
 }
 
@@ -560,8 +571,17 @@ function applyRecoveryStep(attacker, defender, weapon) {
     back *= 0.74;
     side *= 0.92;
   } else {
-    back *= 1.85;
-    side *= 1.18;
+    const outcome = attacker.attackOutcome || 'miss';
+    if (outcome === 'hit') {
+      back *= 1.85;
+      side *= 1.18;
+    } else if (outcome === 'parried' || outcome === 'clash') {
+      back *= 1.42;
+      side *= 0.86;
+    } else {
+      back *= POSTURE_RULES.daggerShortRepositionScale || 0.42;
+      side *= 1.28;
+    }
   }
 
   attacker.vx += Math.cos(awayAngle) * back + Math.cos(sideAngle) * side;
@@ -811,7 +831,7 @@ function hasDaggerAttackAngle(attacker, defender) {
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
   const defenderLowHp = defender.hp / defender.maxHp < 0.22;
-  const committedBurst = isDaggerBurstLabel(attacker.lastAction) && dist < WEAPONS.dagger.range + defender.radius + 12;
+  const committedBurst = (isDaggerBurstLabel(attacker.lastAction) || (attacker.daggerCommitTimer || 0) > 0) && dist < WEAPONS.dagger.range + defender.radius + 15;
   const defenderBusy = defender.attackState !== 'idle' || defender.cooldownTimer > 10 || defender.flankPressureTimer > 0;
   const spearWindow = defender.weaponId === 'spear' && (defender.flankPressureTimer > 0 || defender.attackState === 'recovery' || defender.postureRecoveryDelay > 0);
   const daggerMirrorCommit = defender.weaponId === 'dagger' && dist < WEAPONS.dagger.range + defender.radius + 8 && frontGap < 1.62;
@@ -1069,6 +1089,10 @@ function resolveWeaponClash(state, a, b) {
   b.clashCooldown = POSTURE_RULES.weaponClashCooldown;
   a.attackState = a.attackState === 'active' ? 'recovery' : a.attackState;
   b.attackState = b.attackState === 'active' ? 'recovery' : b.attackState;
+  a.attackOutcome = 'clash';
+  b.attackOutcome = 'clash';
+  if (a.weaponId === 'dagger') a.daggerResetTimer = Math.max(a.daggerResetTimer || 0, POSTURE_RULES.daggerMissResetFrames || 12);
+  if (b.weaponId === 'dagger') b.daggerResetTimer = Math.max(b.daggerResetTimer || 0, POSTURE_RULES.daggerMissResetFrames || 12);
   a.attackTimer = Math.max(a.attackTimer, 8);
   b.attackTimer = Math.max(b.attackTimer, 8);
 

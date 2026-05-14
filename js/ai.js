@@ -243,7 +243,8 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
     self.daggerManeuverPhase = '';
     const resetSide = self.daggerFeintSide || self.orbitDir || 1;
     const resetAngle = enemy.facing + resetSide * Math.PI / 2;
-    return blendAngles(resetAngle, fromEnemyAngle(self, enemy), 0.26, 1.34 + flankPower * 0.14, toEnemy, '단검 측면 재정렬');
+    const shallowAway = fromEnemyAngle(self, enemy);
+    return blendAngles(resetAngle, shallowAway, 0.08, 1.18 + flankPower * 0.1, toEnemy, '단검 빗나감 측면 재정렬');
   }
 
   const hasManeuver = self.daggerManeuverPhase && self.daggerManeuverTimer > 0;
@@ -257,6 +258,7 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
     if (hardWindow && (relation.isBack || enemy.staggerTimer > 0 || enemy.attackState === 'recovery')) {
       self.daggerManeuverPhase = 'burst';
       self.daggerManeuverTimer = 11;
+      self.daggerCommitTimer = Math.max(self.daggerCommitTimer || 0, POSTURE_RULES.daggerCommitFrames || 18);
     } else {
       self.daggerManeuverPhase = 'feint';
       self.daggerManeuverTimer = Math.round((POSTURE_RULES.daggerFeintFrames || 20) * (personality.id === 'defensive' ? 1.12 : 1));
@@ -273,6 +275,7 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
   if (self.daggerManeuverPhase === 'cut' && self.daggerManeuverTimer <= 0) {
     self.daggerManeuverPhase = 'burst';
     self.daggerManeuverTimer = 10;
+    self.daggerCommitTimer = Math.max(self.daggerCommitTimer || 0, POSTURE_RULES.daggerCommitFrames || 18);
   }
 
   if (self.daggerManeuverPhase === 'burst' && self.daggerManeuverTimer <= 0) {
@@ -301,7 +304,8 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
     const offsetBase = relation.isBack || opportunity === 'hard' ? Math.PI + burstSide * 0.44 : burstSide * Math.PI * 0.84;
     const burstAngle = angleToRingPointByFacing(self, enemy, burstRadius, offsetBase);
     enemy.flankPressureTimer = Math.max(enemy.flankPressureTimer || 0, POSTURE_RULES.daggerCutTurnLagFrames || 22);
-    return vectorFromAngle(burstAngle, 3.08 + flankPower * 0.28 + feintBoost * 0.14, toEnemy, opportunity ? '단검 빈틈 측후방 즉시 침투' : '단검 페이크 후 측후방 순간 침투');
+    self.daggerCommitTimer = Math.max(self.daggerCommitTimer || 0, POSTURE_RULES.daggerCommitFrames || 18);
+    return vectorFromAngle(burstAngle, 3.18 + flankPower * 0.3 + feintBoost * 0.14, toEnemy, opportunity ? '단검 빈틈 공격 확정 침투' : '단검 페이크 후 공격 확정 침투');
   }
 
   return null;
