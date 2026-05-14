@@ -47,6 +47,10 @@ export function decideMovement(self, enemy, state = null) {
 
   const threat = getIncomingThreat(self, enemy, relation);
   if (threat) {
+    if (self.weaponId === 'dagger') {
+      const shortStep = daggerThreatShortStep(self, enemy, toEnemy, fromEnemy, dist, relation);
+      if (shortStep) return shortStep;
+    }
     if (self.weaponId === 'dagger' && enemy.weaponId === 'eastern') {
       return daggerVsEasternThreatMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, threat, personality);
     }
@@ -322,6 +326,25 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
   }
 
   return null;
+}
+
+
+function daggerThreatShortStep(self, enemy, toEnemy, fromEnemy, dist, relation) {
+  if (self.daggerThreatStepCooldown > 0) return null;
+  if (enemy.weaponId !== 'spear') return null;
+  if (enemy.attackState !== 'windup') return null;
+  if (!relation.isFront) return null;
+  if (self.cooldownTimer > 2) return null;
+
+  const enemyWeapon = WEAPONS[enemy.weaponId];
+  const enemyToSelf = angleTo(enemy, self);
+  const angleGap = Math.abs(angleDiff(enemy.facing, enemyToSelf));
+  if (angleGap > enemyWeapon.arc + 0.14) return null;
+  if (dist > enemyWeapon.range + self.radius + 6) return null;
+
+  self.daggerThreatStepCooldown = POSTURE_RULES.daggerThreatStepCooldownFrames || 48;
+  const lateral = sideAngle(toEnemy, self.orbitDir || 1);
+  return blendAngles(lateral, fromEnemy, 0.38, 0.72, toEnemy, '단검 짧은 회피');
 }
 
 
