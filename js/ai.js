@@ -204,18 +204,7 @@ function flankMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation,
   const burstReady = (self.daggerBurstCooldown || 0) <= 0;
 
   if (weapon.id === 'dagger') {
-    const mirrorOpportunity = enemy.weaponId === 'dagger'
-      ? getDaggerMirrorOpportunity(self, enemy, dist)
-      : opportunity;
-
-    const sideCommit = daggerSideCommitMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower, mirrorOpportunity);
-    if (sideCommit) return sideCommit;
-
-    const maneuver = daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, mirrorOpportunity, burstReady, flankPower);
-    if (maneuver) return maneuver;
-    if (enemy.weaponId === 'dagger') {
-      return daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower);
-    }
+    return daggerBaitCounterMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality, flankPower, opportunity, burstReady);
   }
 
   if (enemy.weaponId === 'spear' && dist > Math.max(22, WEAPONS.spear.minRange - 34)) {
@@ -264,7 +253,15 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
     self.daggerManeuverPhase = '';
     const resetSide = self.daggerFeintSide || self.orbitDir || 1;
     const resetAngle = enemy.facing + resetSide * Math.PI / 2;
-    return blendAngles(resetAngle, fromEnemyAngle(self, enemy), 0.26, 1.34 + flankPower * 0.14, toEnemy, '단검 측면 재정렬');
+    const compactRange = dist < desired + 20;
+    const tooClose = dist < self.radius + enemy.radius + 2;
+    if (tooClose) {
+      return blendAngles(sideAngle(toEnemy, resetSide), fromEnemyAngle(self, enemy), 0.22, 0.78, toEnemy, '단검 짧은 사선 이탈');
+    }
+    if (compactRange) {
+      return blendAngles(resetAngle, fromEnemyAngle(self, enemy), 0.1, 0.66 + flankPower * 0.03, toEnemy, '단검 근접 측면 유지');
+    }
+    return blendAngles(resetAngle, fromEnemyAngle(self, enemy), 0.14, 0.78 + flankPower * 0.04, toEnemy, '단검 짧은 재정렬');
   }
 
   const hasManeuver = self.daggerManeuverPhase && self.daggerManeuverTimer > 0;
@@ -329,6 +326,153 @@ function daggerFeintMovement(self, enemy, desired, toEnemy, dist, relation, oppo
 }
 
 
+function daggerBaitCounterMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, weapon, personality, flankPower, opportunity, burstReady) {
+  const mirrorOpportunity = enemy.weaponId === 'dagger'
+    ? getDaggerMirrorOpportunity(self, enemy, dist)
+    : opportunity;
+
+  const directCommit = daggerDirectCommitMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower, mirrorOpportunity);
+  if (directCommit) return directCommit;
+
+  if (enemy.weaponId === 'dagger') {
+    return daggerMirrorMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower);
+  }
+
+  const attackThreat = enemy.attackState === 'windup' || enemy.attackState === 'active';
+  if (attackThreat) {
+    const evade = daggerBaitEvadeMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, personality);
+    if (evade) return evade;
+  }
+
+  const easternTarget = enemy.weaponId === 'eastern';
+  const recoveryChance = enemy.attackState === 'recovery' || enemy.cooldownTimer > 10 || enemy.postureRecoveryDelay > 0 || enemy.staggerTimer > 0;
+  if (recoveryChance && (!easternTarget || relation.sideGap < 1.02 || enemy.staggerTimer > 0)) {
+    const counterEntry = daggerCounterFlankEntry(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower, mirrorOpportunity);
+    if (counterEntry) return counterEntry;
+  }
+
+  if ((mirrorOpportunity === 'hard' || (mirrorOpportunity && relation.sideGap < 1.28 && dist < desired + 74)) && (!easternTarget || relation.sideGap < 1.08)) {
+    const opportunityEntry = daggerCounterFlankEntry(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower, mirrorOpportunity);
+    if (opportunityEntry) return opportunityEntry;
+  }
+
+  return daggerBaitStanceMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, personality, flankPower);
+}
+
+function daggerDirectCommitMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower, opportunity) {
+  const westernTarget = enemy.weaponId === 'western';
+  const sideWindow = westernTarget ? 0.78 : enemy.weaponId === 'eastern' ? 0.92 : 1.14;
+  const sideReady = relation.sideGap < sideWindow && relation.frontGap > 0.38;
+  const rearReady = relation.backGap < 0.72;
+  const locked = (self.daggerSideCommitLock || 0) > 0;
+  const attackLane = WEAPONS.dagger.range + enemy.radius + 18;
+  const commitLane = attackLane + (westernTarget ? 6 : 14);
+
+  const insideSpear = enemy.weaponId === 'spear' && dist < WEAPONS.spear.minRange + enemy.radius + 8 && !relation.isFront;
+  const spearAllowed = enemy.weaponId !== 'spear' || insideSpear || relation.backGap < 0.9 || enemy.attackState === 'recovery' || enemy.cooldownTimer > 14;
+  const angleReady = sideReady || rearReady || locked;
+
+  if (!angleReady || !spearAllowed || dist > commitLane) return null;
+
+  const bodyOverlap = dist < self.radius + enemy.radius - 3;
+  if (bodyOverlap) {
+    self.daggerSideCommitLock = Math.max(self.daggerSideCommitLock || 0, 7);
+    return blendAngles(sideAngle(toEnemy, self.orbitDir), fromEnemy, 0.14, 0.72, toEnemy, '단검 몸겹침 짧은 측면 이탈');
+  }
+
+  self.daggerSideCommitLock = Math.max(self.daggerSideCommitLock || 0, POSTURE_RULES.daggerSideCommitLockFrames || 18);
+  self.daggerManeuverPhase = '';
+  self.daggerManeuverTimer = 0;
+  enemy.flankPressureTimer = Math.max(enemy.flankPressureTimer || 0, POSTURE_RULES.daggerCutTurnLagFrames || 22);
+
+  const pressureSide = sideAngle(toEnemy, self.orbitDir);
+  const readySoon = enemy.weaponId === 'eastern'
+    ? (self.cooldownTimer <= 3 || opportunity === 'hard' || locked)
+    : (self.cooldownTimer <= (westernTarget ? 3 : 7) || !!opportunity || enemy.attackState !== 'idle' || enemy.cooldownTimer > 8 || locked);
+
+  if (dist > attackLane) {
+    const laneAngle = angleToRingPointByFacing(self, enemy, Math.max(20, WEAPONS.dagger.range + enemy.radius - 3), self.orbitDir * Math.PI / 2);
+    const lanePower = westernTarget ? 0.82 + flankPower * 0.035 : 1.02 + flankPower * 0.08;
+    return blendAngles(laneAngle, toEnemy, 0.18, lanePower, toEnemy, '단검 측면 진입');
+  }
+
+  if (!readySoon) {
+    if (westernTarget) return null;
+    return blendAngles(toEnemy, pressureSide, 0.32, 0.78, toEnemy, '단검 측면 공격대기');
+  }
+
+  const commitPower = westernTarget ? 0.76 + flankPower * 0.03 : 1.08 + flankPower * 0.08;
+  const sideWeight = westernTarget ? 0.22 : 0.08;
+  return blendAngles(toEnemy, pressureSide, sideWeight, commitPower, toEnemy, rearReady ? '단검 후면 찌르기' : '단검 측면 찌르기');
+}
+
+function daggerBaitEvadeMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, personality) {
+  const enemyWeapon = WEAPONS[enemy.weaponId];
+  const enemyToSelf = angleTo(enemy, self);
+  const angleGap = Math.abs(angleDiff(enemy.facing, enemyToSelf));
+  const threatRange = enemyWeapon.range + self.radius + (enemy.weaponId === 'spear' ? 12 : 8);
+  const readable = angleGap < enemyWeapon.arc + (enemy.weaponId === 'western' ? 0.2 : 0.14);
+  const closeThreat = dist < threatRange && dist > Math.max(10, enemyWeapon.minRange - 8);
+
+  if (!readable || !closeThreat) {
+    return daggerBaitStanceMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, personality, 0.7);
+  }
+
+  self.daggerSideCommitLock = Math.max(self.daggerSideCommitLock || 0, 9);
+  if ((self.daggerBaitTimer || 0) <= 0) {
+    self.daggerBaitSide = -(self.daggerBaitSide || self.orbitDir || 1);
+    self.daggerBaitTimer = POSTURE_RULES.daggerBaitSwayFrames || 34;
+  }
+
+  const evadeSide = self.daggerBaitSide || self.orbitDir || 1;
+  const diagonal = sideAngle(fromEnemy, -evadeSide);
+  const lateral = sideAngle(toEnemy, evadeSide);
+  const power = enemy.weaponId === 'spear' ? 1.04 : enemy.weaponId === 'western' ? 0.84 : enemy.weaponId === 'eastern' ? 0.72 : 0.96;
+  const sideWeight = enemy.weaponId === 'eastern' ? 0.22 : 0.34;
+  return blendAngles(diagonal, lateral, sideWeight, power, toEnemy, '단검 사선 회피');
+}
+
+function daggerCounterFlankEntry(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower, opportunity) {
+  const side = self.daggerBaitSide || self.orbitDir || 1;
+  const targetSide = relation.sideGap < 1.18 ? side : -side;
+  const attackLane = WEAPONS.dagger.range + enemy.radius + 18;
+
+  if (relation.sideGap < 1.16 && dist < attackLane + 18) {
+    return daggerDirectCommitMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower, opportunity || 'soft');
+  }
+
+  const radius = Math.max(22, WEAPONS.dagger.range + enemy.radius + 4);
+  const entryAngle = angleToRingPointByFacing(self, enemy, radius, targetSide * Math.PI / 2);
+  const power = enemy.weaponId === 'western' ? 0.92 + flankPower * 0.04 : 1.18 + flankPower * 0.08;
+  enemy.flankPressureTimer = Math.max(enemy.flankPressureTimer || 0, POSTURE_RULES.daggerCutTurnLagFrames || 22);
+  return blendAngles(entryAngle, toEnemy, 0.1, power, toEnemy, '단검 회피 후 측면 진입');
+}
+
+function daggerBaitStanceMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, personality, flankPower) {
+  if ((self.daggerBaitTimer || 0) <= 0) {
+    self.daggerBaitSide = -(self.daggerBaitSide || self.orbitDir || 1);
+    self.daggerBaitTimer = POSTURE_RULES.daggerBaitSwayFrames || 34;
+  }
+
+  const enemyWeapon = WEAPONS[enemy.weaponId];
+  const side = self.daggerBaitSide || self.orbitDir || 1;
+  const lateral = sideAngle(toEnemy, side);
+  const enemyRange = enemyWeapon.range + self.radius;
+  const baitOffset = enemy.weaponId === 'spear' ? 10 : enemy.weaponId === 'western' ? 7 : enemy.weaponId === 'eastern' ? -4 : 5;
+  const baitRange = clamp(enemyRange + baitOffset, WEAPONS.dagger.range + enemy.radius + 14, 138);
+
+  if (dist < baitRange - 12) {
+    return blendAngles(fromEnemy, lateral, 0.22, 0.78 + personality.orbit * 0.04, toEnemy, '단검 유인 거리벌림');
+  }
+
+  if (dist > baitRange + 18) {
+    return blendAngles(toEnemy, lateral, 0.16, 0.98 + personality.pressure * 0.04, toEnemy, '단검 유인 접근');
+  }
+
+  return blendAngles(lateral, toEnemy, 0.08, 0.56 + flankPower * 0.03, toEnemy, '단검 정면 유인');
+}
+
+
 function daggerThreatShortStep(self, enemy, toEnemy, fromEnemy, dist, relation) {
   if (self.daggerThreatStepCooldown > 0) return null;
   if (enemy.weaponId !== 'spear') return null;
@@ -355,13 +499,15 @@ function daggerSideCommitMovement(self, enemy, desired, toEnemy, fromEnemy, dist
   const sideLimit = westernTarget ? 0.76 : (forceCheck ? 0.96 : 1.08);
   const wideSide = relation.sideGap < sideLimit && relation.frontGap > 0.42;
   const locked = (self.daggerSideCommitLock || 0) > 0;
-  const allowSpear = enemy.weaponId === 'spear' ? locked : true;
-  if ((!wideSide && !locked) || !allowSpear) return null;
+  const insideSpear = enemy.weaponId === 'spear' && dist < WEAPONS.spear.minRange + enemy.radius + 6 && !relation.isFront;
+  const spearInsideCommit = insideSpear && wideSide && (self.cooldownTimer <= 0 || enemy.attackState === 'recovery' || enemy.cooldownTimer > 18);
+  const allowSpear = enemy.weaponId === 'spear' ? (locked || spearInsideCommit) : true;
+  if ((!wideSide && !locked && !spearInsideCommit) || !allowSpear) return null;
 
-  const bodyOverlap = dist < self.radius + enemy.radius - 1;
+  const bodyOverlap = dist < self.radius + enemy.radius - 3;
   if (bodyOverlap) {
     self.daggerSideCommitLock = Math.max(self.daggerSideCommitLock || 0, 8);
-    return blendAngles(sideAngle(toEnemy, self.orbitDir), fromEnemy, 0.18, 0.86, toEnemy, '단검 몸겹침 짧은 측면 이탈');
+    return blendAngles(sideAngle(toEnemy, self.orbitDir), fromEnemy, 0.12, 0.74, toEnemy, '단검 몸겹침 짧은 측면 이탈');
   }
 
   const attackLane = WEAPONS.dagger.range + enemy.radius + 20;

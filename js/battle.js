@@ -74,6 +74,7 @@ function tickTimers(unit) {
   if (unit.daggerBurstCooldown > 0) unit.daggerBurstCooldown -= 1;
   if (unit.daggerSideCommitLock > 0) unit.daggerSideCommitLock -= 1;
   if (unit.daggerThreatStepCooldown > 0) unit.daggerThreatStepCooldown -= 1;
+  if (unit.daggerBaitTimer > 0) unit.daggerBaitTimer -= 1;
   if (unit.daggerManeuverTimer > 0) unit.daggerManeuverTimer -= 1;
   if (unit.daggerResetTimer > 0) unit.daggerResetTimer -= 1;
   if (unit.parryCooldown > 0) unit.parryCooldown -= 1;
@@ -290,7 +291,10 @@ function tryCloseRangeReset(unit, enemy, movement) {
   unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : westernCloseGuard ? 16 : 14);
   enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : westernCloseGuard ? 11 : 9);
 
-  const postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? (personality.id === 'defensive' ? 0.84 : 1.02) : westernCloseGuard ? (weapon.closeGuardPostureScale || 1.05) : 0.94);
+  let postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? (personality.id === 'defensive' ? 0.84 : 1.02) : westernCloseGuard ? (weapon.closeGuardPostureScale || 1.05) : 0.94);
+  if (spearPinned && enemy.weaponId === 'dagger') {
+    postureDamage *= personality.id === 'defensive' ? 0.72 : 0.84;
+  }
   applyPostureDamage(unit, enemy, postureDamage);
   twistBodyOnImpact(enemy, unit, postureDamage, weapon);
 
@@ -892,9 +896,15 @@ function getPositionalBonus(attacker, defender) {
   const otherSideGap = Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender));
   const flankGap = Math.min(sideGap, otherSideGap);
 
+  if (defender.weaponId === 'spear') {
+    if (flankGap < 1.08) return Math.min(weapon.flankBonus || 1, 1.18);
+    if (backGap < 0.58) return Math.min(weapon.backBonus || 1.12, 1.12);
+    if (defender.flankPressureTimer > 0 && flankGap < 1.28) return 1.12;
+  }
+
   if (flankGap < 1.08) return weapon.flankBonus;
   if (backGap < 0.58) return weapon.backBonus || 1.12;
-  if (defender.flankPressureTimer > 0 && flankGap < 1.28) return defender.weaponId === 'spear' ? Math.max(weapon.flankBonus * 0.92, 1.32) : (weapon.flankBonus + 1) / 2;
+  if (defender.flankPressureTimer > 0 && flankGap < 1.28) return (weapon.flankBonus + 1) / 2;
   return 1;
 }
 
@@ -924,6 +934,12 @@ function getDaggerPostureBonus(attacker, defender, weapon) {
     Math.abs(angleDiff(defender.facing + Math.PI / 2, attackerFromDefender)),
     Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender))
   );
+
+  if (defender.weaponId === 'spear') {
+    if (sideGap < 1.08) return Math.min(weapon.flankPostureBonus || 1, 1.22);
+    if (backGap < 0.58) return Math.min(weapon.backPostureBonus || 1, 1.08);
+    if (defender.flankPressureTimer > 0 && sideGap < 1.24) return 1.14;
+  }
 
   if (sideGap < 1.08) return weapon.flankPostureBonus || 1;
   if (backGap < 0.58) return weapon.backPostureBonus || 1;
@@ -1035,15 +1051,15 @@ function applyWeaponHitReaction(attacker, defender, weapon, hitQuality = 0) {
 
   const selfRetreat = weapon.selfRetreatOnHit || 0;
   if (selfRetreat > 0) {
-    const retreatScale = weapon.id === 'dagger' ? 1.15 + hitQuality * 0.42 : 0.42;
+    const retreatScale = weapon.id === 'dagger' ? 1.04 + hitQuality * 0.32 : 0.42;
     attacker.vx -= Math.cos(attackAngle) * selfRetreat * retreatScale;
     attacker.vy -= Math.sin(attackAngle) * selfRetreat * retreatScale;
     if (weapon.id === 'dagger') {
-      attacker.vx += Math.cos(sideAngle) * attacker.orbitDir * (1.14 + hitQuality * 0.12);
-      attacker.vy += Math.sin(sideAngle) * attacker.orbitDir * (1.14 + hitQuality * 0.12);
+      attacker.vx += Math.cos(sideAngle) * attacker.orbitDir * (1.08 + hitQuality * 0.12);
+      attacker.vy += Math.sin(sideAngle) * attacker.orbitDir * (1.08 + hitQuality * 0.12);
       attacker.attackState = 'recovery';
-      attacker.attackTimer = Math.max(attacker.attackTimer || 0, weapon.recovery + 3);
-      attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 6);
+      attacker.attackTimer = Math.max(attacker.attackTimer || 0, weapon.recovery + 6);
+      attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 10);
       attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, 1);
       attacker.daggerResetTimer = Math.max(attacker.daggerResetTimer || 0, POSTURE_RULES.daggerResetFrames || 24);
       attacker.daggerManeuverPhase = '';
@@ -1160,8 +1176,8 @@ function getHitSideKnockbackScale(weapon) {
 function getNonHitPostureScale(attacker, weapon) {
   const personality = PERSONALITIES[attacker.personalityId];
   let scale = 1;
-  if (weapon.id === 'spear') scale *= 0.94;
-  if (weapon.id === 'spear' && personality.id === 'defensive') scale *= 0.86;
+  if (weapon.id === 'spear') scale *= 0.92;
+  if (weapon.id === 'spear' && personality.id === 'defensive') scale *= 0.82;
   return scale;
 }
 
