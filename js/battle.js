@@ -249,8 +249,8 @@ function getAcceleration(unit, movement) {
   if (unit.weaponId === 'spear' && movement.label.includes('측면')) value = 0.29;
   if (unit.weaponId === 'eastern') value = movement.label.includes('페이크') ? 0.29 : 0.25;
   if (unit.weaponId === 'dagger') value = isDaggerBurstLabel(movement.label) ? 0.76 : movement.label.includes('페이크') ? 0.62 : 0.33;
-  if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.015;
-  if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.045;
+  if (personality.id === 'defensive' && movement.label.includes('후퇴')) value += 0.006;
+  if (personality.id === 'defensive' && movement.label.includes('측면')) value += 0.018;
   if (personality.id === 'assassin' && movement.label.includes('측')) value += 0.035;
   return value;
 }
@@ -286,9 +286,11 @@ function tryCloseRangeReset(unit, enemy, movement) {
   const pushResistance = enemyPersonality.knockbackTakenScale || 1;
   const antiDaggerScale = spearPinned && enemy.weaponId === 'dagger' ? 1.34 : 1;
   const westernGuardScale = spearPinned && enemy.weaponId === 'western' ? 0.74 : 1;
-  const force = (spearPinned ? 7.2 : 4.2) * identityPush * pushResistance * antiDaggerScale * westernGuardScale;
-  const sideForce = (spearPinned ? 1.8 : 1.4) * identityPush * pushResistance * antiDaggerScale * westernGuardScale;
-  const selfSide = (spearPinned ? 2.35 : 1.6) * identityPush;
+  const defensiveDaggerScale = unit.weaponId === 'dagger' && personality.id === 'defensive' ? 0.58 : 1;
+  const defensiveSpearVsEasternScale = unit.weaponId === 'spear' && personality.id === 'defensive' && enemy.weaponId === 'eastern' ? 0.72 : 1;
+  const force = (spearPinned ? 7.2 : 4.2) * identityPush * pushResistance * antiDaggerScale * westernGuardScale * defensiveDaggerScale * defensiveSpearVsEasternScale;
+  const sideForce = (spearPinned ? 1.8 : 1.4) * identityPush * pushResistance * antiDaggerScale * westernGuardScale * defensiveDaggerScale * defensiveSpearVsEasternScale;
+  const selfSide = (spearPinned ? 2.35 : 1.6) * identityPush * defensiveDaggerScale * defensiveSpearVsEasternScale;
 
   enemy.vx += Math.cos(pushAngle) * force + Math.cos(sideAngle) * sideForce;
   enemy.vy += Math.sin(pushAngle) * force + Math.sin(sideAngle) * sideForce;
@@ -841,6 +843,8 @@ function getParryChance(defender, attacker, incomingWeapon) {
   const westernFastGuardBonus = defenderWeapon.id === 'western' && (incomingWeapon.id === 'dagger' || incomingWeapon.id === 'eastern') ? 0.065 : 0;
   const spearFrontGuardBonus = defenderWeapon.id === 'spear' && incomingWeapon.id === 'dagger' && getPositionalBonus(attacker, defender) <= 1.05 ? 0.11 : 0;
   const westernVsSpearGuardPenalty = defenderWeapon.id === 'spear' && incomingWeapon.id === 'western' ? 0.045 : 0;
+  const defensiveSpearEasternGuardPenalty = defender.weaponId === 'spear' && defender.personalityId === 'defensive' && incomingWeapon.id === 'eastern' ? 0.025 : 0;
+  const defensiveDaggerSpearGuardPenalty = defender.weaponId === 'dagger' && defender.personalityId === 'defensive' && incomingWeapon.id === 'spear' ? 0.045 : 0;
 
   return clamp(
     POSTURE_RULES.parryBaseChance +
@@ -854,6 +858,8 @@ function getParryChance(defender, attacker, incomingWeapon) {
     westernFastGuardBonus +
     spearFrontGuardBonus -
     westernVsSpearGuardPenalty -
+    defensiveSpearEasternGuardPenalty -
+    defensiveDaggerSpearGuardPenalty -
     (incomingWeapon.parryBreak || 0) -
     pressurePenalty,
     0,
@@ -1023,18 +1029,32 @@ function getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hit
 }
 
 function getMatchupDamageScale(attacker, defender) {
-  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear') return 0.7;
-  if (attacker.weaponId === 'spear' && defender.weaponId === 'dagger') return 1.1;
+  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear') {
+    return attacker.personalityId === 'defensive' ? 0.48 : 0.7;
+  }
+  if (attacker.weaponId === 'spear' && defender.weaponId === 'dagger') {
+    return defender.personalityId === 'defensive' ? 1.2 : 1.1;
+  }
   if (attacker.weaponId === 'eastern' && defender.weaponId === 'dagger') return 0.86;
-  if (attacker.weaponId === 'spear' && defender.weaponId === 'western' && attacker.personalityId === 'defensive') return 0.9;
+  if (attacker.weaponId === 'spear' && attacker.personalityId === 'defensive' && defender.weaponId === 'eastern') return 0.9;
+  if (attacker.weaponId === 'eastern' && defender.weaponId === 'spear' && defender.personalityId === 'defensive') return 1.06;
+  if (attacker.weaponId === 'spear' && defender.weaponId === 'western' && attacker.personalityId === 'defensive') return 0.84;
+  if (attacker.weaponId === 'western' && defender.weaponId === 'spear' && defender.personalityId === 'defensive') return 1.08;
   return 1;
 }
 
 function getMatchupPostureScale(attacker, defender) {
-  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear') return 0.66;
-  if (attacker.weaponId === 'spear' && defender.weaponId === 'dagger') return 1.18;
+  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear') {
+    return attacker.personalityId === 'defensive' ? 0.42 : 0.66;
+  }
+  if (attacker.weaponId === 'spear' && defender.weaponId === 'dagger') {
+    return defender.personalityId === 'defensive' ? 1.28 : 1.18;
+  }
   if (attacker.weaponId === 'eastern' && defender.weaponId === 'dagger') return 0.86;
-  if (attacker.weaponId === 'spear' && defender.weaponId === 'western' && attacker.personalityId === 'defensive') return 0.9;
+  if (attacker.weaponId === 'spear' && attacker.personalityId === 'defensive' && defender.weaponId === 'eastern') return 0.88;
+  if (attacker.weaponId === 'eastern' && defender.weaponId === 'spear' && defender.personalityId === 'defensive') return 1.1;
+  if (attacker.weaponId === 'spear' && defender.weaponId === 'western' && attacker.personalityId === 'defensive') return 0.84;
+  if (attacker.weaponId === 'western' && defender.weaponId === 'spear' && defender.personalityId === 'defensive') return 1.12;
   return 1;
 }
 

@@ -128,11 +128,64 @@ export function getNextLevelExp(level) {
   return 100 + (level - 1) * 42;
 }
 
+function getWeaponPersonalityTuning(weaponId, personalityId) {
+  if (personalityId !== 'defensive') {
+    return {
+      attackScale: 1,
+      defenseScale: 1,
+      evasionScale: 1,
+      moveSpeedScale: 1,
+      cooldownScale: 1,
+      turnSpeedScale: 1,
+      postureDamageScale: 1,
+      postureMaxScale: 1
+    };
+  }
+
+  if (weaponId === 'dagger') {
+    return {
+      attackScale: 0.92,
+      defenseScale: 0.92,
+      evasionScale: 0.92,
+      moveSpeedScale: 0.91,
+      cooldownScale: 1.12,
+      turnSpeedScale: 0.94,
+      postureDamageScale: 0.86,
+      postureMaxScale: 0.96
+    };
+  }
+
+  if (weaponId === 'spear') {
+    return {
+      attackScale: 0.97,
+      defenseScale: 0.97,
+      evasionScale: 1,
+      moveSpeedScale: 0.98,
+      cooldownScale: 1.04,
+      turnSpeedScale: 0.98,
+      postureDamageScale: 0.94,
+      postureMaxScale: 0.98
+    };
+  }
+
+  return {
+    attackScale: 1,
+    defenseScale: 1,
+    evasionScale: 1,
+    moveSpeedScale: 1,
+    cooldownScale: 1,
+    turnSpeedScale: 1,
+    postureDamageScale: 1,
+    postureMaxScale: 1
+  };
+}
+
 export function derivePlayerProfile(player) {
   const weapon = WEAPONS[player.weaponId];
   const personality = PERSONALITIES[player.personalityId];
   const skillEffects = collectSkillEffects(player.skills);
   const stats = player.stats;
+  const tuning = getWeaponPersonalityTuning(player.weaponId, player.personalityId);
 
   const maxHp = Math.round(
     BASE_STATS.maxHp +
@@ -147,22 +200,23 @@ export function derivePlayerProfile(player) {
     stats.def * POSTURE_RULES.defenseToMax +
     stats.vit * POSTURE_RULES.vitalityToMax +
     player.level * POSTURE_RULES.levelToMax
-  ) * (personality.postureMaxScale || 1));
+  ) * (personality.postureMaxScale || 1) * (tuning.postureMaxScale || 1));
 
-  const attackScale =
+  const attackScale = (
     1 +
     stats.str * 0.065 +
     stats.agi * 0.012 +
     player.mastery * 0.035 +
     (personality.attackBonus || 0) +
-    (skillEffects.attackBonus || 0);
+    (skillEffects.attackBonus || 0)
+  ) * (tuning.attackScale || 1);
 
   const defense = clamp(
     0.035 +
     stats.def * 0.012 +
     stats.vit * 0.002 +
-    (personality.defenseBonus || 0) +
-    (skillEffects.defenseBonus || 0),
+    ((personality.defenseBonus || 0) +
+    (skillEffects.defenseBonus || 0)) * (tuning.defenseScale || 1),
     0,
     BASE_STATS.defenseCap
   );
@@ -171,8 +225,8 @@ export function derivePlayerProfile(player) {
     0.025 +
     stats.agi * 0.007 +
     stats.luck * 0.002 +
-    (personality.evasionBonus || 0) +
-    (skillEffects.evasionBonus || 0),
+    ((personality.evasionBonus || 0) +
+    (skillEffects.evasionBonus || 0)) * (tuning.evasionScale || 1),
     0,
     BASE_STATS.evasionCap
   );
@@ -187,9 +241,9 @@ export function derivePlayerProfile(player) {
   );
 
   const speedScales = getWeaponAgilityScales(weapon, stats, player.mastery, skillEffects, true);
-  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1);
-  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1);
-  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1);
+  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (tuning.moveSpeedScale || 1);
+  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1) * (tuning.cooldownScale || 1);
+  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (tuning.turnSpeedScale || 1);
   const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
 
   return {
@@ -413,6 +467,7 @@ function deriveEnemyProfile(enemy, floor) {
   const personality = PERSONALITIES[enemy.personalityId];
   const skillEffects = collectSkillEffects(enemy.skills);
   const stats = enemy.stats;
+  const tuning = getWeaponPersonalityTuning(enemy.weaponId, enemy.personalityId);
   const floorIndex = Math.max(0, floor - 1);
   const bossMult = floor % TOWER_RULES.bossInterval === 0 ? 1.18 : 1;
 
@@ -428,7 +483,8 @@ function deriveEnemyProfile(enemy, floor) {
     stats.vit * POSTURE_RULES.vitalityToMax +
     floorIndex * POSTURE_RULES.enemyFloorToMax) *
     bossMult *
-    (personality.postureMaxScale || 1)
+    (personality.postureMaxScale || 1) *
+    (tuning.postureMaxScale || 1)
   );
 
   const attackScale =
@@ -438,15 +494,15 @@ function deriveEnemyProfile(enemy, floor) {
     enemy.mastery * 0.027 +
     floorIndex * TOWER_RULES.damageGrowthPerFloor * 0.32 +
     (personality.attackBonus || 0) +
-    (skillEffects.attackBonus || 0)) * bossMult;
+    (skillEffects.attackBonus || 0)) * (tuning.attackScale || 1) * bossMult;
 
   const defense = clamp(
     0.025 +
     stats.def * 0.01 +
     stats.vit * 0.0015 +
     floorIndex * TOWER_RULES.defenseGrowthPerFloor * 0.42 +
-    (personality.defenseBonus || 0) +
-    (skillEffects.defenseBonus || 0),
+    ((personality.defenseBonus || 0) +
+    (skillEffects.defenseBonus || 0)) * (tuning.defenseScale || 1),
     0,
     TOWER_RULES.maxEnemyDefense + (floor % TOWER_RULES.bossInterval === 0 ? 0.06 : 0)
   );
@@ -455,8 +511,8 @@ function deriveEnemyProfile(enemy, floor) {
     0.018 +
     stats.agi * 0.006 +
     stats.luck * 0.0015 +
-    (personality.evasionBonus || 0) +
-    (skillEffects.evasionBonus || 0),
+    ((personality.evasionBonus || 0) +
+    (skillEffects.evasionBonus || 0)) * (tuning.evasionScale || 1),
     0,
     0.32
   );
@@ -479,9 +535,9 @@ function deriveEnemyProfile(enemy, floor) {
     defense,
     evasion,
     crit,
-    moveSpeedScale: speedScales.moveSpeedScale * (personality.moveSpeedScale || 1),
-    cooldownScale: speedScales.cooldownScale * (personality.cooldownScale || 1),
-    turnSpeedScale: speedScales.turnSpeedScale * (personality.turnSpeedScale || 1),
+    moveSpeedScale: speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (tuning.moveSpeedScale || 1),
+    cooldownScale: speedScales.cooldownScale * (personality.cooldownScale || 1) * (tuning.cooldownScale || 1),
+    turnSpeedScale: speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (tuning.turnSpeedScale || 1),
     critDamage: 1.5 + stats.luck * 0.004 + (skillEffects.critDamageBonus || 0),
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
   };

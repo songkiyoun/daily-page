@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.10';
+export const VERSION = '0.6.11';
 
 export const WEAPONS = {
   spear: {
@@ -342,25 +342,25 @@ export const PERSONALITIES = {
     retreatHpRatio: 0.42,
     flankPreference: 0.42,
     pressure: 0.31,
-    attackBonus: -0.08,
-    defenseBonus: 0.065,
-    evasionBonus: -0.004,
-    critBonus: -0.005,
-    parryBonus: 0.16,
-    moveSpeedScale: 0.96,
-    turnSpeedScale: 0.96,
-    cooldownScale: 1.1,
-    postureMaxScale: 1.12,
-    knockbackDealtScale: 0.9,
-    knockbackTakenScale: 0.78,
-    postureDamageDealtScale: 0.94,
-    postureDamageTakenScale: 0.82,
+    attackBonus: -0.115,
+    defenseBonus: 0.058,
+    evasionBonus: -0.008,
+    critBonus: -0.008,
+    parryBonus: 0.145,
+    moveSpeedScale: 0.94,
+    turnSpeedScale: 0.94,
+    cooldownScale: 1.16,
+    postureMaxScale: 1.1,
+    knockbackDealtScale: 0.84,
+    knockbackTakenScale: 0.8,
+    postureDamageDealtScale: 0.88,
+    postureDamageTakenScale: 0.84,
     description: '공격력은 낮지만 방어, 패링, 밀림 저항, 자세 안정성이 높습니다.',
-    weaponIdentityScale: 0.98,
-    feintScale: 0.82,
-    comboScale: 0.82,
-    closePushScale: 1.04,
-    counterScale: 1.32
+    weaponIdentityScale: 0.94,
+    feintScale: 0.78,
+    comboScale: 0.76,
+    closePushScale: 0.94,
+    counterScale: 1.26
   },
   assassin: {
     id: 'assassin',
