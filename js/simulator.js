@@ -191,7 +191,7 @@ export function formatAllMatchupSummary(summary) {
 
 export function copyableAllMatchupText(summary) {
   const lines = [
-    `Circle Battle Tower Rebuild v0.6.12 전체 조합 시뮬레이션`,
+    `Circle Battle Tower Rebuild v0.6.13 전체 조합 시뮬레이션`,
     `반복 횟수	${summary.rounds}`,
     `대진 방식	양방향 보정`,
     `층	${summary.floor}`,

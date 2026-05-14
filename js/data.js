@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.6.12';
+export const VERSION = '0.6.13';
 
 export const WEAPONS = {
   spear: {
@@ -436,11 +436,16 @@ export const POSTURE_RULES = {
   vitalityToMax: 2,
   levelToMax: 2,
   enemyFloorToMax: 2,
-  recoveryDelayFrames: 96,
-  recoveryPerFrame: 0.22,
-  staggerFrames: 52,
-  staggerPostureRestoreRatio: 0.42,
-  staggerDamageTakenBonus: 1.12,
+  recoveryDelayFrames: 90,
+  recoveryPerFrame: 0.24,
+  staggerFrames: 46,
+  staggerPostureRestoreRatio: 0.54,
+  staggerDamageTakenBonus: 1.06,
+  staggerGuardFrames: 84,
+  staggerGuardPostureScale: 0.42,
+  staggerGuardPostureFloorRatio: 0.2,
+  staggerRecoveryBoostFrames: 110,
+  staggerRecoveryBoostScale: 1.7,
   staggerMoveScale: 0.12,
   minPostureDamage: 3,
   impactTurnMin: 0.18,
@@ -500,7 +505,9 @@ export const POSTURE_RULES = {
   defensiveProbeCooldownFrames: 84,
   defensiveProbeDamageScale: 0.84,
   defensiveProbePostureScale: 0.78,
-  defensiveProbeAngleBonus: 0.36
+  defensiveProbeAngleBonus: 0.36,
+  defensiveCloseDaggerAngleBonus: 0.34,
+  defensiveCloseDaggerNoEngageFrames: 92
 };
 
 export const SKILLS = {

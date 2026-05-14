@@ -95,12 +95,15 @@ function defensiveStallProbeMovement(self, enemy, desired, toEnemy, fromEnemy, d
   const enemyIdle = enemy.noEngageFrames || 0;
   const mutualStall = selfIdle > (POSTURE_RULES.defensiveMutualStallFrames || 170) && enemyIdle > (POSTURE_RULES.defensiveMutualStallFrames || 170);
   const selfStall = selfIdle > (POSTURE_RULES.defensiveStallFrames || 210);
-  if (!mutualStall && !selfStall) return null;
-
   const nearEnough = dist < desired + 42;
   const tooFar = dist > desired + 12;
   const tooClose = dist < Math.max(weapon.minRange + enemy.radius + 5, desired - 18);
+  const closeSideDaggerProbe = weapon.id === 'dagger'
+    && dist < desired + 30
+    && !relation.isFront
+    && selfIdle > (POSTURE_RULES.defensiveCloseDaggerNoEngageFrames || 90);
   if (!nearEnough && weapon.id !== 'spear') return null;
+  if (!mutualStall && !selfStall && !closeSideDaggerProbe) return null;
 
   self.defensiveProbeTimer = Math.max(self.defensiveProbeTimer || 0, POSTURE_RULES.defensiveProbeFrames || 42);
 
