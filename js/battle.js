@@ -86,6 +86,7 @@ function tickTimers(unit) {
   if (unit.comboTimer <= 0) unit.comboCount = 0;
   if (unit.riposteTimer > 0) unit.riposteTimer -= 1;
   if (unit.skillRuntime?.highSpeedTimer > 0) unit.skillRuntime.highSpeedTimer -= 1;
+  if (unit.skillRuntime?.spearFocusTimer > 0) unit.skillRuntime.spearFocusTimer -= 1;
   Object.keys(unit.skillCooldowns || {}).forEach((skillId) => {
     if (unit.skillCooldowns[skillId] > 0) unit.skillCooldowns[skillId] -= 1;
   });
@@ -182,6 +183,9 @@ function getTurnSpeed(unit) {
   }
   if (unit.parryFlashTimer > 0) scale *= Math.min(0.74, weapon.shakenTurnScale || 0.72);
   if (unit.posture < unit.maxPosture * 0.35) scale *= Math.min(0.9, (weapon.shakenTurnScale || 0.86) + 0.12);
+  if (unit.weaponId === 'spear' && unit.skillRuntime?.spearFocusTimer > 0) {
+    scale *= 1.28 + getUnitSkillLevel(unit, 'spearFocus') * 0.08;
+  }
   if (unit.staggerTimer > 0) scale *= POSTURE_RULES.staggerMoveScale;
 
   return weapon.turnSpeed * scale;
@@ -374,8 +378,11 @@ function canStartAttack(attacker, defender) {
 function beginAttack(attacker, defender) {
   const weapon = WEAPONS[attacker.weaponId];
   attacker.attackState = 'windup';
-  attacker.attackTimer = weapon.windup;
-  attacker.attackWindupMax = weapon.windup;
+  const focusWindupScale = attacker.weaponId === 'spear' && attacker.skillRuntime?.spearFocusTimer > 0
+    ? Math.max(0.76, 0.92 - getUnitSkillLevel(attacker, 'spearFocus') * 0.04)
+    : 1;
+  attacker.attackTimer = Math.max(4, Math.round(weapon.windup * focusWindupScale));
+  attacker.attackWindupMax = attacker.attackTimer;
   attacker.attackActiveMax = getActiveFrames(attacker);
   attacker.attackRecoveryMax = weapon.recovery;
   attacker.attackResolved = false;
@@ -820,9 +827,7 @@ function resolveReactiveGuard(defender, attacker, state) {
 
   const skillId = defender.weaponId === 'western'
     ? 'westernKnightInstinct'
-    : defender.weaponId === 'spear'
-      ? 'spearFocus'
-      : '';
+    : '';
 
   if (!skillId || !hasReadySkill(defender, skillId)) return false;
 
@@ -844,6 +849,18 @@ function resolveReactiveGuard(defender, attacker, state) {
 }
 
 function triggerPostureSkill(unit, enemy, state) {
+  if (unit.weaponId === 'spear' && unit.posture / unit.maxPosture < 0.35 && hasReadySkill(unit, 'spearFocus')) {
+    const level = getUnitSkillLevel(unit, 'spearFocus');
+    useSkill(unit, 'spearFocus');
+    unit.posture = Math.min(unit.maxPosture, unit.posture + unit.maxPosture * (0.18 + level * 0.035));
+    unit.postureRecoveryDelay = Math.max(0, unit.postureRecoveryDelay - (14 + level * 3));
+    unit.skillRuntime.spearFocusTimer = 72 + level * 14;
+    unit.facing = angleTo(unit, enemy);
+    unit.cooldownTimer = Math.max(0, unit.cooldownTimer - (6 + level * 2));
+    unit.lastAction = '집중';
+    emitCombatEvent(state, '집중', unit.x, unit.y - 44, '#9fe8ff');
+  }
+
   if (unit.posture / unit.maxPosture < 0.18 && hasReadySkill(unit, 'easternMindFocus')) {
     const level = getUnitSkillLevel(unit, 'easternMindFocus');
     useSkill(unit, 'easternMindFocus');

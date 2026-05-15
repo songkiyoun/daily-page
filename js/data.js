@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.2';
+export const VERSION = '0.7.3';
 
 export const WEAPONS = {
   spear: {
@@ -568,8 +568,8 @@ export const SKILLS = {
     owner: 'spear',
     type: 'survival',
     maxLevel: 3,
-    cooldown: 1200,
-    description: '창 전용. 측후면 공격을 감지하면 상대를 향해 돌며 거리를 벌립니다.'
+    cooldown: 780,
+    description: '창 전용. 자세가 흔들렸을 때 집중해 자세를 회복하고 창끝을 다시 상대에게 맞춥니다.'
   },
   spearSweep: {
     id: 'spearSweep',
