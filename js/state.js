@@ -375,14 +375,18 @@ function createRandomEnemyConfig(floor) {
   const personalityIds = Object.keys(PERSONALITIES);
   const nameIndex = (floor + randomInt(0, ENEMY_NAMES.length - 1)) % ENEMY_NAMES.length;
   const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
+  const weaponId = sample(weaponIds);
+  const personalityId = sample(personalityIds);
+  const skills = createEnemySkills(floor, isBossFloor, weaponId, personalityId);
 
   return {
     name: isBossFloor ? `BOSS ${ENEMY_NAMES[nameIndex]}` : ENEMY_NAMES[nameIndex],
-    weaponId: sample(weaponIds),
-    personalityId: sample(personalityIds),
+    weaponId,
+    personalityId,
     level: Math.max(1, floor),
     stats: createEnemyStats(floor, isBossFloor),
-    skills: createEnemySkills(floor, isBossFloor),
+    skills,
+    skillLevels: createEnemySkillLevels(skills, floor, isBossFloor),
     mastery: createEnemyMastery(floor, isBossFloor)
   };
 }
@@ -536,6 +540,22 @@ function createEnemySkillLevels(skills, floor, isBossFloor) {
   }
   return levels;
 }
+
+export function validateSkillLoadout(entity) {
+  const expected = getDefaultSkillIds(entity.weaponId, entity.personalityId);
+  const skills = entity.skills || [];
+  const missing = expected.filter((skillId) => !skills.includes(skillId));
+  const levels = entity.skillLevels || createInitialSkillLevels(skills);
+  const missingLevels = skills.filter((skillId) => !levels[skillId]);
+  return {
+    expectedCount: expected.length,
+    skillCount: skills.length,
+    missing,
+    missingLevels,
+    valid: missing.length === 0 && missingLevels.length === 0
+  };
+}
+
 
 function grantExp(player, amount) {
   player.exp += amount;
