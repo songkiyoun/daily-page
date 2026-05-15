@@ -71,9 +71,11 @@ function drawWeaponArc(ctx, unit) {
       : unit.attackState === 'recovery'
         ? 0.07
         : 0.045;
-  const arc = unit.attackState === 'active'
-    ? Math.max(weapon.arc, (weapon.swingVisualArc || weapon.arc) * 0.52)
-    : weapon.arc * 0.78;
+  const arc = unit.activeSkillAttack === 'spearSweep' && unit.attackState === 'active'
+    ? Math.max(weapon.arc * 3.0, 1.2)
+    : unit.attackState === 'active'
+      ? Math.max(weapon.arc, (weapon.swingVisualArc || weapon.arc) * 0.52)
+      : weapon.arc * 0.78;
   const start = visual.angle - arc;
   const end = visual.angle + arc;
 
@@ -176,7 +178,10 @@ function getWeaponVisual(unit, weapon) {
   let reachScale = weapon.id === 'spear' ? 0.42 : weapon.id === 'dagger' ? 0.7 : 0.76;
 
   if (unit.attackState === 'windup') {
-    if (weapon.id === 'spear') {
+    if (unit.activeSkillAttack === 'spearSweep') {
+      angle = base - side * 0.92;
+      reachScale = 0.72 + phase * 0.2;
+    } else if (weapon.id === 'spear') {
       angle = base - side * 0.045;
       reachScale = 0.42 + phase * 0.18;
     } else if (weapon.id === 'dagger') {
@@ -190,7 +195,10 @@ function getWeaponVisual(unit, weapon) {
       reachScale = 0.74 + phase * 0.08;
     }
   } else if (unit.attackState === 'active') {
-    if (weapon.id === 'spear') {
+    if (unit.activeSkillAttack === 'spearSweep') {
+      angle = base + side * ((phase - 0.5) * 1.95);
+      reachScale = 0.96 + Math.sin(phase * Math.PI) * 0.36;
+    } else if (weapon.id === 'spear') {
       angle = base + side * Math.sin(phase * Math.PI) * 0.045;
       reachScale = 1.02 + Math.sin(phase * Math.PI) * 0.62;
     } else if (weapon.id === 'dagger') {
@@ -204,8 +212,13 @@ function getWeaponVisual(unit, weapon) {
       reachScale = 0.94 + Math.sin(phase * Math.PI) * 0.12;
     }
   } else if (unit.attackState === 'recovery') {
-    angle = base + side * (weapon.swingVisualArc || weapon.arc) * (weapon.id === 'spear' ? -0.06 : weapon.id === 'dagger' ? 0.18 : 0.34);
-    reachScale = weapon.id === 'spear' ? 0.48 : weapon.id === 'dagger' ? 0.68 : weapon.id === 'eastern' ? 0.78 : 0.8;
+    if (unit.activeSkillAttack === 'spearSweep') {
+      angle = base + side * 0.82;
+      reachScale = 0.72;
+    } else {
+      angle = base + side * (weapon.swingVisualArc || weapon.arc) * (weapon.id === 'spear' ? -0.06 : weapon.id === 'dagger' ? 0.18 : 0.34);
+      reachScale = weapon.id === 'spear' ? 0.48 : weapon.id === 'dagger' ? 0.68 : weapon.id === 'eastern' ? 0.78 : 0.8;
+    }
   }
 
   return {

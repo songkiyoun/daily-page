@@ -690,7 +690,7 @@ function getSkillDamageBonus(attacker, defender, skillId) {
   if (skillId === 'westernBash') return 1.06 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'daggerVitalStrike') return 1.0 + getUnitSkillLevel(attacker, skillId) * 0.025;
   if (skillId === 'spearDoubleThrust') return 0.42 + getUnitSkillLevel(attacker, skillId) * 0.04;
-  if (skillId === 'spearSweep') return 0.24 + getUnitSkillLevel(attacker, skillId) * 0.025;
+  if (skillId === 'spearSweep') return 0.28 + getUnitSkillLevel(attacker, skillId) * 0.035;
   return 1;
 }
 
@@ -698,7 +698,7 @@ function getSkillPostureDamageScale(attacker, skillId) {
   if (skillId === 'westernBash') return 1.06 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'daggerVitalStrike') return 0.94;
   if (skillId === 'spearDoubleThrust') return 0.56 + getUnitSkillLevel(attacker, skillId) * 0.04;
-  if (skillId === 'spearSweep') return 0.62 + getUnitSkillLevel(attacker, skillId) * 0.04;
+  if (skillId === 'spearSweep') return 0.72 + getUnitSkillLevel(attacker, skillId) * 0.045;
   return 1;
 }
 
@@ -779,9 +779,44 @@ function applyIncomingSkillMitigation(defender, attacker, damage, state) {
   return finalDamage;
 }
 
+
+function triggerSpearSweepCounter(defender, attacker, state, level) {
+  useSkill(defender, 'spearSweep');
+  defender.facing = angleTo(defender, attacker);
+  defender.activeSkillAttack = 'spearSweep';
+  defender.attackState = 'active';
+  defender.attackTimer = getActiveFrames(defender) + 3;
+  defender.attackWindupMax = 1;
+  defender.attackActiveMax = defender.attackTimer;
+  defender.attackRecoveryMax = Math.max(8, Math.round(WEAPONS.spear.recovery * 0.92));
+  defender.attackResolved = false;
+  defender.attackOutcome = '';
+  defender.attackAim = angleTo(defender, attacker);
+  defender.attackVisualPhase = 0;
+  defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 14);
+  defender.skillRuntime.reactiveGuardMitigation = Math.max(0.84, 0.94 - level * 0.025);
+
+  const a = angleTo(defender, attacker);
+  const push = 2.6 + level * 0.34;
+  attacker.vx += Math.cos(a) * push;
+  attacker.vy += Math.sin(a) * push;
+  attacker.postureRecoveryDelay = Math.max(attacker.postureRecoveryDelay || 0, 8 + level * 2);
+  defender.lastAction = '벤다!';
+  emitCombatEvent(state, '벤다!', defender.x, defender.y - 48, '#9fe8ff');
+}
+
 function resolveReactiveGuard(defender, attacker, state) {
   const sideOrBack = isFlankOrBack(attacker, defender);
   if (!sideOrBack) return false;
+
+  if (defender.weaponId === 'spear' && defender.attackState === 'idle' && hasReadySkill(defender, 'spearSweep')) {
+    const sweepLevel = getUnitSkillLevel(defender, 'spearSweep');
+    const sweepChance = 0.12 + sweepLevel * 0.045;
+    if (Math.random() < sweepChance) {
+      triggerSpearSweepCounter(defender, attacker, state, sweepLevel);
+      return true;
+    }
+  }
 
   const skillId = defender.weaponId === 'western'
     ? 'westernKnightInstinct'
@@ -848,25 +883,6 @@ function triggerPostureSkill(unit, enemy, state) {
     }
   }
 
-  if (unit.weaponId === 'spear' && unit.attackState === 'idle' && hasReadySkill(unit, 'spearSweep')) {
-    const distToEnemy = distance(unit, enemy);
-    if (distToEnemy < unit.radius + enemy.radius + 12) {
-      useSkill(unit, 'spearSweep');
-      unit.activeSkillAttack = 'spearSweep';
-      unit.attackState = 'windup';
-      unit.attackTimer = Math.max(5, Math.round(WEAPONS.spear.windup * 0.62));
-      unit.attackWindupMax = unit.attackTimer;
-      unit.attackActiveMax = getActiveFrames(unit);
-      unit.attackRecoveryMax = Math.max(6, Math.round(WEAPONS.spear.recovery * 0.8));
-      unit.attackResolved = false;
-      unit.attackOutcome = '';
-      unit.attackAim = angleTo(unit, enemy);
-      unit.attackVisualPhase = 0;
-      unit.cooldownTimer = Math.max(unit.cooldownTimer || 0, 12);
-      unit.lastAction = '창 휘두르기 준비';
-      emitCombatEvent(state, '벤다!', unit.x, unit.y - 42, '#9fe8ff');
-    }
-  }
 }
 
 function applyReflectDamage(defender, attacker, damage, state) {
@@ -1185,7 +1201,7 @@ function getHitQuality(attacker, defender, weapon, dist, angleGap, hitArc) {
 
 function getHitArc(attacker, weapon) {
   if (attacker.activeSkillAttack === 'westernBash') return weapon.arc * 1.34;
-  if (attacker.activeSkillAttack === 'spearSweep') return Math.max(weapon.arc * 2.25, 0.92);
+  if (attacker.activeSkillAttack === 'spearSweep') return Math.max(weapon.arc * 3.15, 1.28);
   if (weapon.id === 'western') return weapon.arc * 1.02;
   if (weapon.id === 'eastern') return weapon.arc * 1.04;
   if (weapon.id === 'dagger') return weapon.arc * 1.1;
@@ -1202,7 +1218,7 @@ function getHitReach(attacker, defender, weapon) {
   const skillReach = attacker.activeSkillAttack === 'westernBash'
     ? 8
     : attacker.activeSkillAttack === 'spearSweep'
-      ? -Math.max(10, weapon.range * 0.42)
+      ? -Math.max(4, weapon.range * 0.22)
       : 0;
   return weapon.range + defender.radius + hitReachBonus + skillReach;
 }
