@@ -184,7 +184,9 @@ function getTurnSpeed(unit) {
   if (unit.parryFlashTimer > 0) scale *= Math.min(0.74, weapon.shakenTurnScale || 0.72);
   if (unit.posture < unit.maxPosture * 0.35) scale *= Math.min(0.9, (weapon.shakenTurnScale || 0.86) + 0.12);
   if (unit.weaponId === 'spear' && unit.skillRuntime?.spearFocusTimer > 0) {
-    scale *= 1.28 + getUnitSkillLevel(unit, 'spearFocus') * 0.08;
+    const focusTurnBase = unit.personalityId === 'defensive' ? 1.12 : 1.28;
+    const focusTurnPerLevel = unit.personalityId === 'defensive' ? 0.05 : 0.08;
+    scale *= focusTurnBase + getUnitSkillLevel(unit, 'spearFocus') * focusTurnPerLevel;
   }
   if (unit.staggerTimer > 0) scale *= POSTURE_RULES.staggerMoveScale;
 
@@ -761,11 +763,14 @@ function applyIncomingSkillMitigation(defender, attacker, damage, state) {
 
   if (hasReadySkill(defender, 'daggerDecoyDoll') && (finalDamage > defender.maxHp * 0.12 || finalDamage >= defender.hp * 0.55)) {
     const level = getUnitSkillLevel(defender, 'daggerDecoyDoll');
-    useSkill(defender, 'daggerDecoyDoll');
-    finalDamage *= Math.max(0.52, 0.7 - level * 0.055);
-    teleportNearRear(defender, attacker, 38 + level * 4);
-    defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 12);
-    defender.posture = Math.min(defender.maxPosture, defender.posture + defender.maxPosture * (0.06 + level * 0.015));
+    const isDefensiveDagger = defender.weaponId === 'dagger' && defender.personalityId === 'defensive';
+    useSkill(defender, 'daggerDecoyDoll', isDefensiveDagger ? (SKILLS.daggerDecoyDoll.cooldown || 980) * 1.22 : null);
+    finalDamage *= isDefensiveDagger
+      ? Math.max(0.64, 0.8 - level * 0.04)
+      : Math.max(0.52, 0.7 - level * 0.055);
+    teleportNearRear(defender, attacker, isDefensiveDagger ? 32 + level * 2 : 38 + level * 4);
+    defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, isDefensiveDagger ? 16 : 12);
+    defender.posture = Math.min(defender.maxPosture, defender.posture + defender.maxPosture * (isDefensiveDagger ? 0.035 + level * 0.01 : 0.06 + level * 0.015));
     defender.lastAction = '분신 인형';
     emitCombatEvent(state, '분신 인형!', defender.x, defender.y - 46, '#d7b9ff');
   }
@@ -849,14 +854,16 @@ function resolveReactiveGuard(defender, attacker, state) {
 }
 
 function triggerPostureSkill(unit, enemy, state) {
-  if (unit.weaponId === 'spear' && unit.posture / unit.maxPosture < 0.35 && hasReadySkill(unit, 'spearFocus')) {
+  const spearFocusThreshold = unit.personalityId === 'defensive' ? 0.27 : 0.35;
+  if (unit.weaponId === 'spear' && unit.posture / unit.maxPosture < spearFocusThreshold && hasReadySkill(unit, 'spearFocus')) {
     const level = getUnitSkillLevel(unit, 'spearFocus');
-    useSkill(unit, 'spearFocus');
-    unit.posture = Math.min(unit.maxPosture, unit.posture + unit.maxPosture * (0.18 + level * 0.035));
-    unit.postureRecoveryDelay = Math.max(0, unit.postureRecoveryDelay - (14 + level * 3));
-    unit.skillRuntime.spearFocusTimer = 72 + level * 14;
+    const isDefensiveSpear = unit.personalityId === 'defensive';
+    useSkill(unit, 'spearFocus', isDefensiveSpear ? (SKILLS.spearFocus.cooldown || 780) * 1.18 : null);
+    unit.posture = Math.min(unit.maxPosture, unit.posture + unit.maxPosture * (isDefensiveSpear ? 0.12 + level * 0.025 : 0.18 + level * 0.035));
+    unit.postureRecoveryDelay = Math.max(0, unit.postureRecoveryDelay - (isDefensiveSpear ? 9 + level * 2 : 14 + level * 3));
+    unit.skillRuntime.spearFocusTimer = isDefensiveSpear ? 46 + level * 10 : 72 + level * 14;
     unit.facing = angleTo(unit, enemy);
-    unit.cooldownTimer = Math.max(0, unit.cooldownTimer - (6 + level * 2));
+    unit.cooldownTimer = Math.max(0, unit.cooldownTimer - (isDefensiveSpear ? 3 + level : 6 + level * 2));
     unit.lastAction = '집중';
     emitCombatEvent(state, '집중', unit.x, unit.y - 44, '#9fe8ff');
   }
@@ -1305,12 +1312,18 @@ function getPositionalBonus(attacker, defender) {
 
 
 function getMatchupDamageScale(attacker, defender, weapon) {
+  let scale = 1;
+
   if (weapon.id === 'dagger' && defender.weaponId === 'spear') {
     const spearPersonality = PERSONALITIES[defender.personalityId];
-    const base = spearPersonality.id === 'defensive' ? 0.52 : spearPersonality.id === 'aggressive' ? 0.58 : 0.55;
-    return base;
+    scale *= spearPersonality.id === 'defensive' ? 0.52 : spearPersonality.id === 'aggressive' ? 0.58 : 0.55;
   }
-  return 1;
+
+  if (weapon.id === 'dagger' && attacker.personalityId === 'defensive') {
+    scale *= 0.91;
+  }
+
+  return scale;
 }
 
 
@@ -1377,7 +1390,8 @@ function getPostureRecoveryDelay(unit, scale = 1) {
 function applyPostureDamage(attacker, defender, amount, state = null) {
   if (defender.isDead || defender.staggerTimer > 0) return;
 
-  defender.posture = clamp(defender.posture - amount, 0, defender.maxPosture);
+  const scaledAmount = amount * (defender.postureDamageTakenRewardScale || 1);
+  defender.posture = clamp(defender.posture - scaledAmount, 0, defender.maxPosture);
   defender.postureRecoveryDelay = getPostureRecoveryDelay(defender);
 
   if (defender.posture <= 0) {

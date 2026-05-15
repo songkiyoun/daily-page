@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.4';
+export const VERSION = '0.7.6';
 
 export const WEAPONS = {
   spear: {
@@ -755,14 +755,121 @@ export const PERSONALITY_SKILL_LOADOUTS = {
 
 export const REWARD_RULES = {
   choices: 3,
-  statAmount: 1,
+  statAmount: 2,
+  rareStatPoints: 2,
+  heroStatAmount: 3,
+  heroStatPoints: 3,
   masteryAmount: 1,
   skillMaxLevel: 3,
   externalSkillLimit: 2,
   externalSkillMaxLevel: 2,
   bonusStatPoints: 1,
   baseExp: 44,
-  expPerFloor: 7
+  expPerFloor: 7,
+  normalGoldMin: 32,
+  normalGoldMax: 68,
+  normalExpMin: 24,
+  normalExpMax: 48,
+  rarityWeights: {
+    normal: 68,
+    rare: 24,
+    hero: 7,
+    legendary: 1
+  }
+};
+
+export const REWARD_RARITIES = {
+  normal: { id: 'normal', name: '일반' },
+  rare: { id: 'rare', name: '희귀' },
+  hero: { id: 'hero', name: '영웅' },
+  legendary: { id: 'legendary', name: '전설' }
+};
+
+export const REWARD_TRAITS = {
+  glassCannon: {
+    id: 'glassCannon',
+    name: '유리대포',
+    rarity: 'rare',
+    description: '공격력이 크게 오르지만 방어 안정성이 낮아집니다.',
+    effects: { attackBonus: 0.18, defenseBonus: -0.045 }
+  },
+  giantForm: {
+    id: 'giantForm',
+    name: '거인화',
+    rarity: 'rare',
+    description: '최대 체력이 증가하지만 회피율이 낮아집니다.',
+    effects: { maxHpBonus: 0.1, evasionBonus: -0.018 }
+  },
+  cursedSword: {
+    id: 'cursedSword',
+    name: '저주받은 검',
+    rarity: 'rare',
+    description: '공격력이 오르지만 치명타 확률이 낮아집니다.',
+    effects: { attackBonus: 0.075, critBonus: -0.03 }
+  },
+  nimbleFootwork: {
+    id: 'nimbleFootwork',
+    name: '날렵한 발놀림',
+    rarity: 'rare',
+    description: '이동속도가 오르지만 최대 체력이 조금 낮아집니다.',
+    effects: { moveSpeedBonus: 0.08, maxHpBonus: -0.05 }
+  },
+  heavyArmor: {
+    id: 'heavyArmor',
+    name: '무거운 갑옷',
+    rarity: 'rare',
+    description: '방어력이 오르지만 이동속도가 낮아집니다.',
+    effects: { defenseBonus: 0.032, moveSpeedBonus: -0.06 }
+  },
+  gambler: {
+    id: 'gambler',
+    name: '승부사',
+    rarity: 'rare',
+    description: '치명타 확률이 오르지만 방어력이 낮아집니다.',
+    effects: { critBonus: 0.05, defenseBonus: -0.025 }
+  },
+  focusedTraining: {
+    id: 'focusedTraining',
+    name: '집중 훈련',
+    rarity: 'rare',
+    description: '공격 회전이 조금 좋아지지만 최대 체력이 낮아집니다.',
+    effects: { cooldownBonus: -0.05, maxHpBonus: -0.05 }
+  },
+  ironWill: {
+    id: 'ironWill',
+    name: '강철 의지',
+    rarity: 'rare',
+    description: '자세 게이지가 증가하지만 공격 회전이 조금 느려집니다.',
+    effects: { postureBonus: 0.1, cooldownBonus: 0.04 }
+  },
+  battleSense: {
+    id: 'battleSense',
+    name: '전투 감각',
+    rarity: 'hero',
+    description: '치명타 확률과 회피율이 함께 오릅니다.',
+    effects: { critBonus: 0.04, evasionBonus: 0.024 }
+  },
+  trainedPosture: {
+    id: 'trainedPosture',
+    name: '숙련된 자세',
+    rarity: 'hero',
+    description: '자세 게이지가 크게 증가하고 자세 안정성이 좋아집니다.',
+    effects: { postureBonus: 0.12, postureTakenBonus: -0.035 }
+  },
+  weaponUnderstanding: {
+    id: 'weaponUnderstanding',
+    name: '무기 이해',
+    rarity: 'hero',
+    description: '무기 숙련과 무기 스킬 성장을 함께 노립니다.',
+    effects: {}
+  },
+  personalityReinforcement: {
+    id: 'personalityReinforcement',
+    name: '성격 강화',
+    rarity: 'hero',
+    description: '성격 스킬 성장과 추가 스탯 포인트를 함께 노립니다.',
+    effects: {}
+  }
 };
 
 export const TOWER_RULES = {

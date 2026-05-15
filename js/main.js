@@ -2,7 +2,7 @@
 // 앱 초기화, UI 연결, 단일 게임 루프만 담당합니다.
 // requestAnimationFrame은 이 파일에서만 호출합니다.
 
-import { PERSONALITIES, PLAYER_START_STATS, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS } from './data.js';
+import { PERSONALITIES, PLAYER_START_STATS, REWARD_RARITIES, REWARD_TRAITS, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS } from './data.js';
 import {
   applyRewardAndAdvance,
   completeFloorVictory,
@@ -762,8 +762,10 @@ function renderPlayerInfo(force = false) {
   const key = [
     player.level,
     player.exp,
+    player.gold || 0,
     player.statPoints,
     player.mastery,
+    (player.rewardTraits || []).join(','),
     statKey,
     player.skills.map((skillId) => `${skillId}:${player.skillLevels?.[skillId] || 1}`).join(','),
     player.externalSkillCount || 0,
@@ -772,6 +774,13 @@ function renderPlayerInfo(force = false) {
   ].join('|');
   if (!force && panelKeys.player === key) return;
   panelKeys.player = key;
+
+  const traitText = player.rewardTraits?.length
+    ? player.rewardTraits.map((traitId) => {
+      const trait = REWARD_TRAITS[traitId];
+      return `<span class="tag reward-trait" title="${trait?.description || ''}">${trait?.name || traitId}</span>`;
+    }).join('')
+    : '<span class="muted-small">보상 특성 없음</span>';
 
   const statButtons = Object.entries(player.stats).map(([key, value]) => `
     <button class="stat-button" type="button" data-stat="${key}" ${canSpend ? '' : 'disabled'}>
@@ -784,10 +793,12 @@ function renderPlayerInfo(force = false) {
     <div class="tower-row"><span>레벨</span><strong>Lv.${player.level}</strong></div>
     <div class="tower-row"><span>경험치</span><strong>${player.exp} / ${expNeed}</strong></div>
     <div class="hpbar expbar"><i style="width:${expRatio}%"></i></div>
+    <div class="tower-row"><span>골드</span><strong>${player.gold || 0}</strong></div>
     <div class="tower-row"><span>스탯 포인트</span><strong>${player.statPoints}</strong></div>
     <div class="tower-row"><span>무기 숙련</span><strong>${player.mastery}</strong></div>
     <div class="stat-grid">${statButtons}</div>
     <div class="skill-list">${skillText}</div>
+    <div class="skill-list">${traitText}</div>
     <p class="hint-text">전투 전과 다음 층 대기 상태에서 스탯을 배분할 수 있습니다.</p>
   `;
 }
@@ -803,12 +814,17 @@ function renderRewardBox(force = false) {
   panelKeys.reward = nextKey;
 
   controls.overlayRewardBox.classList.remove('hidden');
-  controls.overlayRewardBox.innerHTML = state.run.pendingRewards.map((reward) => `
-    <button class="reward-button" type="button" data-reward="${reward.id}">
-      <strong>${reward.title}</strong>
-      <span>${reward.description}</span>
-    </button>
-  `).join('');
+  controls.overlayRewardBox.innerHTML = state.run.pendingRewards.map((reward) => {
+    const rarity = reward.rarity || 'normal';
+    const rarityName = REWARD_RARITIES[rarity]?.name || rarity;
+    return `
+      <button class="reward-button reward-${rarity}" type="button" data-reward="${reward.id}">
+        <em>${rarityName}</em>
+        <strong>${reward.title}</strong>
+        <span>${reward.description}</span>
+      </button>
+    `;
+  }).join('');
 }
 
 function hideRewardBox() {

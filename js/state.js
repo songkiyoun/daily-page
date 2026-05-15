@@ -10,6 +10,8 @@ import {
   PLAYER_START_STAT_POINTS,
   POSTURE_RULES,
   REWARD_RULES,
+  REWARD_RARITIES,
+  REWARD_TRAITS,
   SKILLS,
   WEAPON_SKILL_LOADOUTS,
   PERSONALITY_SKILL_LOADOUTS,
@@ -34,8 +36,10 @@ export function createRun(config) {
       personalityId: config.playerPersonality,
       level: 1,
       exp: 0,
+      gold: 0,
       statPoints: PLAYER_START_STAT_POINTS,
       stats: { ...PLAYER_START_STATS },
+      rewardTraits: [],
       skills: getDefaultSkillIds(config.playerWeapon, config.playerPersonality),
       skillLevels: createInitialSkillLevels(getDefaultSkillIds(config.playerWeapon, config.playerPersonality)),
       externalSkillCount: 0,
@@ -136,22 +140,23 @@ export function derivePlayerProfile(player) {
   const weapon = WEAPONS[player.weaponId];
   const personality = PERSONALITIES[player.personalityId];
   const skillEffects = collectSkillEffects(player.skills, player.skillLevels);
+  const rewardEffects = collectRewardEffects(player.rewardTraits);
   const stats = player.stats;
 
-  const maxHp = Math.round(
+  const maxHp = Math.round((
     BASE_STATS.maxHp +
     stats.vit * 12 +
     stats.str * 2 +
     stats.def * 4 +
     player.level * 7
-  );
+  ) * (1 + (rewardEffects.maxHpBonus || 0)));
 
   const maxPosture = Math.round((
     POSTURE_RULES.baseMax +
     stats.def * POSTURE_RULES.defenseToMax +
     stats.vit * POSTURE_RULES.vitalityToMax +
     player.level * POSTURE_RULES.levelToMax
-  ) * (personality.postureMaxScale || 1));
+  ) * (personality.postureMaxScale || 1) * (1 + (rewardEffects.postureBonus || 0)));
 
   const attackScale =
     1 +
@@ -159,14 +164,16 @@ export function derivePlayerProfile(player) {
     stats.agi * 0.012 +
     player.mastery * 0.035 +
     (personality.attackBonus || 0) +
-    (skillEffects.attackBonus || 0);
+    (skillEffects.attackBonus || 0) +
+    (rewardEffects.attackBonus || 0);
 
   const defense = clamp(
     0.035 +
     stats.def * 0.012 +
     stats.vit * 0.002 +
     (personality.defenseBonus || 0) +
-    (skillEffects.defenseBonus || 0),
+    (skillEffects.defenseBonus || 0) +
+    (rewardEffects.defenseBonus || 0),
     0,
     BASE_STATS.defenseCap
   );
@@ -176,7 +183,8 @@ export function derivePlayerProfile(player) {
     stats.agi * 0.007 +
     stats.luck * 0.002 +
     (personality.evasionBonus || 0) +
-    (skillEffects.evasionBonus || 0),
+    (skillEffects.evasionBonus || 0) +
+    (rewardEffects.evasionBonus || 0),
     0,
     BASE_STATS.evasionCap
   );
@@ -185,14 +193,15 @@ export function derivePlayerProfile(player) {
     weapon.crit +
     stats.luck * 0.008 +
     (personality.critBonus || 0) +
-    (skillEffects.critBonus || 0),
+    (skillEffects.critBonus || 0) +
+    (rewardEffects.critBonus || 0),
     0,
     BASE_STATS.critCap
   );
 
   const speedScales = getWeaponAgilityScales(weapon, stats, player.mastery, skillEffects, true);
-  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1);
-  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1);
+  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (1 + (rewardEffects.moveSpeedBonus || 0));
+  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1) * (1 + (rewardEffects.cooldownBonus || 0));
   const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1);
   const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
 
@@ -208,7 +217,8 @@ export function derivePlayerProfile(player) {
     turnSpeedScale,
     critDamage,
     lowHpAttackBonus: skillEffects.lowHpAttackBonus || 0,
-    lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
+    lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0,
+    postureDamageTakenRewardScale: 1 + (rewardEffects.postureTakenBonus || 0)
   };
 }
 
@@ -574,90 +584,331 @@ function grantExp(player, amount) {
 
 function generateRewardChoices(run) {
   const rewards = [];
-  const shuffledStats = [...STAT_KEYS].sort(() => Math.random() - 0.5);
+  const usedIds = new Set();
+  const usedFamilies = new Set();
+  let guard = 0;
 
-  rewards.push({
-    id: `stat-${shuffledStats[0]}`,
-    type: 'stat',
-    statKey: shuffledStats[0],
-    amount: REWARD_RULES.statAmount,
-    title: `${statName(shuffledStats[0])} 훈련`,
-    description: `${statName(shuffledStats[0])} +${REWARD_RULES.statAmount}. 기본 전투 능력을 직접 올립니다.`
-  });
+  while (rewards.length < REWARD_RULES.choices && guard < 80) {
+    guard += 1;
+    const rarity = rollRewardRarity(run);
+    const reward = createRewardByRarity(run, rarity);
+    const family = getRewardFamily(reward);
 
-  const levelable = getLevelableOwnedSkills(run.player);
-  if (levelable.length > 0) {
-    const skillId = sample(levelable);
-    const nextLevel = (run.player.skillLevels?.[skillId] || 1) + 1;
-    rewards.push({
-      id: `skill-level-${skillId}`,
-      type: 'skillLevel',
-      skillId,
-      title: `스킬 강화 · ${SKILLS[skillId].name} Lv.${nextLevel}`,
-      description: `${SKILLS[skillId].description} 현재 보유 스킬을 한 단계 강화합니다.`
-    });
-  } else {
-    rewards.push({
-      id: 'mastery',
-      type: 'mastery',
-      amount: REWARD_RULES.masteryAmount,
-      title: '무기 숙련',
-      description: `현재 무기 숙련도 +${REWARD_RULES.masteryAmount}. 공격력과 공격 회전이 조금 좋아집니다.`
-    });
+    if (!reward || usedIds.has(reward.id) || usedFamilies.has(family)) continue;
+    usedIds.add(reward.id);
+    usedFamilies.add(family);
+    rewards.push(reward);
   }
 
-  const crossSkills = getLearnableExternalPersonalitySkills(run.player);
-  if (crossSkills.length > 0) {
-    const skillId = sample(crossSkills);
-    rewards.push({
-      id: `skill-learn-${skillId}`,
-      type: 'skillLearn',
-      skillId,
-      title: `외부 성격 스킬 습득 · ${SKILLS[skillId].name}`,
-      description: `${SKILLS[skillId].description} 현재 성격에 없는 스킬을 낮은 레벨로 배웁니다.`
-    });
-  } else {
-    rewards.push({
-      id: 'stat-point',
-      type: 'statPoint',
-      amount: REWARD_RULES.bonusStatPoints,
-      title: '자유 훈련권',
-      description: `스탯 포인트 +${REWARD_RULES.bonusStatPoints}. 원하는 능력치를 직접 올릴 수 있습니다.`
+  if (rewards.length < REWARD_RULES.choices) {
+    getFallbackRewards(run).forEach((reward) => {
+      const family = getRewardFamily(reward);
+      if (rewards.length < REWARD_RULES.choices && reward && !usedIds.has(reward.id) && !usedFamilies.has(family)) {
+        usedIds.add(reward.id);
+        usedFamilies.add(family);
+        rewards.push(reward);
+      }
     });
   }
 
   return rewards.slice(0, REWARD_RULES.choices);
 }
 
+function getRewardFamily(reward) {
+  if (!reward) return 'none';
+  if (reward.type === 'stat') return `stat-${reward.statKey}`;
+  if (reward.type === 'skillLevel' || reward.type === 'skillLevelMastery' || reward.type === 'skillLevelStatPoint') return 'skillLevel';
+  if (reward.type === 'skillLearn') return 'skillLearn';
+  if (reward.type === 'trait') return `trait-${reward.traitId}`;
+  return reward.type;
+}
+
+function rollRewardRarity(run) {
+  const floorBonus = Math.max(0, run.floor - 1);
+  const weights = { ...REWARD_RULES.rarityWeights };
+
+  weights.hero += Math.floor(floorBonus / 5);
+  weights.rare += Math.floor(floorBonus / 3);
+  if (run.floor >= 5) weights.legendary += 1;
+  if (run.floor >= 10) weights.legendary += 1;
+  if (run.floor % TOWER_RULES.bossInterval === 0) {
+    weights.rare += 12;
+    weights.hero += 5;
+    weights.legendary += 2;
+  }
+
+  const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
+  let roll = Math.random() * total;
+
+  for (const rarity of ['normal', 'rare', 'hero', 'legendary']) {
+    roll -= weights[rarity];
+    if (roll <= 0) return rarity;
+  }
+
+  return 'normal';
+}
+
+function createRewardByRarity(run, rarity) {
+  const factories = {
+    normal: createNormalReward,
+    rare: createRareReward,
+    hero: createHeroReward,
+    legendary: createLegendaryRewardPlaceholder
+  };
+
+  const reward = factories[rarity]?.(run);
+  if (reward) return reward;
+
+  if (rarity === 'legendary') return createHeroReward(run) || createRareReward(run) || createNormalReward(run);
+  if (rarity === 'hero') return createRareReward(run) || createNormalReward(run);
+  if (rarity === 'rare') return createNormalReward(run);
+  return null;
+}
+
+function createNormalReward(run) {
+  const pool = [];
+  const shuffledStats = [...STAT_KEYS].sort(() => Math.random() - 0.5);
+
+  shuffledStats.forEach((statKey) => {
+    pool.push({
+      id: `normal-stat-${statKey}`,
+      type: 'stat',
+      rarity: 'normal',
+      statKey,
+      amount: REWARD_RULES.statAmount,
+      title: `${rarityLabel('normal')} ${statName(statKey)} 훈련`,
+      description: `${statName(statKey)} +${REWARD_RULES.statAmount}. 가장 기본적인 성장 보상입니다.`
+    });
+  });
+
+  const crossSkills = getLearnableExternalPersonalitySkills(run.player);
+  if (crossSkills.length > 0) {
+    const skillId = sample(crossSkills);
+    pool.push({
+      id: `normal-skill-learn-${skillId}`,
+      type: 'skillLearn',
+      rarity: 'normal',
+      skillId,
+      title: `${rarityLabel('normal')} 랜덤 스킬 습득 · ${SKILLS[skillId].name}`,
+      description: `${SKILLS[skillId].description} 외부 성격 스킬은 최대 ${REWARD_RULES.externalSkillLimit}개까지 배울 수 있습니다.`
+    });
+  }
+
+  const levelable = getLevelableOwnedSkills(run.player);
+  if (levelable.length > 0) {
+    const skillId = sample(levelable);
+    const nextLevel = (run.player.skillLevels?.[skillId] || 1) + 1;
+    pool.push({
+      id: `normal-skill-level-${skillId}`,
+      type: 'skillLevel',
+      rarity: 'normal',
+      skillId,
+      title: `${rarityLabel('normal')} 랜덤 스킬 강화 · ${SKILLS[skillId].name} Lv.${nextLevel}`,
+      description: `${SKILLS[skillId].description} 보유 스킬을 한 단계 강화합니다.`
+    });
+  }
+
+  const gold = randomInt(REWARD_RULES.normalGoldMin, REWARD_RULES.normalGoldMax);
+  pool.push({
+    id: `normal-gold-${gold}`,
+    type: 'gold',
+    rarity: 'normal',
+    amount: gold,
+    title: `${rarityLabel('normal')} 골드 보상`,
+    description: `골드 +${gold}. 이후 상점과 특수 보상 비용으로 사용할 예정입니다.`
+  });
+
+  const exp = randomInt(REWARD_RULES.normalExpMin, REWARD_RULES.normalExpMax);
+  pool.push({
+    id: `normal-exp-${exp}`,
+    type: 'exp',
+    rarity: 'normal',
+    amount: exp,
+    title: `${rarityLabel('normal')} 경험치 획득`,
+    description: `경험치 +${exp}. 레벨업에 가까워집니다.`
+  });
+
+  return sample(pool);
+}
+
+function createRareReward(run) {
+  const pool = [
+    {
+      id: 'rare-stat-points',
+      type: 'statPoint',
+      rarity: 'rare',
+      amount: REWARD_RULES.rareStatPoints,
+      title: `${rarityLabel('rare')} 스탯포인트 +${REWARD_RULES.rareStatPoints}`,
+      description: `원하는 능력치에 투자할 수 있는 스탯 포인트를 ${REWARD_RULES.rareStatPoints} 얻습니다.`
+    },
+    {
+      id: 'rare-mastery',
+      type: 'mastery',
+      rarity: 'rare',
+      amount: REWARD_RULES.masteryAmount,
+      title: `${rarityLabel('rare')} 무기 숙련도 상승`,
+      description: `현재 무기 숙련도 +${REWARD_RULES.masteryAmount}. 공격력과 공격 회전이 조금 좋아집니다.`
+    }
+  ];
+
+  Object.values(REWARD_TRAITS)
+    .filter((trait) => trait.rarity === 'rare' && !run.player.rewardTraits?.includes(trait.id))
+    .forEach((trait) => {
+      pool.push({
+        id: `rare-trait-${trait.id}`,
+        type: 'trait',
+        rarity: 'rare',
+        traitId: trait.id,
+        title: `${rarityLabel('rare')} ${trait.name}`,
+        description: trait.description
+      });
+    });
+
+  return pool.length ? sample(pool) : createNormalReward(run);
+}
+
+function createHeroReward(run) {
+  const pool = [];
+  const shuffledStats = [...STAT_KEYS].sort(() => Math.random() - 0.5);
+
+  shuffledStats.forEach((statKey) => {
+    pool.push({
+      id: `hero-stat-${statKey}`,
+      type: 'stat',
+      rarity: 'hero',
+      statKey,
+      amount: REWARD_RULES.heroStatAmount,
+      title: `${rarityLabel('hero')} ${statName(statKey)} 집중 훈련`,
+      description: `${statName(statKey)} +${REWARD_RULES.heroStatAmount}. 눈에 띄는 능력치 성장을 얻습니다.`
+    });
+  });
+
+  pool.push({
+    id: 'hero-stat-points',
+    type: 'statPoint',
+    rarity: 'hero',
+    amount: REWARD_RULES.heroStatPoints,
+    title: `${rarityLabel('hero')} 스탯포인트 +${REWARD_RULES.heroStatPoints}`,
+    description: `원하는 능력치에 투자할 수 있는 스탯 포인트를 ${REWARD_RULES.heroStatPoints} 얻습니다.`
+  });
+
+  Object.values(REWARD_TRAITS)
+    .filter((trait) => trait.rarity === 'hero' && !run.player.rewardTraits?.includes(trait.id))
+    .forEach((trait) => {
+      pool.push({
+        id: `hero-trait-${trait.id}`,
+        type: 'trait',
+        rarity: 'hero',
+        traitId: trait.id,
+        title: `${rarityLabel('hero')} ${trait.name}`,
+        description: trait.description
+      });
+    });
+
+  const weaponSkills = getLevelableOwnedSkills(run.player).filter((skillId) => SKILLS[skillId]?.source === 'weapon');
+  if (weaponSkills.length > 0) {
+    const skillId = sample(weaponSkills);
+    pool.push({
+      id: `hero-weapon-skill-${skillId}`,
+      type: 'skillLevelMastery',
+      rarity: 'hero',
+      skillId,
+      masteryAmount: 1,
+      title: `${rarityLabel('hero')} 무기 이해 · ${SKILLS[skillId].name}`,
+      description: `${SKILLS[skillId].name} Lv.+1과 무기 숙련도 +1을 함께 얻습니다.`
+    });
+  }
+
+  const personalitySkills = getLevelableOwnedSkills(run.player).filter((skillId) => SKILLS[skillId]?.source === 'personality' && SKILLS[skillId]?.owner === run.player.personalityId);
+  if (personalitySkills.length > 0) {
+    const skillId = sample(personalitySkills);
+    pool.push({
+      id: `hero-personality-skill-${skillId}`,
+      type: 'skillLevelStatPoint',
+      rarity: 'hero',
+      skillId,
+      statPointAmount: 1,
+      title: `${rarityLabel('hero')} 성격 강화 · ${SKILLS[skillId].name}`,
+      description: `${SKILLS[skillId].name} Lv.+1과 스탯 포인트 +1을 함께 얻습니다.`
+    });
+  }
+
+  return pool.length ? sample(pool) : createRareReward(run);
+}
+
+function createLegendaryRewardPlaceholder(run) {
+  return null;
+}
+
+function getFallbackRewards(run) {
+  return [
+    createNormalReward(run),
+    createRareReward(run),
+    createHeroReward(run)
+  ].filter(Boolean);
+}
+
+function rarityLabel(rarity) {
+  return `[${REWARD_RARITIES[rarity]?.name || rarity}]`;
+}
+
 function applyReward(run, reward) {
   const player = run.player;
   player.skillLevels = player.skillLevels || createInitialSkillLevels(player.skills);
+  player.rewardTraits = player.rewardTraits || [];
+  player.gold = player.gold || 0;
 
   if (reward.type === 'stat') {
     player.stats[reward.statKey] += reward.amount;
-    run.lastRewardLog = `${statName(reward.statKey)} +${reward.amount}`;
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${statName(reward.statKey)} +${reward.amount}`;
   }
 
   if (reward.type === 'mastery') {
     player.mastery += reward.amount;
-    run.lastRewardLog = `무기 숙련 +${reward.amount}`;
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} 무기 숙련 +${reward.amount}`;
   }
 
   if (reward.type === 'skill' || reward.type === 'skillLearn') {
     if (!player.skills.includes(reward.skillId)) player.skills.push(reward.skillId);
     if (!player.skillLevels[reward.skillId]) player.skillLevels[reward.skillId] = 1;
     if (reward.type === 'skillLearn') player.externalSkillCount = (player.externalSkillCount || 0) + 1;
-    run.lastRewardLog = `스킬 습득: ${SKILLS[reward.skillId].name}`;
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} 스킬 습득: ${SKILLS[reward.skillId].name}`;
   }
 
   if (reward.type === 'skillLevel') {
     levelUpSkill(player, reward.skillId);
-    run.lastRewardLog = `스킬 강화: ${SKILLS[reward.skillId].name} Lv.${player.skillLevels[reward.skillId]}`;
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} 스킬 강화: ${SKILLS[reward.skillId].name} Lv.${player.skillLevels[reward.skillId]}`;
+  }
+
+  if (reward.type === 'skillLevelMastery') {
+    levelUpSkill(player, reward.skillId);
+    player.mastery += reward.masteryAmount || 1;
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${SKILLS[reward.skillId].name} 강화 + 무기 숙련 +${reward.masteryAmount || 1}`;
+  }
+
+  if (reward.type === 'skillLevelStatPoint') {
+    levelUpSkill(player, reward.skillId);
+    player.statPoints += reward.statPointAmount || 1;
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${SKILLS[reward.skillId].name} 강화 + 스탯 포인트 +${reward.statPointAmount || 1}`;
   }
 
   if (reward.type === 'statPoint') {
     player.statPoints += reward.amount;
-    run.lastRewardLog = `스탯 포인트 +${reward.amount}`;
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} 스탯 포인트 +${reward.amount}`;
+  }
+
+  if (reward.type === 'gold') {
+    player.gold += reward.amount;
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} 골드 +${reward.amount}`;
+  }
+
+  if (reward.type === 'exp') {
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${grantExp(player, reward.amount)}`;
+  }
+
+  if (reward.type === 'trait') {
+    if (!player.rewardTraits.includes(reward.traitId)) player.rewardTraits.push(reward.traitId);
+    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${REWARD_TRAITS[reward.traitId]?.name || reward.traitId} 획득`;
   }
 
   const profile = derivePlayerProfile(player);
@@ -756,6 +1007,18 @@ function collectSkillEffects(skillIds, skillLevels = {}) {
     return effects;
   }, {});
 }
+
+function collectRewardEffects(traitIds = []) {
+  return traitIds.reduce((effects, traitId) => {
+    const trait = REWARD_TRAITS[traitId];
+    if (!trait?.effects) return effects;
+    Object.entries(trait.effects).forEach(([key, value]) => {
+      effects[key] = (effects[key] || 0) + value;
+    });
+    return effects;
+  }, {});
+}
+
 
 function statName(key) {
   const names = {

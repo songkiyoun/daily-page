@@ -608,3 +608,28 @@ input[type="number"] {
 .sim-table tr.sim-alert td:first-child {
   border-left: 2px solid rgba(255, 212, 90, 0.42);
 }
+
+
+.reward-button em {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-style: normal;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.reward-button.reward-normal {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.reward-button.reward-rare {
+  border-color: rgba(112, 196, 255, 0.48);
+}
+
+.reward-button.reward-hero {
+  border-color: rgba(196, 132, 255, 0.56);
+}
+
+.reward-button.reward-legendary {
+  border-color: rgba(255, 209, 102, 0.7);
+}
