@@ -676,8 +676,8 @@ function createNormalReward(run) {
       rarity: 'normal',
       statKey,
       amount: REWARD_RULES.statAmount,
-      title: `${rarityLabel('normal')} ${statName(statKey)} 훈련`,
-      description: `${statName(statKey)} +${REWARD_RULES.statAmount}.`
+      title: `${statName(statKey)} 훈련`,
+      description: `${statName(statKey)} +${REWARD_RULES.statAmount}`
     });
   });
 
@@ -689,7 +689,7 @@ function createNormalReward(run) {
       type: 'skillLearn',
       rarity: 'normal',
       skillId,
-      title: `${rarityLabel('normal')} ${SKILLS[skillId].name} 습득`,
+      title: `${SKILLS[skillId].name} 습득`,
       description: getShortSkillDescription(skillId)
     });
   }
@@ -703,8 +703,8 @@ function createNormalReward(run) {
       type: 'skillLevel',
       rarity: 'normal',
       skillId,
-      title: `${rarityLabel('normal')} ${SKILLS[skillId].name} Lv.${nextLevel}`,
-      description: `${getShortSkillDescription(skillId)} 스킬 레벨 +1.`
+      title: `${SKILLS[skillId].name} Lv.${nextLevel}`,
+      description: `${getShortSkillDescription(skillId)} / 스킬 레벨 +1`
     });
   }
 
@@ -714,8 +714,8 @@ function createNormalReward(run) {
     type: 'gold',
     rarity: 'normal',
     amount: gold,
-    title: `${rarityLabel('normal')} 골드 보상`,
-    description: `골드 +${gold}.`
+    title: `골드 보상`,
+    description: `골드 +${gold}`
   });
 
   const exp = randomInt(REWARD_RULES.normalExpMin, REWARD_RULES.normalExpMax);
@@ -724,8 +724,8 @@ function createNormalReward(run) {
     type: 'exp',
     rarity: 'normal',
     amount: exp,
-    title: `${rarityLabel('normal')} 경험치 획득`,
-    description: `경험치 +${exp}. 레벨업에 가까워집니다.`
+    title: `경험치 획득`,
+    description: `경험치 +${exp}`
   });
 
   return sample(pool);
@@ -738,16 +738,16 @@ function createRareReward(run) {
       type: 'statPoint',
       rarity: 'rare',
       amount: REWARD_RULES.rareStatPoints,
-      title: `${rarityLabel('rare')} 스탯포인트 +${REWARD_RULES.rareStatPoints}`,
-      description: `원하는 능력치에 투자할 수 있는 스탯 포인트를 ${REWARD_RULES.rareStatPoints} 얻습니다.`
+      title: `스탯포인트 +${REWARD_RULES.rareStatPoints}`,
+      description: `스탯포인트 +${REWARD_RULES.rareStatPoints}`
     },
     {
       id: 'rare-mastery',
       type: 'mastery',
       rarity: 'rare',
       amount: REWARD_RULES.masteryAmount,
-      title: `${rarityLabel('rare')} 무기 숙련도 상승`,
-      description: `현재 무기 숙련도 +${REWARD_RULES.masteryAmount}. 공격력과 공격 회전이 조금 좋아집니다.`
+      title: `무기 숙련도 상승`,
+      description: `무기 숙련도 +${REWARD_RULES.masteryAmount}`
     }
   ];
 
@@ -759,7 +759,7 @@ function createRareReward(run) {
         type: 'trait',
         rarity: 'rare',
         traitId: trait.id,
-        title: `${rarityLabel('rare')} ${trait.name}`,
+        title: `${trait.name}`,
         description: describeTraitEffects(trait.id)
       });
     });
@@ -778,8 +778,8 @@ function createHeroReward(run) {
       rarity: 'hero',
       statKey,
       amount: REWARD_RULES.heroStatAmount,
-      title: `${rarityLabel('hero')} ${statName(statKey)} 집중 훈련`,
-      description: `${statName(statKey)} +${REWARD_RULES.heroStatAmount}. 눈에 띄는 능력치 성장을 얻습니다.`
+      title: `${statName(statKey)} 집중 훈련`,
+      description: `${statName(statKey)} +${REWARD_RULES.heroStatAmount}`
     });
   });
 
@@ -788,8 +788,8 @@ function createHeroReward(run) {
     type: 'statPoint',
     rarity: 'hero',
     amount: REWARD_RULES.heroStatPoints,
-    title: `${rarityLabel('hero')} 스탯포인트 +${REWARD_RULES.heroStatPoints}`,
-    description: `원하는 능력치에 투자할 수 있는 스탯 포인트를 ${REWARD_RULES.heroStatPoints} 얻습니다.`
+    title: `스탯포인트 +${REWARD_RULES.heroStatPoints}`,
+    description: `스탯포인트 +${REWARD_RULES.heroStatPoints}`
   });
 
   Object.values(REWARD_TRAITS)
@@ -800,7 +800,7 @@ function createHeroReward(run) {
         type: 'trait',
         rarity: 'hero',
         traitId: trait.id,
-        title: `${rarityLabel('hero')} ${trait.name}`,
+        title: `${trait.name}`,
         description: describeTraitEffects(trait.id)
       });
     });
@@ -814,8 +814,8 @@ function createHeroReward(run) {
       rarity: 'hero',
       skillId,
       masteryAmount: 1,
-      title: `${rarityLabel('hero')} 무기 이해 · ${SKILLS[skillId].name}`,
-      description: `${SKILLS[skillId].name} Lv.+1과 무기 숙련도 +1을 함께 얻습니다.`
+      title: `무기 이해 · ${SKILLS[skillId].name}`,
+      description: `${SKILLS[skillId].name} Lv.+1 / 무기 숙련도 +1`
     });
   }
 
@@ -828,8 +828,8 @@ function createHeroReward(run) {
       rarity: 'hero',
       skillId,
       statPointAmount: 1,
-      title: `${rarityLabel('hero')} 성격 강화 · ${SKILLS[skillId].name}`,
-      description: `${SKILLS[skillId].name} Lv.+1과 스탯 포인트 +1을 함께 얻습니다.`
+      title: `성격 강화 · ${SKILLS[skillId].name}`,
+      description: `${SKILLS[skillId].name} Lv.+1 / 스탯포인트 +1`
     });
   }
 
@@ -857,6 +857,7 @@ function getShortSkillDescription(skillId) {
     .replace(/^방어형\.\s*/, '')
     .replace(/^밸런스형\.\s*/, '')
     .replace(/^암살형\.\s*/, '')
+    .replace(/[.。]$/, '')
     .trim();
 }
 
@@ -905,55 +906,55 @@ function applyReward(run, reward) {
 
   if (reward.type === 'stat') {
     player.stats[reward.statKey] += reward.amount;
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${statName(reward.statKey)} +${reward.amount}`;
+    run.lastRewardLog = `${statName(reward.statKey)} +${reward.amount}`;
   }
 
   if (reward.type === 'mastery') {
     player.mastery += reward.amount;
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} 무기 숙련 +${reward.amount}`;
+    run.lastRewardLog = `무기 숙련 +${reward.amount}`;
   }
 
   if (reward.type === 'skill' || reward.type === 'skillLearn') {
     if (!player.skills.includes(reward.skillId)) player.skills.push(reward.skillId);
     if (!player.skillLevels[reward.skillId]) player.skillLevels[reward.skillId] = 1;
     if (reward.type === 'skillLearn') player.externalSkillCount = (player.externalSkillCount || 0) + 1;
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} 스킬 습득: ${SKILLS[reward.skillId].name}`;
+    run.lastRewardLog = `스킬 습득: ${SKILLS[reward.skillId].name}`;
   }
 
   if (reward.type === 'skillLevel') {
     levelUpSkill(player, reward.skillId);
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} 스킬 강화: ${SKILLS[reward.skillId].name} Lv.${player.skillLevels[reward.skillId]}`;
+    run.lastRewardLog = `스킬 강화: ${SKILLS[reward.skillId].name} Lv.${player.skillLevels[reward.skillId]}`;
   }
 
   if (reward.type === 'skillLevelMastery') {
     levelUpSkill(player, reward.skillId);
     player.mastery += reward.masteryAmount || 1;
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${SKILLS[reward.skillId].name} 강화 + 무기 숙련 +${reward.masteryAmount || 1}`;
+    run.lastRewardLog = `${SKILLS[reward.skillId].name} 강화 + 무기 숙련 +${reward.masteryAmount || 1}`;
   }
 
   if (reward.type === 'skillLevelStatPoint') {
     levelUpSkill(player, reward.skillId);
     player.statPoints += reward.statPointAmount || 1;
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${SKILLS[reward.skillId].name} 강화 + 스탯 포인트 +${reward.statPointAmount || 1}`;
+    run.lastRewardLog = `${SKILLS[reward.skillId].name} 강화 + 스탯 포인트 +${reward.statPointAmount || 1}`;
   }
 
   if (reward.type === 'statPoint') {
     player.statPoints += reward.amount;
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} 스탯 포인트 +${reward.amount}`;
+    run.lastRewardLog = `스탯 포인트 +${reward.amount}`;
   }
 
   if (reward.type === 'gold') {
     player.gold += reward.amount;
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} 골드 +${reward.amount}`;
+    run.lastRewardLog = `골드 +${reward.amount}`;
   }
 
   if (reward.type === 'exp') {
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${grantExp(player, reward.amount)}`;
+    run.lastRewardLog = `${grantExp(player, reward.amount)}`;
   }
 
   if (reward.type === 'trait') {
     if (!player.rewardTraits.includes(reward.traitId)) player.rewardTraits.push(reward.traitId);
-    run.lastRewardLog = `${rarityLabel(reward.rarity)} ${REWARD_TRAITS[reward.traitId]?.name || reward.traitId} 획득`;
+    run.lastRewardLog = `${REWARD_TRAITS[reward.traitId]?.name || reward.traitId} 획득`;
   }
 
   const profile = derivePlayerProfile(player);

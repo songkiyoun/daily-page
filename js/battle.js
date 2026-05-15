@@ -87,6 +87,7 @@ function tickTimers(unit) {
   if (unit.riposteTimer > 0) unit.riposteTimer -= 1;
   if (unit.skillRuntime?.highSpeedTimer > 0) unit.skillRuntime.highSpeedTimer -= 1;
   if (unit.skillRuntime?.spearFocusTimer > 0) unit.skillRuntime.spearFocusTimer -= 1;
+  if (unit.closeResetGraceTimer > 0) unit.closeResetGraceTimer -= 1;
   Object.keys(unit.skillCooldowns || {}).forEach((skillId) => {
     if (unit.skillCooldowns[skillId] > 0) unit.skillCooldowns[skillId] -= 1;
   });
@@ -283,6 +284,16 @@ function tryCloseRangeReset(unit, enemy, movement) {
     enemy.weaponId === 'dagger' &&
     (bodyClose || dist < unit.radius + enemy.radius + 34 || (enemy.attackState !== 'idle' && dist < weapon.range + enemy.radius * 0.4));
 
+  if (spearPinned && enemy.weaponId === 'dagger' && (
+    unit.closeResetGraceTimer > 0 ||
+    enemy.attackState !== 'idle' ||
+    enemy.lastAction === '명중' ||
+    enemy.lastAction === '치명타' ||
+    enemy.lastAction.includes('급소')
+  )) {
+    return false;
+  }
+
   if (!spearPinned && !defensivePinned && !westernCloseGuard) return false;
 
   const pushAngle = angleTo(unit, enemy);
@@ -300,13 +311,16 @@ function tryCloseRangeReset(unit, enemy, movement) {
   unit.vy += -Math.sin(pushAngle) * 0.75 + Math.sin(sideAngle) * selfSide;
   unit.retreatFrames = 0;
   unit.retreatLockout = Math.max(unit.retreatLockout || 0, Math.floor(POSTURE_RULES.retreatLockoutFrames * 0.45));
-  unit.resetMoveCooldown = spearPinned ? Math.round(POSTURE_RULES.closeResetCooldown * (personality.id === 'defensive' ? 1.18 : 1.08)) : POSTURE_RULES.closeResetCooldown;
+  const daggerClosePenalty = spearPinned && enemy.weaponId === 'dagger';
+  unit.resetMoveCooldown = spearPinned
+    ? Math.round(POSTURE_RULES.closeResetCooldown * (daggerClosePenalty ? 2.35 : personality.id === 'defensive' ? 1.18 : 1.08))
+    : POSTURE_RULES.closeResetCooldown;
   unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : westernCloseGuard ? 16 : 14);
   enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : westernCloseGuard ? 11 : 9);
 
   let postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? (personality.id === 'defensive' ? 0.84 : 1.02) : westernCloseGuard ? (weapon.closeGuardPostureScale || 1.05) : 0.94);
   if (spearPinned && enemy.weaponId === 'dagger') {
-    postureDamage *= personality.id === 'defensive' ? 0.72 : 0.84;
+    postureDamage *= personality.id === 'defensive' ? 0.26 : 0.34;
   }
   applyPostureDamage(unit, enemy, postureDamage);
   twistBodyOnImpact(enemy, unit, postureDamage, weapon);
@@ -1038,6 +1052,9 @@ function resolveAttack(attacker, defender, state) {
 
   const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality) * getSkillPostureDamageScale(attacker, skillAttack);
   applyPostureDamage(attacker, defender, postureDamage, state);
+  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear') {
+    defender.closeResetGraceTimer = Math.max(defender.closeResetGraceTimer || 0, 18);
+  }
   applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
   applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
