@@ -677,7 +677,7 @@ function createNormalReward(run) {
       statKey,
       amount: REWARD_RULES.statAmount,
       title: `${rarityLabel('normal')} ${statName(statKey)} 훈련`,
-      description: `${statName(statKey)} +${REWARD_RULES.statAmount}. 가장 기본적인 성장 보상입니다.`
+      description: `${statName(statKey)} +${REWARD_RULES.statAmount}.`
     });
   });
 
@@ -689,8 +689,8 @@ function createNormalReward(run) {
       type: 'skillLearn',
       rarity: 'normal',
       skillId,
-      title: `${rarityLabel('normal')} 랜덤 스킬 습득 · ${SKILLS[skillId].name}`,
-      description: `${SKILLS[skillId].description} 외부 성격 스킬은 최대 ${REWARD_RULES.externalSkillLimit}개까지 배울 수 있습니다.`
+      title: `${rarityLabel('normal')} ${SKILLS[skillId].name} 습득`,
+      description: getShortSkillDescription(skillId)
     });
   }
 
@@ -703,8 +703,8 @@ function createNormalReward(run) {
       type: 'skillLevel',
       rarity: 'normal',
       skillId,
-      title: `${rarityLabel('normal')} 랜덤 스킬 강화 · ${SKILLS[skillId].name} Lv.${nextLevel}`,
-      description: `${SKILLS[skillId].description} 보유 스킬을 한 단계 강화합니다.`
+      title: `${rarityLabel('normal')} ${SKILLS[skillId].name} Lv.${nextLevel}`,
+      description: `${getShortSkillDescription(skillId)} 스킬 레벨 +1.`
     });
   }
 
@@ -715,7 +715,7 @@ function createNormalReward(run) {
     rarity: 'normal',
     amount: gold,
     title: `${rarityLabel('normal')} 골드 보상`,
-    description: `골드 +${gold}. 이후 상점과 특수 보상 비용으로 사용할 예정입니다.`
+    description: `골드 +${gold}.`
   });
 
   const exp = randomInt(REWARD_RULES.normalExpMin, REWARD_RULES.normalExpMax);
@@ -760,7 +760,7 @@ function createRareReward(run) {
         rarity: 'rare',
         traitId: trait.id,
         title: `${rarityLabel('rare')} ${trait.name}`,
-        description: trait.description
+        description: describeTraitEffects(trait.id)
       });
     });
 
@@ -801,7 +801,7 @@ function createHeroReward(run) {
         rarity: 'hero',
         traitId: trait.id,
         title: `${rarityLabel('hero')} ${trait.name}`,
-        description: trait.description
+        description: describeTraitEffects(trait.id)
       });
     });
 
@@ -847,6 +847,51 @@ function getFallbackRewards(run) {
     createHeroReward(run)
   ].filter(Boolean);
 }
+
+function getShortSkillDescription(skillId) {
+  const skill = SKILLS[skillId];
+  if (!skill?.description) return '';
+  return skill.description
+    .replace(/^.+? 전용\.\s*/, '')
+    .replace(/^공격형\.\s*/, '')
+    .replace(/^방어형\.\s*/, '')
+    .replace(/^밸런스형\.\s*/, '')
+    .replace(/^암살형\.\s*/, '')
+    .trim();
+}
+
+
+function describeTraitEffects(traitId) {
+  const trait = REWARD_TRAITS[traitId];
+  if (!trait?.effects) return trait?.description || '';
+
+  const labels = {
+    attackBonus: '공격력',
+    defenseBonus: '방어력',
+    maxHpBonus: '최대 체력',
+    evasionBonus: '회피율',
+    critBonus: '치명타 확률',
+    moveSpeedBonus: '이동속도',
+    cooldownBonus: '공격 준비/회복 시간',
+    postureBonus: '자세 게이지',
+    postureTakenBonus: '받는 자세 피해'
+  };
+
+  const parts = Object.entries(trait.effects).map(([key, value]) => {
+    const label = labels[key] || key;
+    const percent = Math.round(Math.abs(value) * 100);
+    if (key === 'cooldownBonus') {
+      return value < 0 ? `${label} ${percent}% 감소` : `${label} ${percent}% 증가`;
+    }
+    if (key === 'postureTakenBonus') {
+      return value < 0 ? `${label} ${percent}% 감소` : `${label} ${percent}% 증가`;
+    }
+    return `${label} ${value >= 0 ? '+' : '-'}${percent}%`;
+  });
+
+  return parts.join(' / ');
+}
+
 
 function rarityLabel(rarity) {
   return `[${REWARD_RARITIES[rarity]?.name || rarity}]`;
