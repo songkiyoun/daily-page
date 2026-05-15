@@ -284,7 +284,7 @@ function tryCloseRangeReset(unit, enemy, movement) {
     enemy.weaponId === 'dagger' &&
     (bodyClose || dist < unit.radius + enemy.radius + 34 || (enemy.attackState !== 'idle' && dist < weapon.range + enemy.radius * 0.4));
 
-  if (spearPinned && enemy.weaponId === 'dagger' && (
+  if ((spearPinned || westernCloseGuard) && enemy.weaponId === 'dagger' && (
     unit.closeResetGraceTimer > 0 ||
     enemy.attackState !== 'idle' ||
     enemy.lastAction === '명중' ||
@@ -312,15 +312,21 @@ function tryCloseRangeReset(unit, enemy, movement) {
   unit.retreatFrames = 0;
   unit.retreatLockout = Math.max(unit.retreatLockout || 0, Math.floor(POSTURE_RULES.retreatLockoutFrames * 0.45));
   const daggerClosePenalty = spearPinned && enemy.weaponId === 'dagger';
+  const westernDaggerPenalty = westernCloseGuard && enemy.weaponId === 'dagger';
   unit.resetMoveCooldown = spearPinned
     ? Math.round(POSTURE_RULES.closeResetCooldown * (daggerClosePenalty ? 2.35 : personality.id === 'defensive' ? 1.18 : 1.08))
-    : POSTURE_RULES.closeResetCooldown;
+    : westernDaggerPenalty
+      ? Math.round(POSTURE_RULES.closeResetCooldown * 1.65)
+      : POSTURE_RULES.closeResetCooldown;
   unit.cooldownTimer = Math.max(unit.cooldownTimer, spearPinned ? 10 : westernCloseGuard ? 16 : 14);
   enemy.cooldownTimer = Math.max(enemy.cooldownTimer || 0, spearPinned ? 12 : westernCloseGuard ? 11 : 9);
 
   let postureDamage = POSTURE_RULES.closeResetPostureDamage * (spearPinned ? (personality.id === 'defensive' ? 0.84 : 1.02) : westernCloseGuard ? (weapon.closeGuardPostureScale || 1.05) : 0.94);
   if (spearPinned && enemy.weaponId === 'dagger') {
     postureDamage *= personality.id === 'defensive' ? 0.26 : 0.34;
+  }
+  if (westernCloseGuard && enemy.weaponId === 'dagger') {
+    postureDamage *= personality.id === 'defensive' ? 0.42 : 0.52;
   }
   applyPostureDamage(unit, enemy, postureDamage);
   twistBodyOnImpact(enemy, unit, postureDamage, weapon);
@@ -1052,7 +1058,7 @@ function resolveAttack(attacker, defender, state) {
 
   const postureDamage = getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hitQuality) * getSkillPostureDamageScale(attacker, skillAttack);
   applyPostureDamage(attacker, defender, postureDamage, state);
-  if (attacker.weaponId === 'dagger' && defender.weaponId === 'spear') {
+  if (attacker.weaponId === 'dagger' && (defender.weaponId === 'spear' || defender.weaponId === 'western')) {
     defender.closeResetGraceTimer = Math.max(defender.closeResetGraceTimer || 0, 18);
   }
   applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
