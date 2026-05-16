@@ -26,13 +26,18 @@ import { clamp, randomInt, randomSign, sample } from './utils.js';
 export function getWeaponGrowthInfo(player) {
   const grade = WEAPON_GRADES.find((item) => item.id === (player.weaponGrade || 'common')) || WEAPON_GRADES[0];
   const options = getWeaponEvolutionOptions(player.weaponId);
-  const evolution = options.find((item) => item.id === player.weaponEvolution) || null;
+  const evolutionIndex = options.findIndex((item) => item.id === player.weaponEvolution);
+  const currentIndex = evolutionIndex >= 0 ? evolutionIndex : 0;
+  const currentStage = options[currentIndex] || null;
 
   return {
     grade,
-    evolution,
+    evolution: evolutionIndex >= 0 ? options[evolutionIndex] : null,
     options,
-    isEvolutionActive: !!evolution
+    currentStage,
+    currentStageNumber: currentStage ? currentIndex + 1 : 0,
+    currentStageText: currentStage ? `${currentIndex + 1}단계 : ${currentStage.name}` : '단계 없음',
+    isEvolutionActive: evolutionIndex >= 0
   };
 }
 
@@ -343,6 +348,9 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     stats: { ...enemyConfig.stats },
     skills: [...enemyConfig.skills],
     skillLevels: { ...(enemyConfig.skillLevels || createInitialSkillLevels(enemyConfig.skills)) },
+    weaponGrade: enemyConfig.weaponGrade || 'common',
+    weaponEvolution: enemyConfig.weaponEvolution || null,
+    weaponEvolutionOptions: getWeaponEvolutionOptions(enemyConfig.weaponId),
     skillCooldowns: {},
     skillUsed: {},
     skillRuntime: {},
@@ -423,6 +431,8 @@ function createRandomEnemyConfig(floor) {
     stats: createEnemyStats(floor, isBossFloor),
     skills,
     skillLevels: createEnemySkillLevels(skills, floor, isBossFloor),
+    weaponGrade: 'common',
+    weaponEvolution: null,
     mastery: createEnemyMastery(floor, isBossFloor)
   };
 }
@@ -438,6 +448,8 @@ export function createFixedEnemyConfig({ floor = TOWER_RULES.startFloor, weaponI
     stats: stats ? { ...stats } : createEnemyStats(floor, isBossFloor),
     skills,
     skillLevels: createEnemySkillLevels(skills, floor, isBossFloor),
+    weaponGrade: 'common',
+    weaponEvolution: null,
     mastery: createEnemyMastery(floor, isBossFloor)
   };
 }

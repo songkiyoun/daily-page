@@ -718,6 +718,7 @@ function renderTowerInfo(force = false) {
   if (!state) return;
   const enemyWeapon = WEAPONS[state.enemy.weaponId];
   const enemyPersonality = PERSONALITIES[state.enemy.personalityId];
+  const enemyGrowth = getWeaponGrowthInfo(state.enemy);
   const isBossFloor = state.run.floor % TOWER_RULES.bossInterval === 0;
   const enemySkillText = state.enemy.skills.length
     ? state.enemy.skills.map((skillId) => `${SKILLS[skillId]?.name || skillId} Lv.${state.enemy.skillLevels?.[skillId] || 1}`).join(' · ')
@@ -729,6 +730,8 @@ function renderTowerInfo(force = false) {
     state.enemy.weaponId,
     state.enemy.personalityId,
     state.enemy.maxHp,
+    state.enemy.weaponGrade || 'common',
+    state.enemy.weaponEvolution || 'none',
     enemySkillText
   ].join('|');
   if (!force && panelKeys.tower === key) return;
@@ -739,6 +742,8 @@ function renderTowerInfo(force = false) {
     <div class="tower-row"><span>승리 횟수</span><strong>${state.run.victories}회</strong></div>
     <div class="tower-row"><span>상대 무기</span><strong>${enemyWeapon.name}</strong></div>
     <div class="tower-row"><span>상대 성격</span><strong>${enemyPersonality.name}</strong></div>
+    <div class="tower-row"><span>상대 무기 등급</span><strong>${enemyGrowth.grade.name}</strong></div>
+    <div class="tower-row"><span>상대 무기 단계</span><strong>${enemyGrowth.currentStageText}</strong></div>
     <div class="tower-row"><span>상대 스킬</span><strong>${enemySkillText}</strong></div>
     <div class="tower-row"><span>상대 최대 체력</span><strong>${state.enemy.maxHp}</strong></div>
   `;
@@ -766,7 +771,7 @@ function renderPlayerInfo(force = false) {
     player.gold || 0,
     player.statPoints,
     player.mastery,
-    player.weaponGrade || 'basic',
+    player.weaponGrade || 'common',
     player.weaponEvolution || 'none',
     (player.rewardTraits || []).join(','),
     statKey,
@@ -779,12 +784,6 @@ function renderPlayerInfo(force = false) {
   panelKeys.player = key;
 
   const weaponGrowth = getWeaponGrowthInfo(player);
-  const evolutionText = weaponGrowth.evolution
-    ? `${weaponGrowth.evolution.name}`
-    : '미진화';
-  const evolutionOptionText = weaponGrowth.options.length
-    ? weaponGrowth.options.map((item) => `<span class="tag reward-trait" title="${item.description}">${item.name}</span>`).join('')
-    : '<span class="muted-small">진화 후보 없음</span>';
 
   const traitText = player.rewardTraits?.length
     ? player.rewardTraits.map((traitId) => {
@@ -808,8 +807,7 @@ function renderPlayerInfo(force = false) {
     <div class="tower-row"><span>스탯 포인트</span><strong>${player.statPoints}</strong></div>
     <div class="tower-row"><span>무기 숙련</span><strong>${player.mastery}</strong></div>
     <div class="tower-row"><span>무기 등급</span><strong>${weaponGrowth.grade.name}</strong></div>
-    <div class="tower-row"><span>무기 진화</span><strong>${evolutionText}</strong></div>
-    <div class="skill-list">${evolutionOptionText}</div>
+    <div class="tower-row"><span>무기 단계</span><strong>${weaponGrowth.currentStageText}</strong></div>
     <div class="stat-grid">${statButtons}</div>
     <div class="skill-list">${skillText}</div>
     <div class="skill-list">${traitText}</div>
