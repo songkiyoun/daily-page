@@ -25,6 +25,7 @@ import { clamp, randomInt, randomSign, sample } from './utils.js';
 
 export function getWeaponGrowthInfo(player) {
   const grade = WEAPON_GRADES.find((item) => item.id === (player.weaponGrade || 'common')) || WEAPON_GRADES[0];
+  const nextGrade = WEAPON_GRADES.find((item) => item.order === grade.order + 1) || null;
   const options = getWeaponEvolutionOptions(player.weaponId);
   const evolutionIndex = options.findIndex((item) => item.id === player.weaponEvolution);
   const currentIndex = evolutionIndex >= 0 ? evolutionIndex : 0;
@@ -32,6 +33,8 @@ export function getWeaponGrowthInfo(player) {
 
   return {
     grade,
+    nextGrade,
+    isMaxGrade: !nextGrade,
     evolution: evolutionIndex >= 0 ? options[evolutionIndex] : null,
     options,
     currentStage,
@@ -43,6 +46,26 @@ export function getWeaponGrowthInfo(player) {
 
 function getWeaponEvolutionOptions(weaponId) {
   return [...(WEAPON_EVOLUTIONS[weaponId] || [])];
+}
+
+function getWeaponGradeEffects(unit) {
+  const growth = getWeaponGrowthInfo(unit);
+  const order = growth.grade?.order || 0;
+
+  return {
+    attackBonus: order * 0.02,
+    postureBonus: order * 0.012
+  };
+}
+
+function upgradeWeaponGrade(player, amount = 1) {
+  const growth = getWeaponGrowthInfo(player);
+  if (growth.isMaxGrade) return growth.grade;
+
+  const targetOrder = Math.min((growth.grade?.order || 0) + amount, WEAPON_GRADES[WEAPON_GRADES.length - 1].order);
+  const nextGrade = WEAPON_GRADES.find((item) => item.order === targetOrder) || growth.grade;
+  player.weaponGrade = nextGrade.id;
+  return nextGrade;
 }
 
 
@@ -172,6 +195,7 @@ export function derivePlayerProfile(player) {
   const personality = PERSONALITIES[player.personalityId];
   const skillEffects = collectSkillEffects(player.skills, player.skillLevels);
   const rewardEffects = collectRewardEffects(player.rewardTraits);
+  const gradeEffects = getWeaponGradeEffects(player);
   const stats = player.stats;
 
   const maxHp = Math.round((
@@ -187,7 +211,7 @@ export function derivePlayerProfile(player) {
     stats.def * POSTURE_RULES.defenseToMax +
     stats.vit * POSTURE_RULES.vitalityToMax +
     player.level * POSTURE_RULES.levelToMax
-  ) * (personality.postureMaxScale || 1) * (1 + (rewardEffects.postureBonus || 0)));
+  ) * (personality.postureMaxScale || 1) * (1 + (rewardEffects.postureBonus || 0) + (gradeEffects.postureBonus || 0)));
 
   const attackScale =
     1 +
@@ -196,7 +220,8 @@ export function derivePlayerProfile(player) {
     player.mastery * 0.035 +
     (personality.attackBonus || 0) +
     (skillEffects.attackBonus || 0) +
-    (rewardEffects.attackBonus || 0);
+    (rewardEffects.attackBonus || 0) +
+    (gradeEffects.attackBonus || 0);
 
   const defense = clamp(
     0.035 +
@@ -481,6 +506,7 @@ function deriveEnemyProfile(enemy, floor) {
   const weapon = WEAPONS[enemy.weaponId];
   const personality = PERSONALITIES[enemy.personalityId];
   const skillEffects = collectSkillEffects(enemy.skills, enemy.skillLevels);
+  const gradeEffects = getWeaponGradeEffects(enemy);
   const stats = enemy.stats;
   const floorIndex = Math.max(0, floor - 1);
   const bossMult = floor % TOWER_RULES.bossInterval === 0 ? 1.18 : 1;
@@ -497,7 +523,8 @@ function deriveEnemyProfile(enemy, floor) {
     stats.vit * POSTURE_RULES.vitalityToMax +
     floorIndex * POSTURE_RULES.enemyFloorToMax) *
     bossMult *
-    (personality.postureMaxScale || 1)
+    (personality.postureMaxScale || 1) *
+    (1 + (gradeEffects.postureBonus || 0))
   );
 
   const attackScale =
@@ -507,7 +534,8 @@ function deriveEnemyProfile(enemy, floor) {
     enemy.mastery * 0.027 +
     floorIndex * TOWER_RULES.damageGrowthPerFloor * 0.32 +
     (personality.attackBonus || 0) +
-    (skillEffects.attackBonus || 0)) * bossMult;
+    (skillEffects.attackBonus || 0) +
+    (gradeEffects.attackBonus || 0)) * bossMult;
 
   const defense = clamp(
     0.025 +
@@ -830,6 +858,18 @@ function createHeroReward(run) {
     description: `스탯포인트 +${REWARD_RULES.heroStatPoints}`
   });
 
+  const weaponGrowth = getWeaponGrowthInfo(run.player);
+  if (!weaponGrowth.isMaxGrade && weaponGrowth.nextGrade) {
+    pool.push({
+      id: `hero-weapon-grade-${weaponGrowth.nextGrade.id}`,
+      type: 'weaponGradeUp',
+      rarity: 'hero',
+      amount: 1,
+      title: `무기 등급 상승`,
+      description: `${weaponGrowth.grade.name} → ${weaponGrowth.nextGrade.name}`
+    });
+  }
+
   Object.values(REWARD_TRAITS)
     .filter((trait) => trait.rarity === 'hero' && !run.player.rewardTraits?.includes(trait.id))
     .forEach((trait) => {
@@ -993,6 +1033,12 @@ function applyReward(run, reward) {
   if (reward.type === 'trait') {
     if (!player.rewardTraits.includes(reward.traitId)) player.rewardTraits.push(reward.traitId);
     run.lastRewardLog = `${REWARD_TRAITS[reward.traitId]?.name || reward.traitId} 획득`;
+  }
+
+  if (reward.type === 'weaponGradeUp') {
+    const before = getWeaponGrowthInfo(player).grade;
+    const after = upgradeWeaponGrade(player, reward.amount || 1);
+    run.lastRewardLog = `무기 등급 상승: ${before.name} → ${after.name}`;
   }
 
   const profile = derivePlayerProfile(player);
