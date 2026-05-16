@@ -6,13 +6,20 @@ import { clamp } from './utils.js';
 
 export function render(ctx, state) {
   clear(ctx, state.arena);
+  ctx.save();
+  applyScreenShake(ctx, state);
+
   drawArena(ctx, state.arena);
+  drawVisualEffects(ctx, state.visualEffects || [], 'behind');
   drawWeaponArc(ctx, state.player);
   drawWeaponArc(ctx, state.enemy);
   drawUnit(ctx, state.player);
   drawUnit(ctx, state.enemy);
+  drawVisualEffects(ctx, state.visualEffects || [], 'front');
   drawCombatEffects(ctx, state.effects || []);
   drawTopText(ctx, state);
+
+  ctx.restore();
 }
 
 function clear(ctx, arena) {
@@ -153,12 +160,13 @@ function drawUnit(ctx, unit) {
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  if (unit.attackState === 'active' && weapon.id !== 'spear') {
+  if (unit.attackState === 'active') {
     ctx.beginPath();
-    ctx.moveTo(unit.radius + 8, -3);
-    ctx.lineTo(unit.radius + Math.min(weapon.range * 0.82, visual.maxDrawLength - 8), -3);
-    ctx.strokeStyle = hexToRgba('#ffffff', 0.38);
-    ctx.lineWidth = 1.5;
+    const offset = weapon.id === 'spear' ? 0 : -3;
+    ctx.moveTo(unit.radius + 8, offset);
+    ctx.lineTo(unit.radius + Math.min(weapon.range * (weapon.id === 'spear' ? 1.08 : 0.82), visual.maxDrawLength - 8), offset);
+    ctx.strokeStyle = hexToRgba('#ffffff', weapon.id === 'spear' ? 0.3 : 0.38);
+    ctx.lineWidth = weapon.id === 'spear' ? 2 : 1.5;
     ctx.stroke();
   }
 
@@ -233,6 +241,137 @@ function getWeaponLineWidth(weapon, attackState) {
   if (weapon.id === 'spear') return 3 + activeBonus;
   if (weapon.id === 'dagger') return 4 + activeBonus;
   return 5 + activeBonus;
+}
+
+
+function applyScreenShake(ctx, state) {
+  const amount = state.screenShake || 0;
+  if (amount <= 0) return;
+  const shake = Math.min(amount, 5);
+  const ox = (Math.random() - 0.5) * shake;
+  const oy = (Math.random() - 0.5) * shake;
+  ctx.translate(ox, oy);
+}
+
+function drawVisualEffects(ctx, effects, layer = 'front') {
+  if (!effects.length) return;
+
+  ctx.save();
+  effects.forEach((effect) => {
+    const progress = effect.life / (effect.maxLife || effect.life || 1);
+    const alpha = clamp(progress, 0, 1);
+    const inv = 1 - alpha;
+
+    if (layer === 'behind' && !['afterimage', 'trail', 'arc'].includes(effect.type)) return;
+    if (layer === 'front' && ['afterimage'].includes(effect.type)) return;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    if (effect.type === 'afterimage') {
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, (effect.size || 20) + inv * 6, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(effect.color || '#ffffff', 0.16 * alpha);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.36 * alpha);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    if (effect.type === 'trail') {
+      ctx.beginPath();
+      ctx.moveTo(effect.x1, effect.y1);
+      ctx.lineTo(effect.x2, effect.y2);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.48 * alpha);
+      ctx.lineWidth = Math.max(1, (effect.width || 3) * alpha);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      if (effect.weaponId === 'dagger' || effect.skillId === 'daggerVitalStrike') {
+        ctx.beginPath();
+        ctx.moveTo(effect.x1, effect.y1 - 3);
+        ctx.lineTo(effect.x2, effect.y2 - 3);
+        ctx.strokeStyle = hexToRgba('#ffffff', 0.22 * alpha);
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+    }
+
+    if (effect.type === 'spark') {
+      ctx.translate(effect.x, effect.y);
+      ctx.rotate(effect.angle || 0);
+      const size = (effect.size || 14) * (0.7 + inv * 0.55);
+      const rays = 6;
+      for (let i = 0; i < rays; i++) {
+        const a = (Math.PI * 2 / rays) * i;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * size * 0.2, Math.sin(a) * size * 0.2);
+        ctx.lineTo(Math.cos(a) * size, Math.sin(a) * size);
+        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.62 * alpha);
+        ctx.lineWidth = Math.max(1, 2.3 * alpha);
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, size * 0.25, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba('#ffffff', 0.46 * alpha);
+      ctx.fill();
+    }
+
+    if (effect.type === 'ring') {
+      const radius = (effect.size || 24) + inv * 18 * (effect.power || 1);
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.58 * alpha);
+      ctx.lineWidth = Math.max(1, 4 * alpha);
+      ctx.stroke();
+    }
+
+    if (effect.type === 'burst') {
+      const size = (effect.size || 28) * (0.7 + inv * 0.75);
+      for (let i = 0; i < 10; i++) {
+        const a = (Math.PI * 2 / 10) * i;
+        ctx.beginPath();
+        ctx.moveTo(effect.x, effect.y);
+        ctx.lineTo(effect.x + Math.cos(a) * size, effect.y + Math.sin(a) * size);
+        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.42 * alpha);
+        ctx.lineWidth = Math.max(1, 2 * alpha);
+        ctx.stroke();
+      }
+    }
+
+    if (effect.type === 'shockline') {
+      const len = (effect.length || 42) * (0.55 + inv * 0.45);
+      const a = effect.angle || 0;
+      const side = a + Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(effect.x - Math.cos(a) * len * 0.2, effect.y - Math.sin(a) * len * 0.2);
+      ctx.lineTo(effect.x + Math.cos(a) * len, effect.y + Math.sin(a) * len);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.48 * alpha);
+      ctx.lineWidth = Math.max(1, (effect.width || 3) * alpha);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(effect.x + Math.cos(side) * 5, effect.y + Math.sin(side) * 5);
+      ctx.lineTo(effect.x + Math.cos(a) * len * 0.72 + Math.cos(side) * 8, effect.y + Math.sin(a) * len * 0.72 + Math.sin(side) * 8);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.28 * alpha);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+
+    if (effect.type === 'arc') {
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, (effect.radius || 70) * (0.95 + inv * 0.12), (effect.angle || 0) - (effect.arc || 1), (effect.angle || 0) + (effect.arc || 1));
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.56 * alpha);
+      ctx.lineWidth = Math.max(1, (effect.width || 4) * alpha);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  });
+  ctx.restore();
 }
 
 

@@ -63,6 +63,8 @@ export function createBattleState(run, options = {}) {
     result: null,
     rewardsPrepared: false,
     effects: [],
+    visualEffects: [],
+    screenShake: 0,
     eventLocks: {},
     run,
     arena: {

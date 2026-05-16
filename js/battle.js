@@ -102,11 +102,133 @@ function applyImpactStopDrift(unit) {
   unit.vy *= damping;
 }
 
+function emitVisualEffect(state, effect) {
+  if (!state) return;
+  if (!state.visualEffects) state.visualEffects = [];
+  state.visualEffects.push(effect);
+  if (state.visualEffects.length > 28) {
+    state.visualEffects.splice(0, state.visualEffects.length - 28);
+  }
+}
+
+function addScreenShake(state, amount = 2) {
+  if (!state) return;
+  state.screenShake = Math.max(state.screenShake || 0, amount);
+}
+
+function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId = '') {
+  const angle = angleTo(attacker, defender);
+  const x = defender.x - Math.cos(angle) * defender.radius * 0.45;
+  const y = defender.y - Math.sin(angle) * defender.radius * 0.45;
+  const color = crit ? '#ffd45a' : weapon.color;
+
+  emitVisualEffect(state, {
+    type: 'spark',
+    x,
+    y,
+    angle,
+    color,
+    life: crit ? 24 : 16,
+    maxLife: crit ? 24 : 16,
+    size: crit ? 22 : 14,
+    power: crit ? 1.45 : 1
+  });
+
+  emitVisualEffect(state, {
+    type: 'trail',
+    x1: attacker.x + Math.cos(angle) * attacker.radius,
+    y1: attacker.y + Math.sin(angle) * attacker.radius,
+    x2: defender.x,
+    y2: defender.y,
+    color,
+    life: crit ? 18 : 12,
+    maxLife: crit ? 18 : 12,
+    width: crit ? 5 : 3,
+    weaponId: weapon.id,
+    skillId
+  });
+
+  addScreenShake(state, crit ? 4 : weapon.id === 'western' ? 3 : 2);
+}
+
+function emitParryFlash(state, unit, attacker) {
+  emitVisualEffect(state, {
+    type: 'ring',
+    x: unit.x,
+    y: unit.y,
+    color: '#5ae8ff',
+    life: 18,
+    maxLife: 18,
+    size: unit.radius + 8,
+    power: 1.15
+  });
+  const a = angleTo(unit, attacker);
+  emitVisualEffect(state, {
+    type: 'shockline',
+    x: unit.x,
+    y: unit.y,
+    angle: a,
+    color: '#5ae8ff',
+    life: 14,
+    maxLife: 14,
+    length: 42,
+    width: 3
+  });
+  addScreenShake(state, 3);
+}
+
+function emitBreakBurst(state, unit) {
+  emitVisualEffect(state, {
+    type: 'ring',
+    x: unit.x,
+    y: unit.y,
+    color: '#ff5a6d',
+    life: 24,
+    maxLife: 24,
+    size: unit.radius + 10,
+    power: 1.35
+  });
+  emitVisualEffect(state, {
+    type: 'burst',
+    x: unit.x,
+    y: unit.y,
+    color: '#ff5a6d',
+    life: 22,
+    maxLife: 22,
+    size: 28,
+    power: 1.25
+  });
+  addScreenShake(state, 5);
+}
+
+function emitKnockbackLine(state, from, to, color = '#ffffff', power = 1) {
+  const a = angleTo(from, to);
+  emitVisualEffect(state, {
+    type: 'shockline',
+    x: to.x,
+    y: to.y,
+    angle: a,
+    color,
+    life: 12,
+    maxLife: 12,
+    length: 34 + power * 14,
+    width: 2 + power
+  });
+}
+
+
 function updateCombatEffects(state) {
   if (!state.effects) state.effects = [];
   state.effects = state.effects
     .map((effect) => ({ ...effect, life: effect.life - 1, y: effect.y - 0.42 }))
     .filter((effect) => effect.life > 0);
+
+  if (!state.visualEffects) state.visualEffects = [];
+  state.visualEffects = state.visualEffects
+    .map((effect) => ({ ...effect, life: effect.life - 1 }))
+    .filter((effect) => effect.life > 0);
+
+  if (state.screenShake > 0) state.screenShake = Math.max(0, state.screenShake - 1);
 }
 
 function emitCombatEvent(state, label, x, y, color) {
@@ -792,6 +914,25 @@ function applyIncomingSkillMitigation(defender, attacker, damage, state) {
     defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, isDefensiveDagger ? 16 : 12);
     defender.posture = Math.min(defender.maxPosture, defender.posture + defender.maxPosture * (isDefensiveDagger ? 0.035 + level * 0.01 : 0.06 + level * 0.015));
     defender.lastAction = '분신 인형';
+    emitVisualEffect(state, {
+      type: 'afterimage',
+      x: attacker.x,
+      y: attacker.y,
+      color: '#d7b9ff',
+      life: 24,
+      maxLife: 24,
+      size: attacker.radius + 4
+    });
+    emitVisualEffect(state, {
+      type: 'ring',
+      x: defender.x,
+      y: defender.y,
+      color: '#d7b9ff',
+      life: 18,
+      maxLife: 18,
+      size: defender.radius + 10,
+      power: 1.1
+    });
     emitCombatEvent(state, '분신 인형!', defender.x, defender.y - 46, '#d7b9ff');
   }
 
@@ -834,6 +975,19 @@ function triggerSpearSweepCounter(defender, attacker, state, level) {
   attacker.vy += Math.sin(a) * push;
   attacker.postureRecoveryDelay = Math.max(attacker.postureRecoveryDelay || 0, 8 + level * 2);
   defender.lastAction = '벤다!';
+  emitVisualEffect(state, {
+    type: 'arc',
+    x: defender.x,
+    y: defender.y,
+    angle: defender.facing,
+    color: '#9fe8ff',
+    life: 20,
+    maxLife: 20,
+    radius: WEAPONS.spear.range * 0.72,
+    arc: 1.65,
+    width: 5
+  });
+  addScreenShake(state, 3);
   emitCombatEvent(state, '벤다!', defender.x, defender.y - 48, '#9fe8ff');
 }
 
@@ -1053,6 +1207,7 @@ function resolveAttack(attacker, defender, state) {
   attacker.hits += 1;
   attacker.damageDealt += damage;
   attacker.lastAction = crit ? '치명타' : '명중';
+  emitHitSpark(state, attacker, defender, weapon, crit, skillAttack);
   if (crit) emitCombatEvent(state, 'CRITICAL', defender.x, defender.y - 34, '#ffd45a');
   defender.lastAction = defender.staggerTimer > 0 ? '흐트러짐 피격' : '피격';
 
@@ -1062,6 +1217,7 @@ function resolveAttack(attacker, defender, state) {
     defender.closeResetGraceTimer = Math.max(defender.closeResetGraceTimer || 0, 18);
   }
   applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
+  emitKnockbackLine(state, attacker, defender, weapon.color, hitQuality + 0.6);
   applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
   applyImpactStop(attacker, defender, weapon);
@@ -1131,6 +1287,7 @@ function resolveParry(defender, attacker, incomingWeapon, state) {
   }
 
   performParry(defender, attacker, incomingWeapon, state);
+  emitParryFlash(state, defender, attacker);
   return true;
 }
 
@@ -1451,6 +1608,7 @@ function triggerStagger(unit, attacker, state = null) {
   unit.vx += Math.cos(impactAngle) * 1.35;
   unit.vy += Math.sin(impactAngle) * 1.35;
   unit.lastAction = '스태미너 붕괴';
+  emitBreakBurst(state, unit);
   emitCombatEvent(state, 'BREAK', unit.x, unit.y - 42, '#ff5a6d');
 }
 
