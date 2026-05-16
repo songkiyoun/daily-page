@@ -10,6 +10,7 @@ import {
   createFixedEnemyConfig,
   createRun,
   getNextLevelExp,
+  getWeaponGrowthInfo,
   refreshPlayerUnit,
   spendPlayerStat,
   startState,
@@ -765,6 +766,8 @@ function renderPlayerInfo(force = false) {
     player.gold || 0,
     player.statPoints,
     player.mastery,
+    player.weaponGrade || 'basic',
+    player.weaponEvolution || 'none',
     (player.rewardTraits || []).join(','),
     statKey,
     player.skills.map((skillId) => `${skillId}:${player.skillLevels?.[skillId] || 1}`).join(','),
@@ -774,6 +777,14 @@ function renderPlayerInfo(force = false) {
   ].join('|');
   if (!force && panelKeys.player === key) return;
   panelKeys.player = key;
+
+  const weaponGrowth = getWeaponGrowthInfo(player);
+  const evolutionText = weaponGrowth.evolution
+    ? `${weaponGrowth.evolution.name}`
+    : '미진화';
+  const evolutionOptionText = weaponGrowth.options.length
+    ? weaponGrowth.options.map((item) => `<span class="tag reward-trait" title="${item.description}">${item.name}</span>`).join('')
+    : '<span class="muted-small">진화 후보 없음</span>';
 
   const traitText = player.rewardTraits?.length
     ? player.rewardTraits.map((traitId) => {
@@ -796,6 +807,9 @@ function renderPlayerInfo(force = false) {
     <div class="tower-row"><span>골드</span><strong>${player.gold || 0}</strong></div>
     <div class="tower-row"><span>스탯 포인트</span><strong>${player.statPoints}</strong></div>
     <div class="tower-row"><span>무기 숙련</span><strong>${player.mastery}</strong></div>
+    <div class="tower-row"><span>무기 등급</span><strong>${weaponGrowth.grade.name}</strong></div>
+    <div class="tower-row"><span>무기 진화</span><strong>${evolutionText}</strong></div>
+    <div class="skill-list">${evolutionOptionText}</div>
     <div class="stat-grid">${statButtons}</div>
     <div class="skill-list">${skillText}</div>
     <div class="skill-list">${traitText}</div>

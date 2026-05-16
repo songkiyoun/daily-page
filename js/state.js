@@ -17,9 +17,29 @@ import {
   PERSONALITY_SKILL_LOADOUTS,
   STAT_KEYS,
   TOWER_RULES,
-  WEAPONS
+  WEAPONS,
+  WEAPON_EVOLUTIONS,
+  WEAPON_GRADES
 } from './data.js';
 import { clamp, randomInt, randomSign, sample } from './utils.js';
+
+export function getWeaponGrowthInfo(player) {
+  const grade = WEAPON_GRADES.find((item) => item.id === (player.weaponGrade || 'common')) || WEAPON_GRADES[0];
+  const options = getWeaponEvolutionOptions(player.weaponId);
+  const evolution = options.find((item) => item.id === player.weaponEvolution) || null;
+
+  return {
+    grade,
+    evolution,
+    options,
+    isEvolutionActive: !!evolution
+  };
+}
+
+function getWeaponEvolutionOptions(weaponId) {
+  return [...(WEAPON_EVOLUTIONS[weaponId] || [])];
+}
+
 
 export function createRun(config) {
   return {
@@ -40,6 +60,9 @@ export function createRun(config) {
       statPoints: PLAYER_START_STAT_POINTS,
       stats: { ...PLAYER_START_STATS },
       rewardTraits: [],
+      weaponGrade: 'common',
+      weaponEvolution: null,
+      weaponEvolutionOptions: getWeaponEvolutionOptions(config.playerWeapon),
       skills: getDefaultSkillIds(config.playerWeapon, config.playerPersonality),
       skillLevels: createInitialSkillLevels(getDefaultSkillIds(config.playerWeapon, config.playerPersonality)),
       externalSkillCount: 0,

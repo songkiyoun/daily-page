@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.15';
+export const VERSION = '0.7.18';
 
 export const WEAPONS = {
   spear: {
@@ -277,6 +277,49 @@ export const WEAPONS = {
     recoveryBackstep: 1.28
   }
 };
+
+
+export const WEAPON_GRADES = [
+  { id: 'common', name: '일반', order: 0 },
+  { id: 'advanced', name: '고급', order: 1 },
+  { id: 'rare', name: '희귀', order: 2 },
+  { id: 'hero', name: '영웅', order: 3 },
+  { id: 'legendary', name: '전설', order: 4 },
+  { id: 'mythic', name: '신화', order: 5 },
+  { id: 'awakened', name: '각성', order: 6 }
+];
+
+export const WEAPON_EVOLUTIONS = {
+  western: [
+    { id: 'oldLongsword', name: '낡은 롱소드', description: '서양검 진화의 첫 단계입니다.' },
+    { id: 'sharpLongsword', name: '날카로운 롱소드', description: '낡은 롱소드보다 날이 선 서양검입니다.' },
+    { id: 'knightLongsword', name: '나이트 롱소드', description: '기사의 전투 방식에 맞춰 다듬어진 서양검입니다.' },
+    { id: 'caliburn', name: '칼리번', description: '전설의 서양검 계보로 이어지는 강력한 검입니다.' },
+    { id: 'excalibur', name: '엑스칼리버', description: '서양검 진화의 최종 단계로 사용할 예정입니다.' }
+  ],
+  eastern: [
+    { id: 'rustyIronSword', name: '녹슨 철검', description: '동양검 진화의 첫 단계입니다.' },
+    { id: 'sharpIronSword', name: '날카로운 철검', description: '녹슨 철검보다 날이 선 동양검입니다.' },
+    { id: 'warriorSword', name: '무사의 검', description: '무사의 전투 흐름에 맞춰 다듬어진 검입니다.' },
+    { id: 'masterSword', name: '달인의 검', description: '숙련된 검사의 연속 베기를 담는 검입니다.' },
+    { id: 'martialGodSword', name: '무신의 검', description: '동양검 진화의 최종 단계로 사용할 예정입니다.' }
+  ],
+  spear: [
+    { id: 'woodenStick', name: '나무막대기', description: '창 진화의 첫 단계입니다.' },
+    { id: 'edgedSpear', name: '날선 창', description: '끝이 날카롭게 다듬어진 창입니다.' },
+    { id: 'knightSpear', name: '기사의 창', description: '기사가 사용하는 균형 잡힌 창입니다.' },
+    { id: 'dragonKnightSpear', name: '용기사의 창', description: '강한 돌파력과 위압감을 가진 창입니다.' },
+    { id: 'ancientDragonSpear', name: '고룡창', description: '창 진화의 최종 단계로 사용할 예정입니다.' }
+  ],
+  dagger: [
+    { id: 'oldDagger', name: '낡은 단검', description: '단검 진화의 첫 단계입니다.' },
+    { id: 'thiefDagger', name: '도둑의 단검', description: '빠른 기습에 어울리는 단검입니다.' },
+    { id: 'assassinDagger', name: '어쌔신의 단검', description: '암살자의 측면 침투에 맞춰 다듬어진 단검입니다.' },
+    { id: 'blackWolfFang', name: '흑랑아', description: '검은 늑대의 송곳니처럼 날카로운 단검입니다.' },
+    { id: 'bloodWolfFang', name: '혈랑아', description: '단검 진화의 최종 단계로 사용할 예정입니다.' }
+  ]
+};
+
 
 export const PERSONALITIES = {
   balanced: {
