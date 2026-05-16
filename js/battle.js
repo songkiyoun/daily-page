@@ -121,6 +121,8 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
   const x = defender.x - Math.cos(angle) * defender.radius * 0.45;
   const y = defender.y - Math.sin(angle) * defender.radius * 0.45;
   const color = crit ? '#ffd45a' : weapon.color;
+  const isHeavy = weapon.id === 'western' || weapon.id === 'spear';
+  const isSkill = !!skillId;
 
   emitVisualEffect(state, {
     type: 'spark',
@@ -128,10 +130,10 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
     y,
     angle,
     color,
-    life: crit ? 24 : 16,
-    maxLife: crit ? 24 : 16,
-    size: crit ? 22 : 14,
-    power: crit ? 1.45 : 1
+    life: crit ? 32 : isHeavy ? 24 : 20,
+    maxLife: crit ? 32 : isHeavy ? 24 : 20,
+    size: crit ? 34 : isHeavy ? 24 : 19,
+    power: crit ? 1.9 : isHeavy ? 1.45 : 1.22
   });
 
   emitVisualEffect(state, {
@@ -141,14 +143,39 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
     x2: defender.x,
     y2: defender.y,
     color,
-    life: crit ? 18 : 12,
-    maxLife: crit ? 18 : 12,
-    width: crit ? 5 : 3,
+    life: crit ? 26 : isHeavy ? 20 : 16,
+    maxLife: crit ? 26 : isHeavy ? 20 : 16,
+    width: crit ? 8 : isHeavy ? 6 : 4.5,
     weaponId: weapon.id,
     skillId
   });
 
-  addScreenShake(state, crit ? 4 : weapon.id === 'western' ? 3 : 2);
+  emitVisualEffect(state, {
+    type: 'impact',
+    x,
+    y,
+    angle,
+    color: crit ? '#ffffff' : color,
+    life: crit ? 18 : 13,
+    maxLife: crit ? 18 : 13,
+    size: crit ? 30 : isHeavy ? 23 : 18,
+    power: crit ? 1.6 : 1.15
+  });
+
+  if (isSkill || crit) {
+    emitVisualEffect(state, {
+      type: 'ring',
+      x,
+      y,
+      color,
+      life: crit ? 18 : 12,
+      maxLife: crit ? 18 : 12,
+      size: crit ? 24 : 16,
+      power: crit ? 1.15 : 0.7
+    });
+  }
+
+  addScreenShake(state, crit ? 7 : weapon.id === 'western' ? 5 : weapon.id === 'spear' ? 5 : weapon.id === 'eastern' ? 4 : 3);
 }
 
 function emitParryFlash(state, unit, attacker) {
@@ -174,7 +201,7 @@ function emitParryFlash(state, unit, attacker) {
     length: 42,
     width: 3
   });
-  addScreenShake(state, 3);
+  addScreenShake(state, 8);
 }
 
 function emitBreakBurst(state, unit) {
@@ -211,8 +238,8 @@ function emitKnockbackLine(state, from, to, color = '#ffffff', power = 1) {
     color,
     life: 12,
     maxLife: 12,
-    length: 34 + power * 14,
-    width: 2 + power
+    length: 46 + power * 20,
+    width: 3 + power * 1.3
   });
 }
 
@@ -981,11 +1008,11 @@ function triggerSpearSweepCounter(defender, attacker, state, level) {
     y: defender.y,
     angle: defender.facing,
     color: '#9fe8ff',
-    life: 20,
-    maxLife: 20,
-    radius: WEAPONS.spear.range * 0.72,
-    arc: 1.65,
-    width: 5
+    life: 28,
+    maxLife: 28,
+    radius: WEAPONS.spear.range * 0.86,
+    arc: 1.95,
+    width: 7
   });
   addScreenShake(state, 3);
   emitCombatEvent(state, '벤다!', defender.x, defender.y - 48, '#9fe8ff');
@@ -1271,8 +1298,10 @@ function resolveEasternGlancingSlip(defender, attacker, incomingWeapon, hitQuali
 
 function applyImpactStop(attacker, defender, weapon) {
   const stop = weapon.impactStopFrames || 3;
-  attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, Math.max(1, stop - 1));
-  defender.impactStopTimer = Math.max(defender.impactStopTimer || 0, stop + (defender.staggerTimer > 0 ? 2 : 0));
+  const heavyBonus = weapon.id === 'western' ? 2 : weapon.id === 'spear' ? 1 : 0;
+  const critLikeBonus = attacker.lastAction === '치명타' ? 2 : 0;
+  attacker.impactStopTimer = Math.max(attacker.impactStopTimer || 0, Math.max(1, stop + heavyBonus + critLikeBonus - 1));
+  defender.impactStopTimer = Math.max(defender.impactStopTimer || 0, stop + heavyBonus + critLikeBonus + (defender.staggerTimer > 0 ? 3 : 1));
 }
 
 function resolveParry(defender, attacker, incomingWeapon, state) {

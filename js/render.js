@@ -247,7 +247,7 @@ function getWeaponLineWidth(weapon, attackState) {
 function applyScreenShake(ctx, state) {
   const amount = state.screenShake || 0;
   if (amount <= 0) return;
-  const shake = Math.min(amount, 5);
+  const shake = Math.min(amount, 8);
   const ox = (Math.random() - 0.5) * shake;
   const oy = (Math.random() - 0.5) * shake;
   ctx.translate(ox, oy);
@@ -282,7 +282,7 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
       ctx.beginPath();
       ctx.moveTo(effect.x1, effect.y1);
       ctx.lineTo(effect.x2, effect.y2);
-      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.48 * alpha);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.68 * alpha);
       ctx.lineWidth = Math.max(1, (effect.width || 3) * alpha);
       ctx.lineCap = 'round';
       ctx.stroke();
@@ -291,7 +291,7 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
         ctx.beginPath();
         ctx.moveTo(effect.x1, effect.y1 - 3);
         ctx.lineTo(effect.x2, effect.y2 - 3);
-        ctx.strokeStyle = hexToRgba('#ffffff', 0.22 * alpha);
+        ctx.strokeStyle = hexToRgba('#ffffff', 0.38 * alpha);
         ctx.lineWidth = 1.2;
         ctx.stroke();
       }
@@ -301,29 +301,50 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
       ctx.translate(effect.x, effect.y);
       ctx.rotate(effect.angle || 0);
       const size = (effect.size || 14) * (0.7 + inv * 0.55);
-      const rays = 6;
+      const rays = effect.power > 1.5 ? 10 : 8;
       for (let i = 0; i < rays; i++) {
         const a = (Math.PI * 2 / rays) * i;
         ctx.beginPath();
         ctx.moveTo(Math.cos(a) * size * 0.2, Math.sin(a) * size * 0.2);
         ctx.lineTo(Math.cos(a) * size, Math.sin(a) * size);
-        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.62 * alpha);
-        ctx.lineWidth = Math.max(1, 2.3 * alpha);
+        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.82 * alpha);
+        ctx.lineWidth = Math.max(1.3, 3.4 * alpha * (effect.power || 1));
         ctx.lineCap = 'round';
         ctx.stroke();
       }
       ctx.beginPath();
       ctx.arc(0, 0, size * 0.25, 0, Math.PI * 2);
-      ctx.fillStyle = hexToRgba('#ffffff', 0.46 * alpha);
+      ctx.fillStyle = hexToRgba('#ffffff', 0.72 * alpha);
       ctx.fill();
+    }
+
+    if (effect.type === 'impact') {
+      ctx.translate(effect.x, effect.y);
+      ctx.rotate(effect.angle || 0);
+      const size = (effect.size || 20) * (0.82 + inv * 0.42);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size * 1.25, size * 0.45, 0, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(effect.color || '#ffffff', 0.28 * alpha);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba('#ffffff', 0.52 * alpha);
+      ctx.lineWidth = Math.max(1, 2.4 * alpha);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-size * 0.9, 0);
+      ctx.lineTo(size * 1.2, 0);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.7 * alpha);
+      ctx.lineWidth = Math.max(1.5, 3.2 * alpha);
+      ctx.lineCap = 'round';
+      ctx.stroke();
     }
 
     if (effect.type === 'ring') {
       const radius = (effect.size || 24) + inv * 18 * (effect.power || 1);
       ctx.beginPath();
       ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.58 * alpha);
-      ctx.lineWidth = Math.max(1, 4 * alpha);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.72 * alpha);
+      ctx.lineWidth = Math.max(1.5, 5.5 * alpha);
       ctx.stroke();
     }
 
@@ -334,7 +355,7 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
         ctx.beginPath();
         ctx.moveTo(effect.x, effect.y);
         ctx.lineTo(effect.x + Math.cos(a) * size, effect.y + Math.sin(a) * size);
-        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.42 * alpha);
+        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.58 * alpha);
         ctx.lineWidth = Math.max(1, 2 * alpha);
         ctx.stroke();
       }
@@ -363,7 +384,7 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
     if (effect.type === 'arc') {
       ctx.beginPath();
       ctx.arc(effect.x, effect.y, (effect.radius || 70) * (0.95 + inv * 0.12), (effect.angle || 0) - (effect.arc || 1), (effect.angle || 0) + (effect.arc || 1));
-      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.56 * alpha);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.74 * alpha);
       ctx.lineWidth = Math.max(1, (effect.width || 4) * alpha);
       ctx.lineCap = 'round';
       ctx.stroke();
