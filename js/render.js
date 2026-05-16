@@ -301,19 +301,36 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
       ctx.translate(effect.x, effect.y);
       ctx.rotate(effect.angle || 0);
       const size = (effect.size || 14) * (0.7 + inv * 0.55);
-      const rays = effect.power > 1.5 ? 10 : 8;
+      const shape = effect.shape || 'wide';
+      const rays = shape === 'needle' ? 4 : shape === 'pierce' ? 5 : effect.power > 1.5 ? 10 : 8;
+
       for (let i = 0; i < rays; i++) {
-        const a = (Math.PI * 2 / rays) * i;
+        const a = shape === 'pierce'
+          ? (i - 2) * 0.28
+          : shape === 'needle'
+            ? (i - 1.5) * 0.18
+            : (Math.PI * 2 / rays) * i;
+        const lengthScale = shape === 'needle' ? 1.35 : shape === 'pierce' ? 1.55 : shape === 'slice' ? 1.12 : 1;
+        const widthScale = shape === 'needle' ? 0.55 : shape === 'pierce' ? 0.7 : shape === 'slice' ? 0.8 : 1;
         ctx.beginPath();
-        ctx.moveTo(Math.cos(a) * size * 0.2, Math.sin(a) * size * 0.2);
-        ctx.lineTo(Math.cos(a) * size, Math.sin(a) * size);
+        ctx.moveTo(Math.cos(a) * size * 0.16, Math.sin(a) * size * 0.16);
+        ctx.lineTo(Math.cos(a) * size * lengthScale, Math.sin(a) * size * lengthScale);
         ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.82 * alpha);
-        ctx.lineWidth = Math.max(1.3, 3.4 * alpha * (effect.power || 1));
+        ctx.lineWidth = Math.max(1.1, 3.4 * alpha * (effect.power || 1) * widthScale);
         ctx.lineCap = 'round';
         ctx.stroke();
       }
+
+      if (shape === 'slice') {
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.7, -0.75, 0.75);
+        ctx.strokeStyle = hexToRgba('#ffffff', 0.38 * alpha);
+        ctx.lineWidth = Math.max(1, 2.2 * alpha);
+        ctx.stroke();
+      }
+
       ctx.beginPath();
-      ctx.arc(0, 0, size * 0.25, 0, Math.PI * 2);
+      ctx.arc(0, 0, size * (shape === 'needle' ? 0.16 : 0.25), 0, Math.PI * 2);
       ctx.fillStyle = hexToRgba('#ffffff', 0.72 * alpha);
       ctx.fill();
     }
@@ -322,21 +339,59 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
       ctx.translate(effect.x, effect.y);
       ctx.rotate(effect.angle || 0);
       const size = (effect.size || 20) * (0.82 + inv * 0.42);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, size * 1.25, size * 0.45, 0, 0, Math.PI * 2);
-      ctx.fillStyle = hexToRgba(effect.color || '#ffffff', 0.28 * alpha);
-      ctx.fill();
-      ctx.strokeStyle = hexToRgba('#ffffff', 0.52 * alpha);
-      ctx.lineWidth = Math.max(1, 2.4 * alpha);
-      ctx.stroke();
+      const shape = effect.shape || 'slash';
 
-      ctx.beginPath();
-      ctx.moveTo(-size * 0.9, 0);
-      ctx.lineTo(size * 1.2, 0);
-      ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.7 * alpha);
-      ctx.lineWidth = Math.max(1.5, 3.2 * alpha);
-      ctx.lineCap = 'round';
-      ctx.stroke();
+      if (shape === 'thrust') {
+        ctx.beginPath();
+        ctx.ellipse(size * 0.18, 0, size * 1.55, size * 0.24, 0, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba(effect.color || '#ffffff', 0.24 * alpha);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-size * 1.35, 0);
+        ctx.lineTo(size * 1.65, 0);
+        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.82 * alpha);
+        ctx.lineWidth = Math.max(1.4, 2.6 * alpha);
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      } else if (shape === 'stab') {
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.72, 0);
+        ctx.lineTo(size * 1.25, 0);
+        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.84 * alpha);
+        ctx.lineWidth = Math.max(1.2, 2.4 * alpha);
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(size * 0.32, 0, size * 0.22, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba('#ffffff', 0.46 * alpha);
+        ctx.fill();
+      } else if (shape === 'multiSlash') {
+        [-1, 0, 1].forEach((offset) => {
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.9, offset * 5);
+          ctx.lineTo(size * 1.18, offset * 5 - 4);
+          ctx.strokeStyle = hexToRgba(offset === 0 ? effect.color || '#ffffff' : '#ffffff', (offset === 0 ? 0.62 : 0.26) * alpha);
+          ctx.lineWidth = Math.max(1, (offset === 0 ? 2.5 : 1.4) * alpha);
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        });
+      } else {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 1.35, size * 0.5, 0, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba(effect.color || '#ffffff', 0.28 * alpha);
+        ctx.fill();
+        ctx.strokeStyle = hexToRgba('#ffffff', 0.52 * alpha);
+        ctx.lineWidth = Math.max(1, 2.4 * alpha);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-size * 1.0, 0);
+        ctx.lineTo(size * 1.28, 0);
+        ctx.strokeStyle = hexToRgba(effect.color || '#ffffff', 0.7 * alpha);
+        ctx.lineWidth = Math.max(1.5, 3.2 * alpha);
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
     }
 
     if (effect.type === 'ring') {

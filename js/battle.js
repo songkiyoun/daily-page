@@ -124,6 +124,13 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
   const isHeavy = weapon.id === 'western' || weapon.id === 'spear';
   const isSkill = !!skillId;
 
+  const weaponImpactProfile = {
+    western: { impactShape: 'slash', sparkShape: 'wide', trailWidth: 7.2, trailLife: 23, impactSize: 25, power: 1.46 },
+    eastern: { impactShape: 'multiSlash', sparkShape: 'slice', trailWidth: 4.2, trailLife: 17, impactSize: 19, power: 1.18 },
+    spear: { impactShape: 'thrust', sparkShape: 'pierce', trailWidth: 5.4, trailLife: 22, impactSize: 23, power: 1.38 },
+    dagger: { impactShape: 'stab', sparkShape: 'needle', trailWidth: 3.4, trailLife: 15, impactSize: 17, power: 1.12 }
+  }[weapon.id] || { impactShape: 'slash', sparkShape: 'wide', trailWidth: 4.8, trailLife: 18, impactSize: 20, power: 1.2 };
+
   emitVisualEffect(state, {
     type: 'spark',
     x,
@@ -132,8 +139,10 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
     color,
     life: crit ? 32 : isHeavy ? 24 : 20,
     maxLife: crit ? 32 : isHeavy ? 24 : 20,
-    size: crit ? 34 : isHeavy ? 24 : 19,
-    power: crit ? 1.9 : isHeavy ? 1.45 : 1.22
+    size: crit ? 34 : weaponImpactProfile.impactSize,
+    power: crit ? 1.9 : weaponImpactProfile.power,
+    weaponId: weapon.id,
+    shape: weaponImpactProfile.sparkShape
   });
 
   emitVisualEffect(state, {
@@ -143,9 +152,9 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
     x2: defender.x,
     y2: defender.y,
     color,
-    life: crit ? 26 : isHeavy ? 20 : 16,
-    maxLife: crit ? 26 : isHeavy ? 20 : 16,
-    width: crit ? 8 : isHeavy ? 6 : 4.5,
+    life: crit ? 26 : weaponImpactProfile.trailLife,
+    maxLife: crit ? 26 : weaponImpactProfile.trailLife,
+    width: crit ? 8 : weaponImpactProfile.trailWidth,
     weaponId: weapon.id,
     skillId
   });
@@ -158,9 +167,71 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
     color: crit ? '#ffffff' : color,
     life: crit ? 18 : 13,
     maxLife: crit ? 18 : 13,
-    size: crit ? 30 : isHeavy ? 23 : 18,
-    power: crit ? 1.6 : 1.15
+    size: crit ? 30 : weaponImpactProfile.impactSize,
+    power: crit ? 1.6 : weaponImpactProfile.power,
+    weaponId: weapon.id,
+    shape: weaponImpactProfile.impactShape
   });
+
+  if (weapon.id === 'western') {
+    emitVisualEffect(state, {
+      type: 'arc',
+      x,
+      y,
+      angle,
+      color,
+      life: crit ? 20 : 14,
+      maxLife: crit ? 20 : 14,
+      radius: crit ? 46 : 36,
+      arc: 0.95,
+      width: crit ? 6 : 4.5
+    });
+  }
+
+  if (weapon.id === 'eastern') {
+    const side = angle + Math.PI / 2;
+    [-1, 1].forEach((dir, index) => {
+      emitVisualEffect(state, {
+        type: 'trail',
+        x1: attacker.x + Math.cos(angle) * attacker.radius + Math.cos(side) * dir * 8,
+        y1: attacker.y + Math.sin(angle) * attacker.radius + Math.sin(side) * dir * 8,
+        x2: defender.x + Math.cos(side) * dir * 10,
+        y2: defender.y + Math.sin(side) * dir * 10,
+        color,
+        life: 10 + index * 2,
+        maxLife: 10 + index * 2,
+        width: 2.2,
+        weaponId: weapon.id,
+        skillId: 'easternAfterSlash'
+      });
+    });
+  }
+
+  if (weapon.id === 'spear') {
+    emitVisualEffect(state, {
+      type: 'shockline',
+      x,
+      y,
+      angle,
+      color,
+      life: crit ? 18 : 14,
+      maxLife: crit ? 18 : 14,
+      length: crit ? 92 : 72,
+      width: crit ? 4.8 : 3.8
+    });
+  }
+
+  if (weapon.id === 'dagger') {
+    emitVisualEffect(state, {
+      type: 'afterimage',
+      x: attacker.x,
+      y: attacker.y,
+      color,
+      life: 12,
+      maxLife: 12,
+      size: attacker.radius + 2
+    });
+  }
 
   if (isSkill || crit) {
     emitVisualEffect(state, {
