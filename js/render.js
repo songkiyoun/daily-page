@@ -11,8 +11,12 @@ export function render(ctx, state) {
 
   drawArena(ctx, state.arena);
   drawVisualEffects(ctx, state.visualEffects || [], 'behind');
+  drawMotionStreak(ctx, state.player);
+  drawMotionStreak(ctx, state.enemy);
   drawWeaponArc(ctx, state.player);
   drawWeaponArc(ctx, state.enemy);
+  drawAttackSpeedLines(ctx, state.player);
+  drawAttackSpeedLines(ctx, state.enemy);
   drawUnit(ctx, state.player);
   drawUnit(ctx, state.enemy);
   drawVisualEffects(ctx, state.visualEffects || [], 'front');
@@ -113,6 +117,111 @@ function drawWeaponArc(ctx, unit) {
   ctx.restore();
 }
 
+function drawMotionStreak(ctx, unit) {
+  if (unit.isDead) return;
+  const weapon = WEAPONS[unit.weaponId];
+  const speed = Math.hypot(unit.vx || 0, unit.vy || 0);
+  const aggressiveMotion = unit.attackState === 'active' || unit.attackState === 'windup';
+  const shouldDraw = speed > 1.0 || aggressiveMotion || unit.skillRuntime?.highSpeedTimer > 0;
+
+  if (!shouldDraw) return;
+
+  const moveAngle = speed > 0.35 ? Math.atan2(unit.vy, unit.vx) : unit.facing;
+  const backAngle = moveAngle + Math.PI;
+  const alphaBase = clamp((speed / 7.5) + (aggressiveMotion ? 0.22 : 0), 0.12, 0.48);
+  const count = unit.weaponId === 'dagger' ? 4 : unit.weaponId === 'eastern' ? 3 : 2;
+  const lengthBase = unit.weaponId === 'dagger'
+    ? 34
+    : unit.weaponId === 'eastern'
+      ? 28
+      : unit.weaponId === 'spear'
+        ? 40
+        : 24;
+
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  for (let i = 0; i < count; i++) {
+    const offset = (i - (count - 1) / 2) * (unit.weaponId === 'spear' ? 3 : 5);
+    const side = moveAngle + Math.PI / 2;
+    const sx = unit.x + Math.cos(side) * offset;
+    const sy = unit.y + Math.sin(side) * offset;
+    const len = lengthBase * (1 - i * 0.12) * (0.72 + Math.min(speed, 8) / 9);
+    ctx.beginPath();
+    ctx.moveTo(sx + Math.cos(backAngle) * unit.radius * 0.35, sy + Math.sin(backAngle) * unit.radius * 0.35);
+    ctx.lineTo(sx + Math.cos(backAngle) * (unit.radius + len), sy + Math.sin(backAngle) * (unit.radius + len));
+    ctx.strokeStyle = hexToRgba(weapon.color, alphaBase * (1 - i * 0.18));
+    ctx.lineWidth = unit.weaponId === 'dagger' ? 2 : unit.weaponId === 'eastern' ? 2.2 : 2.8;
+    ctx.stroke();
+  }
+
+  if (unit.weaponId === 'dagger' && (unit.skillRuntime?.highSpeedTimer > 0 || speed > 3.2)) {
+    ctx.beginPath();
+    ctx.arc(unit.x, unit.y, unit.radius + 9, 0, Math.PI * 2);
+    ctx.strokeStyle = hexToRgba(weapon.color, 0.22);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawAttackSpeedLines(ctx, unit) {
+  if (unit.isDead || unit.attackState === 'idle') return;
+
+  const weapon = WEAPONS[unit.weaponId];
+  const visual = getWeaponVisual(unit, weapon);
+  const phase = Math.max(0, Math.min(1, unit.attackVisualPhase || 0));
+  const alpha = unit.attackState === 'active'
+    ? 0.42
+    : unit.attackState === 'windup'
+      ? 0.22
+      : 0.16;
+
+  const reach = Math.min(weapon.range * visual.reachScale, visual.maxDrawLength);
+  const side = unit.orbitDir || 1;
+  const baseAngle = visual.angle;
+  const lineCount = weapon.id === 'eastern' ? 3 : weapon.id === 'dagger' ? 2 : 1;
+
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  for (let i = 0; i < lineCount; i++) {
+    const offsetAngle = baseAngle - side * (0.08 + i * 0.055);
+    const start = unit.radius + 10 + i * 3;
+    const end = reach + unit.radius - i * 5;
+    const sx = unit.x + Math.cos(offsetAngle) * start;
+    const sy = unit.y + Math.sin(offsetAngle) * start;
+    const ex = unit.x + Math.cos(offsetAngle) * end;
+    const ey = unit.y + Math.sin(offsetAngle) * end;
+
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.strokeStyle = hexToRgba(i === 0 ? weapon.color : '#ffffff', alpha * (1 - i * 0.22));
+    ctx.lineWidth = weapon.id === 'spear'
+      ? 3.2
+      : weapon.id === 'western'
+        ? 3
+        : weapon.id === 'eastern'
+          ? 2
+          : 1.8;
+    ctx.stroke();
+  }
+
+  if (weapon.id === 'spear' && unit.attackState === 'active') {
+    ctx.beginPath();
+    const tipX = unit.x + Math.cos(baseAngle) * (unit.radius + reach);
+    const tipY = unit.y + Math.sin(baseAngle) * (unit.radius + reach);
+    ctx.arc(tipX, tipY, 4 + Math.sin(phase * Math.PI) * 4, 0, Math.PI * 2);
+    ctx.fillStyle = hexToRgba('#ffffff', 0.35);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+
 function drawUnit(ctx, unit) {
   const weapon = WEAPONS[unit.weaponId];
 
@@ -207,17 +316,17 @@ function getWeaponVisual(unit, weapon) {
       angle = base + side * ((phase - 0.5) * 1.95);
       reachScale = 0.96 + Math.sin(phase * Math.PI) * 0.36;
     } else if (weapon.id === 'spear') {
-      angle = base + side * Math.sin(phase * Math.PI) * 0.045;
-      reachScale = 1.02 + Math.sin(phase * Math.PI) * 0.62;
+      angle = base + side * Math.sin(phase * Math.PI) * 0.055;
+      reachScale = 1.08 + Math.sin(phase * Math.PI) * 0.68;
     } else if (weapon.id === 'dagger') {
-      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || 0.54) * 0.78);
-      reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.18;
+      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || 0.54) * 0.92);
+      reachScale = 1.02 + Math.sin(phase * Math.PI) * 0.22;
     } else if (weapon.id === 'eastern') {
-      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || weapon.arc));
-      reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.14;
+      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || weapon.arc) * 1.08);
+      reachScale = 1.0 + Math.sin(phase * Math.PI) * 0.18;
     } else {
-      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || weapon.arc) * 0.92);
-      reachScale = 0.94 + Math.sin(phase * Math.PI) * 0.12;
+      angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || weapon.arc) * 1.02);
+      reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.15;
     }
   } else if (unit.attackState === 'recovery') {
     if (unit.activeSkillAttack === 'spearSweep') {
