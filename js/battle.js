@@ -246,7 +246,7 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
     });
   }
 
-  addScreenShake(state, crit ? 7 : weapon.id === 'western' ? 5 : weapon.id === 'spear' ? 5 : weapon.id === 'eastern' ? 4 : 3);
+  addScreenShake(state, crit ? 12 : weapon.id === 'western' ? 8 : weapon.id === 'spear' ? 8 : weapon.id === 'eastern' ? 6 : 5);
 }
 
 function emitParryFlash(state, unit, attacker) {
@@ -272,7 +272,7 @@ function emitParryFlash(state, unit, attacker) {
     length: 42,
     width: 3
   });
-  addScreenShake(state, 8);
+  addScreenShake(state, 11);
 }
 
 function emitBreakBurst(state, unit) {
@@ -296,7 +296,7 @@ function emitBreakBurst(state, unit) {
     size: 28,
     power: 1.25
   });
-  addScreenShake(state, 5);
+  addScreenShake(state, 13);
 }
 
 function emitKnockbackLine(state, from, to, color = '#ffffff', power = 1) {

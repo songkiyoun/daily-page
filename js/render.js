@@ -6,13 +6,15 @@ import { clamp } from './utils.js';
 
 export function render(ctx, state) {
   clear(ctx, state.arena);
+
+  updateCamera(state);
+
   ctx.save();
+  applyCameraTransform(ctx, state);
   applyScreenShake(ctx, state);
 
   drawArena(ctx, state.arena);
   drawVisualEffects(ctx, state.visualEffects || [], 'behind');
-  drawMotionStreak(ctx, state.player);
-  drawMotionStreak(ctx, state.enemy);
   drawWeaponArc(ctx, state.player);
   drawWeaponArc(ctx, state.enemy);
   drawAttackSpeedLines(ctx, state.player);
@@ -21,9 +23,10 @@ export function render(ctx, state) {
   drawUnit(ctx, state.enemy);
   drawVisualEffects(ctx, state.visualEffects || [], 'front');
   drawCombatEffects(ctx, state.effects || []);
-  drawTopText(ctx, state);
 
   ctx.restore();
+
+  drawTopText(ctx, state);
 }
 
 function clear(ctx, arena) {
@@ -114,55 +117,6 @@ function drawWeaponArc(ctx, unit) {
     ctx.stroke();
     ctx.setLineDash([]);
   }
-  ctx.restore();
-}
-
-function drawMotionStreak(ctx, unit) {
-  if (unit.isDead) return;
-  const weapon = WEAPONS[unit.weaponId];
-  const speed = Math.hypot(unit.vx || 0, unit.vy || 0);
-  const aggressiveMotion = unit.attackState === 'active' || unit.attackState === 'windup';
-  const shouldDraw = speed > 1.0 || aggressiveMotion || unit.skillRuntime?.highSpeedTimer > 0;
-
-  if (!shouldDraw) return;
-
-  const moveAngle = speed > 0.35 ? Math.atan2(unit.vy, unit.vx) : unit.facing;
-  const backAngle = moveAngle + Math.PI;
-  const alphaBase = clamp((speed / 7.5) + (aggressiveMotion ? 0.22 : 0), 0.12, 0.48);
-  const count = unit.weaponId === 'dagger' ? 4 : unit.weaponId === 'eastern' ? 3 : 2;
-  const lengthBase = unit.weaponId === 'dagger'
-    ? 34
-    : unit.weaponId === 'eastern'
-      ? 28
-      : unit.weaponId === 'spear'
-        ? 40
-        : 24;
-
-  ctx.save();
-  ctx.lineCap = 'round';
-
-  for (let i = 0; i < count; i++) {
-    const offset = (i - (count - 1) / 2) * (unit.weaponId === 'spear' ? 3 : 5);
-    const side = moveAngle + Math.PI / 2;
-    const sx = unit.x + Math.cos(side) * offset;
-    const sy = unit.y + Math.sin(side) * offset;
-    const len = lengthBase * (1 - i * 0.12) * (0.72 + Math.min(speed, 8) / 9);
-    ctx.beginPath();
-    ctx.moveTo(sx + Math.cos(backAngle) * unit.radius * 0.35, sy + Math.sin(backAngle) * unit.radius * 0.35);
-    ctx.lineTo(sx + Math.cos(backAngle) * (unit.radius + len), sy + Math.sin(backAngle) * (unit.radius + len));
-    ctx.strokeStyle = hexToRgba(weapon.color, alphaBase * (1 - i * 0.18));
-    ctx.lineWidth = unit.weaponId === 'dagger' ? 2 : unit.weaponId === 'eastern' ? 2.2 : 2.8;
-    ctx.stroke();
-  }
-
-  if (unit.weaponId === 'dagger' && (unit.skillRuntime?.highSpeedTimer > 0 || speed > 3.2)) {
-    ctx.beginPath();
-    ctx.arc(unit.x, unit.y, unit.radius + 9, 0, Math.PI * 2);
-    ctx.strokeStyle = hexToRgba(weapon.color, 0.22);
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
   ctx.restore();
 }
 
@@ -353,10 +307,40 @@ function getWeaponLineWidth(weapon, attackState) {
 }
 
 
+function updateCamera(state) {
+  const arena = state.arena;
+  const player = state.player;
+  const enemy = state.enemy;
+  if (!arena || !player || !enemy) return;
+
+  if (!state.camera) state.camera = { x: 0, y: 0 };
+
+  const midX = (player.x + enemy.x) / 2;
+  const midY = (player.y + enemy.y) / 2;
+  const dx = midX - arena.centerX;
+  const dy = midY - arena.centerY;
+
+  const distanceX = Math.abs(player.x - enemy.x);
+  const distanceY = Math.abs(player.y - enemy.y);
+  const closeCombatBias = Math.max(0, 1 - Math.hypot(distanceX, distanceY) / 520);
+
+  const targetX = clamp(dx * (0.18 + closeCombatBias * 0.08), -34, 34);
+  const targetY = clamp(dy * (0.16 + closeCombatBias * 0.06), -26, 26);
+
+  state.camera.x += (targetX - state.camera.x) * 0.08;
+  state.camera.y += (targetY - state.camera.y) * 0.08;
+}
+
+function applyCameraTransform(ctx, state) {
+  const camera = state.camera || { x: 0, y: 0 };
+  ctx.translate(-camera.x, -camera.y);
+}
+
+
 function applyScreenShake(ctx, state) {
   const amount = state.screenShake || 0;
   if (amount <= 0) return;
-  const shake = Math.min(amount, 8);
+  const shake = Math.min(amount, 13);
   const ox = (Math.random() - 0.5) * shake;
   const oy = (Math.random() - 0.5) * shake;
   ctx.translate(ox, oy);
