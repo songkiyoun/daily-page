@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.30';
+export const VERSION = '0.7.31';
 
 export const WEAPONS = {
   spear: {
@@ -953,10 +953,10 @@ export const REWARD_TRAITS = {
 
 export const TOWER_RULES = {
   startFloor: 1,
-  hpGrowthPerFloor: 0.12,
-  damageGrowthPerFloor: 0.075,
-  defenseGrowthPerFloor: 0.006,
-  maxEnemyDefense: 0.28,
+  hpGrowthPerFloor: 0.085,
+  damageGrowthPerFloor: 0.052,
+  defenseGrowthPerFloor: 0.004,
+  maxEnemyDefense: 0.24,
   bossInterval: 10,
   bossSoulReward: 1
 };

@@ -357,12 +357,8 @@ function handleMirrorAudit() {
 
 
 function handleGrowthSimulation() {
-  const count = Math.min(readSimulationCount(6), 8);
-  const result = simulateGrowthProgressionSet({
-    playerWeapon: controls.simPlayerWeapon.value,
-    playerPersonality: controls.simPlayerPersonality.value,
-    count
-  });
+  const count = Math.min(readSimulationCount(2), 3);
+  const result = simulateAllGrowthProgressionSets({ count });
   renderGrowthSimulation(result);
 }
 
@@ -404,6 +400,24 @@ function simulateGrowthProgressionSet({ playerWeapon, playerPersonality, count }
     playerPersonality,
     count,
     rows
+  };
+}
+
+function simulateAllGrowthProgressionSets({ count }) {
+  const groups = getAllCombatantConfigs().map((config) => simulateGrowthProgressionSet({
+    playerWeapon: config.weaponId,
+    playerPersonality: config.personalityId,
+    count
+  }));
+
+  return {
+    count,
+    groups,
+    rows: groups.flatMap((group) => group.rows.map((row) => ({
+      playerWeapon: group.playerWeapon,
+      playerPersonality: group.playerPersonality,
+      ...row
+    })))
   };
 }
 
@@ -510,6 +524,7 @@ function renderGrowthSimulation(result) {
   lastSimulationText = buildGrowthSimulationText(result);
   const rows = result.rows.map((row) => `
     <tr>
+      <td>${combatantLabel(row.playerWeapon, row.playerPersonality)}</td>
       <td>${row.profile.name}</td>
       <td>${row.avgFloor.toFixed(1)}층</td>
       <td>${row.best.clearedFloor}층</td>
@@ -522,12 +537,13 @@ function renderGrowthSimulation(result) {
 
   controls.simResultBox.innerHTML = `
     <div class="sim-summary">
-      <strong>성장 등반 예측 · ${combatantLabel(result.playerWeapon, result.playerPersonality)}</strong>
-      <span>초반형·중반형·후반형 자동 성장 기준 · 각 ${result.count}회 · 최대 60층까지 실제 전투 로직 반복</span>
+      <strong>전체 성장 등반 예측 · 16개 조합 펼침</strong>
+      <span>무기 4종 × 성격 4종 × 초반형·중반형·후반형 · 각 ${result.count}회 · 최대 60층까지 실제 전투 로직 반복</span>
     </div>
-    <table class="sim-table">
+    <table class="sim-table growth-table">
       <thead>
         <tr>
+          <th>조합</th>
           <th>성장 유형</th>
           <th>평균 클리어</th>
           <th>최고</th>
@@ -545,17 +561,18 @@ function renderGrowthSimulation(result) {
 
 function buildGrowthSimulationText(result) {
   const lines = [
-    '[성장 등반 예측]',
+    '[전체 성장 등반 예측]',
     `버전: v${VERSION}`,
-    `내 세팅: ${combatantLabel(result.playerWeapon, result.playerPersonality)}`,
-    `반복: 유형별 ${result.count}회`,
+    '대상: 무기 4종 × 성격 4종 전체 조합',
+    `반복: 조합/유형별 ${result.count}회`,
     '기준: 자동 스탯 분배 + 자동 보상 선택 + 실제 전투 로직 / 최대 60층',
     '',
-    '성장유형\t평균클리어층\t최고층\t최저층\t평균보스처치\t평균레벨\t설명'
+    '조합	성장유형	평균클리어층	최고층	최저층	평균보스처치	평균레벨	설명'
   ];
 
   result.rows.forEach((row) => {
     lines.push([
+      combatantLabel(row.playerWeapon, row.playerPersonality),
       row.profile.name,
       row.avgFloor.toFixed(1),
       row.best.clearedFloor,
@@ -563,10 +580,11 @@ function buildGrowthSimulationText(result) {
       row.avgBoss.toFixed(1),
       row.avgLevel.toFixed(1),
       row.profile.description
-    ].join('\t'));
+    ].join('	'));
   });
 
-  return lines.join('\n');
+  return lines.join('
+');
 }
 
 function handleSimulationCopy() {

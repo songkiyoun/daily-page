@@ -970,3 +970,18 @@ input[type="number"] {
   color: var(--muted);
   font-size: 0.82rem;
 }
+
+.growth-table {
+  font-size: 0.69rem;
+}
+
+.growth-table th,
+.growth-table td {
+  padding: 5px 4px;
+  white-space: nowrap;
+}
+
+.growth-table td:last-child {
+  white-space: normal;
+  min-width: 170px;
+}
