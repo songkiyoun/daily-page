@@ -129,20 +129,32 @@ h2 {
 }
 
 .shop-gold-pill {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 8px;
+  align-items: stretch;
   border: 1px solid rgba(255, 212, 90, 0.26);
   background: rgba(255, 212, 90, 0.08);
   color: var(--gold);
   padding: 8px 10px;
-  min-width: 94px;
 }
 
 .shop-gold-pill span {
+  display: grid;
+  gap: 2px;
+  min-width: 74px;
+  text-align: right;
+}
+
+.shop-gold-pill small {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.shop-gold-pill strong {
+  color: var(--gold);
+  font-size: 0.82rem;
 }
 
 .arena-panel {
@@ -419,9 +431,9 @@ select option {
 
 .overlay-reward-box {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin: 16px 0 4px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 14px 0 4px;
 }
 
 .overlay-reward-box.hidden {
@@ -429,15 +441,15 @@ select option {
 }
 
 .reward-button {
-  min-height: 118px;
+  min-height: 104px;
   border: 1px solid rgba(255, 212, 90, 0.34);
   background: rgba(255, 212, 90, 0.075);
   color: var(--text);
-  padding: 13px;
+  padding: 11px;
   cursor: pointer;
   text-align: left;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   align-content: start;
 }
 
@@ -455,6 +467,120 @@ select option {
   color: #d9d2b2;
   line-height: 1.45;
   font-size: 0.8rem;
+}
+
+.result-detail-box {
+  margin: 12px 0 4px;
+}
+
+.challenge-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.challenge-result-grid div,
+.resource-grid div {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 9px;
+  display: grid;
+  gap: 3px;
+}
+
+.challenge-result-grid span,
+.resource-grid span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.challenge-result-grid strong,
+.resource-grid strong {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.challenge-weapon-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid rgba(168, 136, 255, 0.22);
+  background: rgba(168, 136, 255, 0.055);
+  padding: 10px;
+}
+
+.challenge-weapon-summary span {
+  font-size: 1.4rem;
+}
+
+.challenge-weapon-summary em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.8rem;
+}
+
+.inventory-panel {
+  padding: 12px;
+}
+
+.inventory-panel h2 {
+  margin-bottom: 8px;
+}
+
+.inventory-box {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(300px, 1.25fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.weapon-slot {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(168, 136, 255, 0.24);
+  background: rgba(168, 136, 255, 0.06);
+  padding: 10px;
+}
+
+.weapon-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 212, 90, 0.24);
+  background: rgba(255, 212, 90, 0.08);
+  color: var(--gold);
+  font-size: 1.55rem;
+  flex: 0 0 auto;
+}
+
+.weapon-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.weapon-info strong {
+  color: var(--gold);
+}
+
+.weapon-info span,
+.weapon-info em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resource-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
 .rule-list {
@@ -503,7 +629,10 @@ select option {
     flex-direction: column;
   }
 
-  .overlay-reward-box {
+  .overlay-reward-box,
+  .challenge-result-grid,
+  .inventory-box,
+  .resource-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -796,6 +925,15 @@ input[type="number"] {
 
   .shop-line {
     grid-template-columns: 1fr 62px 72px;
+  }
+
+  .shop-gold-pill {
+    width: 100%;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .shop-gold-pill span {
+    text-align: left;
   }
 }
 

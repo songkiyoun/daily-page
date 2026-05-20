@@ -53,6 +53,32 @@ function getWeaponEvolutionOptions(weaponId) {
   return [...(WEAPON_EVOLUTIONS[weaponId] || [])];
 }
 
+function ensurePlayerResources(player) {
+  if (!player) return { gold: 0, enhancementStone: 0, bossSoul: 0 };
+  player.gold = Math.max(0, Math.floor(player.gold || 0));
+  player.enhancementStone = Math.max(0, Math.floor(player.enhancementStone || 0));
+  player.bossSoul = Math.max(0, Math.floor(player.bossSoul || 0));
+  return {
+    gold: player.gold,
+    enhancementStone: player.enhancementStone,
+    bossSoul: player.bossSoul
+  };
+}
+
+export function getPlayerInventory(player) {
+  const resources = ensurePlayerResources(player);
+  const growth = player ? getWeaponGrowthInfo(player) : null;
+  return {
+    ...resources,
+    weaponId: player?.weaponId || 'none',
+    weaponName: player ? WEAPONS[player.weaponId]?.name || player.weaponId : '-',
+    weaponGrade: growth?.grade?.name || '-',
+    weaponStage: growth?.currentStageText || '-',
+    weaponStageName: growth?.currentStage?.name || '-',
+    mastery: player?.mastery || 0
+  };
+}
+
 function getWeaponGradeEffects(unit) {
   const growth = getWeaponGrowthInfo(unit);
   const order = growth.grade?.order || 0;
@@ -261,8 +287,11 @@ export function getShopSummary(run) {
   if (!run?.player) return null;
   ensureShopState(run);
   const boosts = getShopBoosts(run.player);
+  const inventory = getPlayerInventory(run.player);
   return {
-    gold: run.player.gold || 0,
+    gold: inventory.gold,
+    enhancementStone: inventory.enhancementStone,
+    bossSoul: inventory.bossSoul,
     available: isPreTowerShopAvailable(run),
     rewardChoices: getRewardChoiceCount(run),
     advancedRewardChance: formatPercent(getAdvancedRewardChance(run)),
@@ -278,6 +307,7 @@ export function getShopOffers(run) {
   if (!run?.player) return [];
   ensureShopState(run);
   const player = run.player;
+  ensurePlayerResources(player);
   const boosts = getShopBoosts(player);
   const purchases = run.shop.purchases || {};
   const growth = getWeaponGrowthInfo(player);
@@ -384,6 +414,7 @@ export function purchasePreTowerShopItem(run, itemId) {
   if (offer.disabled) return { ok: false, message: offer.disabledReason || '구매할 수 없습니다.' };
 
   const player = run.player;
+  ensurePlayerResources(player);
   const boosts = getShopBoosts(player);
   const purchases = run.shop.purchases;
   player.gold = Math.max(0, (player.gold || 0) - offer.price);
@@ -459,6 +490,17 @@ export function createRun(config) {
     pendingRewards: [],
     lastRewardLog: '',
     levelMessage: '',
+    lastVictoryGold: 0,
+    lastVictoryBaseGold: 0,
+    victoryGoldMessage: '',
+    challenge: {
+      startGold: Number.isFinite(config.startingGold) ? Math.max(0, Math.floor(config.startingGold)) : SHOP_RULES.initialGold,
+      startEnhancementStone: Number.isFinite(config.startingEnhancementStone) ? Math.max(0, Math.floor(config.startingEnhancementStone)) : 0,
+      startBossSoul: Number.isFinite(config.startingBossSoul) ? Math.max(0, Math.floor(config.startingBossSoul)) : 0,
+      earnedGold: 0,
+      earnedEnhancementStone: 0,
+      earnedBossSoul: 0
+    },
     shop: {
       available: true,
       enteredTower: false,
@@ -475,6 +517,8 @@ export function createRun(config) {
       level: 1,
       exp: 0,
       gold: Number.isFinite(config.startingGold) ? Math.max(0, Math.floor(config.startingGold)) : SHOP_RULES.initialGold,
+      enhancementStone: Number.isFinite(config.startingEnhancementStone) ? Math.max(0, Math.floor(config.startingEnhancementStone)) : 0,
+      bossSoul: Number.isFinite(config.startingBossSoul) ? Math.max(0, Math.floor(config.startingBossSoul)) : 0,
       statPoints: PLAYER_START_STAT_POINTS,
       stats: { ...PLAYER_START_STATS },
       rewardTraits: [],
@@ -571,7 +615,9 @@ export function completeFloorVictory(state) {
   run.victories += 1;
 
   const victoryGold = getVictoryGoldAmount(run.player, run.floor);
+  ensurePlayerResources(run.player);
   run.player.gold = (run.player.gold || 0) + victoryGold.amount;
+  if (run.challenge) run.challenge.earnedGold = (run.challenge.earnedGold || 0) + victoryGold.amount;
   run.lastVictoryGold = victoryGold.amount;
   run.lastVictoryBaseGold = victoryGold.base;
   run.victoryGoldMessage = victoryGold.amount === victoryGold.base
@@ -1424,7 +1470,7 @@ function applyReward(run, reward) {
   const player = run.player;
   player.skillLevels = player.skillLevels || createInitialSkillLevels(player.skills);
   player.rewardTraits = player.rewardTraits || [];
-  player.gold = player.gold || 0;
+  ensurePlayerResources(player);
 
   if (reward.type === 'stat') {
     player.stats[reward.statKey] += reward.amount;
@@ -1467,7 +1513,20 @@ function applyReward(run, reward) {
 
   if (reward.type === 'gold') {
     player.gold += reward.amount;
+    if (run.challenge) run.challenge.earnedGold = (run.challenge.earnedGold || 0) + reward.amount;
     run.lastRewardLog = `골드 +${reward.amount}`;
+  }
+
+  if (reward.type === 'enhancementStone') {
+    player.enhancementStone += reward.amount;
+    if (run.challenge) run.challenge.earnedEnhancementStone = (run.challenge.earnedEnhancementStone || 0) + reward.amount;
+    run.lastRewardLog = `강화석 +${reward.amount}`;
+  }
+
+  if (reward.type === 'bossSoul') {
+    player.bossSoul += reward.amount;
+    if (run.challenge) run.challenge.earnedBossSoul = (run.challenge.earnedBossSoul || 0) + reward.amount;
+    run.lastRewardLog = `보스의 영혼 +${reward.amount}`;
   }
 
   if (reward.type === 'exp') {

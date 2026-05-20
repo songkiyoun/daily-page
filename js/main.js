@@ -2,7 +2,7 @@
 // 앱 초기화, UI 연결, 단일 게임 루프만 담당합니다.
 // requestAnimationFrame은 이 파일에서만 호출합니다.
 
-import { PERSONALITIES, PLAYER_START_STATS, REWARD_RARITIES, REWARD_TRAITS, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS } from './data.js';
+import { PERSONALITIES, PLAYER_START_STATS, REWARD_RARITIES, REWARD_TRAITS, SHOP_RULES, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS } from './data.js';
 import {
   applyRewardAndAdvance,
   completeFloorVictory,
@@ -10,6 +10,7 @@ import {
   createFixedEnemyConfig,
   createRun,
   getNextLevelExp,
+  getPlayerInventory,
   getShopOffers,
   getShopSummary,
   getWeaponGrowthInfo,
@@ -44,11 +45,13 @@ const controls = {
   giveUpBtn: document.getElementById('giveUpBtn'),
   overlayActionBtn: document.getElementById('overlayActionBtn'),
   overlayRewardBox: document.getElementById('overlayRewardBox'),
+  resultDetailBox: document.getElementById('resultDetailBox'),
   overlayShopBox: document.getElementById('overlayShopBox'),
   statusBox: document.getElementById('statusBox'),
   towerBox: document.getElementById('towerBox'),
   prepPlayerBox: document.getElementById('prepPlayerBox'),
   towerPlayerBox: document.getElementById('towerPlayerBox'),
+  inventoryBox: document.getElementById('inventoryBox'),
   resultOverlay: document.getElementById('resultOverlay'),
   resultTitle: document.getElementById('resultTitle'),
   resultText: document.getElementById('resultText'),
@@ -69,13 +72,15 @@ const controls = {
 let state = null;
 let run = null;
 let bankGold = null;
+let bankInventory = { gold: null, enhancementStone: 0, bossSoul: 0 };
 let lastSimulationText = '아직 복사할 시뮬레이션 결과가 없습니다.';
 let panelKeys = {
   player: '',
   tower: '',
   reward: '',
   shop: '',
-  controls: ''
+  controls: '',
+  inventory: ''
 };
 
 init();
@@ -139,8 +144,15 @@ function readConfig() {
 }
 
 function startNewRun() {
-  const startingGold = Number.isFinite(bankGold) ? bankGold : undefined;
-  run = createRun({ ...readConfig(), startingGold });
+  const startingGold = Number.isFinite(bankInventory.gold)
+    ? bankInventory.gold
+    : (Number.isFinite(bankGold) ? bankGold : undefined);
+  run = createRun({
+    ...readConfig(),
+    startingGold,
+    startingEnhancementStone: bankInventory.enhancementStone || 0,
+    startingBossSoul: bankInventory.bossSoul || 0
+  });
   state = createBattleState(run);
   clearPanelKeys();
   render(ctx, state);
@@ -206,6 +218,10 @@ function hasPreparedCharacter() {
 
 function handleOverlayAction() {
   const action = controls.overlayActionBtn.dataset.action;
+  if (action === 'newChallenge') {
+    resetToPrepScreen();
+    return;
+  }
   if (action === 'retry' || action === 'newRun') {
     startNewRun();
     return;
@@ -215,6 +231,26 @@ function handleOverlayAction() {
   }
 }
 
+function syncBankFromRun() {
+  if (!run?.player) return;
+  const inventory = getPlayerInventory(run.player);
+  bankInventory = {
+    gold: inventory.gold,
+    enhancementStone: inventory.enhancementStone,
+    bossSoul: inventory.bossSoul
+  };
+  bankGold = inventory.gold;
+}
+
+function resetToPrepScreen() {
+  syncBankFromRun();
+  state = null;
+  run = null;
+  clearPanelKeys();
+  showPrepScreen();
+  renderAllPanels(true);
+}
+
 function handleGiveUp() {
   if (!state || state.result || !run?.active) return;
   state.running = false;
@@ -222,11 +258,11 @@ function handleGiveUp() {
   state.result = 'defeat';
   state.player.isDead = true;
   state.player.lastAction = '런 포기';
-  bankGold = run?.player?.gold || 0;
+  syncBankFromRun();
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
-  showOverlay('DEFEAT', `${state.run.floor}층에서 런을 포기했습니다. 새 캐릭터를 생성할 수 있습니다.`, '새 캐릭터 생성', 'retry');
+  showChallengeEndOverlay('도전 포기', `${state.run.floor}층에서 런을 포기했습니다.`);
 }
 
 function handleStatClick(event) {
@@ -245,7 +281,7 @@ function handleRewardClick(event) {
   if (!button || !state?.run?.pendingRewards?.length || state.result !== 'victory') return;
   state = applyRewardAndAdvance(state, button.dataset.reward);
   run = state.run;
-  bankGold = run.player.gold || 0;
+  syncBankFromRun();
   clearPanelKeys();
   updatePauseButton();
   render(ctx, state);
@@ -262,7 +298,7 @@ function handleShopClick(event) {
   const button = event.target.closest('.shop-button');
   if (!button || !run || !state) return;
   const result = purchasePreTowerShopItem(run, button.dataset.shopItem);
-  bankGold = run.player.gold || 0;
+  syncBankFromRun();
   refreshPlayerUnit(state);
   clearPanelKeys();
   render(ctx, state);
@@ -733,6 +769,7 @@ function renderAllPanels(force = false) {
   renderStatus();
   renderTowerInfo(force);
   renderPlayerInfo(force);
+  renderInventory(force);
   renderShopStatus(force);
   renderRewardBox(force);
   renderShopBox(force);
@@ -829,6 +866,8 @@ function renderPlayerInfo(force = false) {
     player.level,
     player.exp,
     player.gold || 0,
+    player.enhancementStone || 0,
+    player.bossSoul || 0,
     player.statPoints,
     player.mastery,
     JSON.stringify(player.shopBoosts || {}),
@@ -864,12 +903,9 @@ function renderPlayerInfo(force = false) {
     <div class="tower-row"><span>레벨</span><strong>Lv.${player.level}</strong></div>
     <div class="tower-row"><span>경험치</span><strong>${player.exp} / ${expNeed}</strong></div>
     <div class="hpbar expbar"><i style="width:${expRatio}%"></i></div>
-    <div class="tower-row"><span>골드</span><strong>${player.gold || 0}</strong></div>
     <div class="tower-row"><span>스탯 포인트</span><strong>${player.statPoints}</strong></div>
     <div class="tower-row"><span>무기 숙련</span><strong>${player.mastery}</strong></div>
     <div class="tower-row"><span>성격 강화</span><strong>Lv.${player.shopBoosts?.personalityBoostLevel || 0}</strong></div>
-    <div class="tower-row"><span>무기 등급</span><strong>${weaponGrowth.grade.name}</strong></div>
-    <div class="tower-row"><span>무기 단계</span><strong>${weaponGrowth.currentStageText}</strong></div>
     <div class="stat-grid">${statButtons}</div>
     <div class="skill-list">${skillText}</div>
     <div class="skill-list">${traitText}</div>
@@ -879,19 +915,75 @@ function renderPlayerInfo(force = false) {
   controls.towerPlayerBox.innerHTML = playerInfoHtml;
 }
 
-function renderShopStatus(force = false) {
-  if (!controls.shopStatusBox) return;
-  if (!run) {
-    controls.shopStatusBox.dataset.key = 'empty';
-    controls.shopStatusBox.innerHTML = `<span>보유 골드</span><strong>-</strong>`;
+function getWeaponIcon(weaponId) {
+  if (weaponId === 'western') return '⚔';
+  if (weaponId === 'eastern') return '◈';
+  if (weaponId === 'spear') return '♆';
+  if (weaponId === 'dagger') return '🗡';
+  return '□';
+}
+
+function renderInventory(force = false) {
+  if (!controls.inventoryBox) return;
+  if (!run?.player) {
+    controls.inventoryBox.innerHTML = `
+      <div class="empty-panel">
+        <strong>인벤토리 없음</strong>
+        <span>탑에 오르면 현재 무기와 보유 재화가 표시됩니다.</span>
+      </div>
+    `;
+    panelKeys.inventory = 'empty';
     return;
   }
-  const summary = getShopSummary(run);
-  if (!summary) return;
-  const key = [summary.gold, summary.lastLog].join('|');
+
+  const inventory = getPlayerInventory(run.player);
+  const key = [
+    inventory.weaponId,
+    inventory.weaponName,
+    inventory.weaponGrade,
+    inventory.weaponStage,
+    inventory.mastery,
+    inventory.gold,
+    inventory.enhancementStone,
+    inventory.bossSoul
+  ].join('|');
+  if (!force && panelKeys.inventory === key) return;
+  panelKeys.inventory = key;
+
+  controls.inventoryBox.innerHTML = `
+    <div class="weapon-slot">
+      <div class="weapon-icon">${getWeaponIcon(inventory.weaponId)}</div>
+      <div class="weapon-info">
+        <strong>${inventory.weaponName}</strong>
+        <span>${inventory.weaponStage}</span>
+        <em>${inventory.weaponGrade} · 숙련도 ${inventory.mastery}</em>
+      </div>
+    </div>
+    <div class="resource-grid">
+      <div><span>골드</span><strong>${inventory.gold}G</strong></div>
+      <div><span>강화석</span><strong>${inventory.enhancementStone}</strong></div>
+      <div><span>보스의 영혼</span><strong>${inventory.bossSoul}</strong></div>
+    </div>
+  `;
+}
+
+function renderShopStatus(force = false) {
+  if (!controls.shopStatusBox) return;
+  const resources = run?.player
+    ? getPlayerInventory(run.player)
+    : {
+      gold: Number.isFinite(bankInventory.gold) ? bankInventory.gold : SHOP_RULES.initialGold,
+      enhancementStone: bankInventory.enhancementStone || 0,
+      bossSoul: bankInventory.bossSoul || 0
+    };
+  const key = [resources.gold, resources.enhancementStone, resources.bossSoul, run?.lastRewardLog || ''].join('|');
   if (!force && controls.shopStatusBox.dataset.key === key) return;
   controls.shopStatusBox.dataset.key = key;
-  controls.shopStatusBox.innerHTML = `<span>보유 골드</span><strong>${summary.gold}G</strong>`;
+  controls.shopStatusBox.innerHTML = `
+    <span><small>골드</small><strong>${resources.gold}G</strong></span>
+    <span><small>강화석</small><strong>${resources.enhancementStone}</strong></span>
+    <span><small>보스의 영혼</small><strong>${resources.bossSoul}</strong></span>
+  `;
 }
 
 function renderShopBox(force = false, message = '') {
@@ -1054,18 +1146,39 @@ function renderResultIfNeeded() {
     );
     renderAllPanels(true);
   } else if (state.result === 'defeat') {
-    bankGold = state.run.player.gold || 0;
-    showOverlay(
-      'DEFEAT',
-      `${state.run.floor}층에서 쓰러졌습니다. 같은 구조로 새 런을 다시 시작합니다.`,
-      '새 캐릭터 생성',
-      'retry'
-    );
+    syncBankFromRun();
+    showChallengeEndOverlay('도전 종료', `${state.run.floor}층에서 쓰러졌습니다.`);
     renderAllPanels(true);
   } else {
     showOverlay('DRAW', '두 유닛이 동시에 쓰러졌습니다. 현재 층을 다시 진행합니다.', '현재 층 재도전', 'start');
     renderAllPanels(true);
   }
+}
+
+function buildChallengeEndDetails() {
+  if (!run?.player) return '';
+  const inventory = getPlayerInventory(run.player);
+  const reachedFloor = Math.max(TOWER_RULES.startFloor, run.floor || TOWER_RULES.startFloor);
+  return `
+    <div class="challenge-result-grid">
+      <div><span>도달 층수</span><strong>${reachedFloor}층</strong></div>
+      <div><span>처치 수</span><strong>${run.victories || 0}회</strong></div>
+      <div><span>최종 레벨</span><strong>Lv.${run.player.level}</strong></div>
+      <div><span>획득 골드</span><strong>${run.challenge?.earnedGold || 0}G</strong></div>
+      <div><span>획득 강화석</span><strong>${run.challenge?.earnedEnhancementStone || 0}</strong></div>
+      <div><span>획득 보스의 영혼</span><strong>${run.challenge?.earnedBossSoul || 0}</strong></div>
+    </div>
+    <div class="challenge-weapon-summary">
+      <span>${getWeaponIcon(inventory.weaponId)}</span>
+      <strong>${inventory.weaponName}</strong>
+      <em>${inventory.weaponGrade} · ${inventory.weaponStage}</em>
+    </div>
+  `;
+}
+
+function showChallengeEndOverlay(title, text) {
+  showOverlay(title, text, '새 도전 시작', 'newChallenge', { detailsHtml: buildChallengeEndDetails() });
+  if (state) controls.resultOverlay.dataset.resultFrame = String(state.frame);
 }
 
 function showShopOverlay(message = '') {
@@ -1088,6 +1201,10 @@ function showTowerScreen() {
 function showOverlay(title, text, buttonText, action, options = {}) {
   controls.resultTitle.textContent = title;
   controls.resultText.textContent = text;
+  if (controls.resultDetailBox) {
+    controls.resultDetailBox.innerHTML = options.detailsHtml || '';
+    controls.resultDetailBox.classList.toggle('hidden', !options.detailsHtml);
+  }
   controls.overlayActionBtn.textContent = buttonText;
   controls.overlayActionBtn.dataset.action = action;
   controls.overlayActionBtn.disabled = !!options.disabled;
@@ -1103,6 +1220,10 @@ function hideOverlay() {
   controls.overlayActionBtn.classList.remove('hidden');
   hideRewardBox();
   hideShopBox();
+  if (controls.resultDetailBox) {
+    controls.resultDetailBox.innerHTML = '';
+    controls.resultDetailBox.classList.add('hidden');
+  }
   delete controls.resultOverlay.dataset.resultFrame;
 }
 
@@ -1116,6 +1237,7 @@ function clearPanelKeys() {
     tower: '',
     reward: '',
     shop: '',
-    controls: ''
+    controls: '',
+    inventory: ''
   };
 }
