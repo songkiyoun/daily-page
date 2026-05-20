@@ -28,9 +28,12 @@ const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
 
 const controls = {
+  prepScreen: document.getElementById('prepScreen'),
+  towerScreen: document.getElementById('towerScreen'),
   playerWeapon: document.getElementById('playerWeapon'),
   playerPersonality: document.getElementById('playerPersonality'),
   startBtn: document.getElementById('startBtn'),
+  climbBtn: document.getElementById('climbBtn'),
   simToggleBtn: document.getElementById('simToggleBtn'),
   shopStatusBox: document.getElementById('shopStatusBox'),
   simulatorPanel: document.getElementById('simulatorPanel'),
@@ -41,7 +44,8 @@ const controls = {
   overlayShopBox: document.getElementById('overlayShopBox'),
   statusBox: document.getElementById('statusBox'),
   towerBox: document.getElementById('towerBox'),
-  playerBox: document.getElementById('playerBox'),
+  prepPlayerBox: document.getElementById('prepPlayerBox'),
+  towerPlayerBox: document.getElementById('towerPlayerBox'),
   resultOverlay: document.getElementById('resultOverlay'),
   resultTitle: document.getElementById('resultTitle'),
   resultText: document.getElementById('resultText'),
@@ -84,6 +88,7 @@ function init() {
   controls.version.textContent = `v${VERSION}`;
 
   controls.startBtn.addEventListener('click', handleMainButton);
+  controls.climbBtn.addEventListener('click', startCurrentFloor);
   controls.playerWeapon.addEventListener('change', handleConfigChange);
   controls.playerPersonality.addEventListener('change', handleConfigChange);
   controls.overlayActionBtn.addEventListener('click', handleOverlayAction);
@@ -93,7 +98,8 @@ function init() {
     updatePauseButton();
   });
   controls.giveUpBtn.addEventListener('click', handleGiveUp);
-  controls.playerBox.addEventListener('click', handleStatClick);
+  controls.prepPlayerBox.addEventListener('click', handleStatClick);
+  controls.towerPlayerBox.addEventListener('click', handleStatClick);
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
   controls.overlayShopBox.addEventListener('click', handleShopClick);
   controls.simToggleBtn.addEventListener('click', handleSimulatorToggle);
@@ -107,7 +113,8 @@ function init() {
   state = createBattleState(run);
   render(ctx, state);
   renderAllPanels(true);
-  showShopOverlay();
+  showPrepScreen();
+  renderShopBox(true);
   console.info(`Circle Battle Tower Rebuild v${VERSION}`);
 }
 
@@ -136,7 +143,8 @@ function startNewRun() {
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
-  showShopOverlay();
+  showPrepScreen();
+  renderShopBox(true);
   updatePauseButton();
 }
 
@@ -171,13 +179,15 @@ function handleConfigChange() {
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
-  showShopOverlay();
+  showPrepScreen();
+  renderShopBox(true);
 }
 
 function startCurrentFloor() {
   if (!canStartCurrentFloor()) return;
   lockPreTowerShop(run);
   startState(state);
+  showTowerScreen();
   hideOverlay();
   updatePauseButton();
   renderAllPanels(true);
@@ -261,7 +271,7 @@ function handleShopClick(event) {
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
-  showShopOverlay(result.message);
+  renderShopBox(true, result.message);
 }
 
 function handleSimulatorToggle() {
@@ -843,7 +853,7 @@ function renderPlayerInfo(force = false) {
     </button>
   `).join('');
 
-  controls.playerBox.innerHTML = `
+  const playerInfoHtml = `
     <div class="tower-row"><span>레벨</span><strong>Lv.${player.level}</strong></div>
     <div class="tower-row"><span>경험치</span><strong>${player.exp} / ${expNeed}</strong></div>
     <div class="hpbar expbar"><i style="width:${expRatio}%"></i></div>
@@ -858,66 +868,53 @@ function renderPlayerInfo(force = false) {
     <div class="skill-list">${traitText}</div>
     <p class="hint-text">스탯 포인트는 탑 입장 전 또는 다음 층 대기 상태에서 배분할 수 있습니다.</p>
   `;
+  controls.prepPlayerBox.innerHTML = playerInfoHtml;
+  controls.towerPlayerBox.innerHTML = playerInfoHtml;
 }
 
 function renderShopStatus(force = false) {
   if (!run || !controls.shopStatusBox) return;
   const summary = getShopSummary(run);
   if (!summary) return;
-  const shopState = summary.available ? '탑 입장 전 이용 가능' : '탑 입장 후 비활성화';
-  const key = [
-    summary.gold,
-    shopState,
-    summary.rewardChoices,
-    summary.advancedRewardChance,
-    summary.personalityBoostLevel,
-    summary.goldBonusPercent,
-    summary.expBonusPercent,
-    summary.lastLog
-  ].join('|');
+  const key = [summary.gold, summary.lastLog].join('|');
   if (!force && controls.shopStatusBox.dataset.key === key) return;
   controls.shopStatusBox.dataset.key = key;
-  controls.shopStatusBox.innerHTML = `
-    <div class="shop-summary-grid">
-      <div class="tower-row"><span>보유 골드</span><strong>${summary.gold}G</strong></div>
-      <div class="tower-row"><span>상점 상태</span><strong>${shopState}</strong></div>
-      <div class="tower-row"><span>보상 선택지</span><strong>${summary.rewardChoices}개</strong></div>
-      <div class="tower-row"><span>고급보상 확률</span><strong>${summary.advancedRewardChance}</strong></div>
-      <div class="tower-row"><span>성격 강화</span><strong>Lv.${summary.personalityBoostLevel}</strong></div>
-      <div class="tower-row"><span>골드 보너스</span><strong>+${summary.goldBonusPercent}%</strong></div>
-      <div class="tower-row"><span>경험치 보너스</span><strong>+${summary.expBonusPercent}%</strong></div>
-    </div>
-    <p class="hint-text">${summary.lastLog || '상점 구매 효과는 현재 캐릭터에게만 적용되며 죽을 경우 초기화됩니다.'}</p>
-  `;
+  controls.shopStatusBox.innerHTML = `<span>보유 골드</span><strong>${summary.gold}G</strong>`;
 }
 
-function renderShopBox(force = false) {
-  if (!run || !state || !isPreTowerShopAvailable(run) || controls.resultOverlay.classList.contains('hidden')) {
+function renderShopBox(force = false, message = '') {
+  if (!run || !state || !isPreTowerShopAvailable(run)) {
     hideShopBox();
     return;
   }
 
   const offers = getShopOffers(run);
-  const key = [run.player.gold || 0, run.player.statPoints, run.player.weaponGrade, run.player.weaponEvolution, offers.map((item) => `${item.id}:${item.price}:${item.disabled}:${item.description}`).join('|')].join('|');
+  const key = [
+    run.player.gold || 0,
+    message,
+    run.player.statPoints,
+    run.player.weaponGrade,
+    run.player.weaponEvolution,
+    offers.map((item) => `${item.id}:${item.price}:${item.disabled}:${item.disabledReason}:${item.description}`).join('|')
+  ].join('|');
   if (!force && panelKeys.shop === key) return;
   panelKeys.shop = key;
 
-  const summary = getShopSummary(run);
   controls.overlayShopBox.classList.remove('hidden');
   controls.overlayShopBox.innerHTML = `
-    <div class="shop-inline-head">
-      <div><span>보유 골드</span> <strong>${summary.gold}G</strong></div>
-      <div><span>보상 선택지</span> <strong>${summary.rewardChoices}개</strong></div>
-      <div><span>고급보상</span> <strong>${summary.advancedRewardChance}</strong></div>
-      <div><span>상점 상태</span> <strong>${summary.available ? '이용 가능' : '비활성'}</strong></div>
-    </div>
-    <div class="shop-inline-list">
+    ${message ? `<div class="shop-message">${message}</div>` : ''}
+    <div class="shop-line-list">
       ${offers.map((item) => `
-        <button class="shop-button" type="button" data-shop-item="${item.id}" ${item.disabled ? 'disabled' : ''}>
-          <strong>${item.title}</strong>
-          <span>${item.description}</span>
-          <em>${item.price}G${item.disabledReason ? ` · ${item.disabledReason}` : ''}</em>
-        </button>
+        <div class="shop-line" title="${item.description}">
+          <div class="shop-line-main">
+            <strong>${item.title}</strong>
+            <span>${item.description}</span>
+          </div>
+          <em>${item.price}G</em>
+          <button class="button mini shop-button" type="button" data-shop-item="${item.id}" ${item.disabled ? 'disabled' : ''}>
+            ${item.disabledReason || '구매'}
+          </button>
+        </div>
       `).join('')}
     </div>
   `;
@@ -980,6 +977,7 @@ function renderControlState(force = false) {
   controls.pauseBtn.disabled = !state.running || !!state.result;
   const freshReady = !state.running && !state.result && run?.floor === TOWER_RULES.startFloor && run?.victories === 0;
   controls.giveUpBtn.disabled = !run?.active || !!state.result || freshReady;
+  controls.climbBtn.disabled = !canStartFloor || !isPreTowerShopAvailable(run);
 
   if (state.running && !state.result) {
     controls.startBtn.textContent = '전투 진행 중';
@@ -1039,11 +1037,19 @@ function renderResultIfNeeded() {
 
 function showShopOverlay(message = '') {
   if (!run || !state) return;
-  const guide = '탑 입장 전 준비 상점입니다. 구매 효과는 현재 캐릭터 전용이며 죽으면 초기화됩니다.';
-  const text = message ? `${message}
-${guide}` : guide;
-  showOverlay('PREP SHOP', text, '탑 오르기', 'climbTower', { keepShop: true });
-  renderShopBox(true);
+  showPrepScreen();
+  renderShopBox(true, message);
+}
+
+function showPrepScreen() {
+  controls.prepScreen.classList.remove('hidden');
+  controls.towerScreen.classList.add('hidden');
+  hideOverlay();
+}
+
+function showTowerScreen() {
+  controls.prepScreen.classList.add('hidden');
+  controls.towerScreen.classList.remove('hidden');
 }
 
 function showOverlay(title, text, buttonText, action, options = {}) {

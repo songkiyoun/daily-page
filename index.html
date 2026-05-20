@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.26-compact-pre-tower-shop-ui" />
-  <title>Circle Battle Tower Rebuild v0.7.26</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.26" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.27-two-screen-ui" />
+  <title>Circle Battle Tower Rebuild v0.7.27</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.27" />
 </head>
 <body>
   <main class="app">
@@ -13,43 +13,57 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">탑 입장 전 준비 상점을 한눈에 보이는 목록형 UI로 정리한 v0.7.26 뼈대입니다.</p>
+        <p class="subtext">준비 화면과 등반 화면을 분리해 캐릭터 생성, 상점, 전투, 보상을 단계별로 정리한 v0.7.27 뼈대입니다.</p>
       </div>
-      <div class="topbar-actions"><button id="simToggleBtn" class="button mini">시뮬레이터</button><div id="versionBadge" class="version">v0.7.26</div></div>
+      <div class="topbar-actions">
+        <button id="simToggleBtn" class="button mini">시뮬레이터</button>
+        <div id="versionBadge" class="version">v0.7.27</div>
+      </div>
     </header>
 
-    <section class="layout">
-      <aside class="setup-panel side-panel">
-        <section class="card">
-          <h2>캐릭터 세팅</h2>
-          <label class="field">
-            <span>플레이어 무기</span>
-            <select id="playerWeapon"></select>
-          </label>
-          <label class="field">
-            <span>플레이어 성격</span>
-            <select id="playerPersonality"></select>
-          </label>
-          <div class="button-row single">
-            <button id="startBtn" class="button primary">새 캐릭터 생성</button>
+    <section id="prepScreen" class="screen prep-screen">
+      <section class="card prep-card setup-card">
+        <p class="eyebrow">STEP 1</p>
+        <h2>캐릭터 생성</h2>
+        <label class="field">
+          <span>플레이어 무기</span>
+          <select id="playerWeapon"></select>
+        </label>
+        <label class="field">
+          <span>플레이어 성격</span>
+          <select id="playerPersonality"></select>
+        </label>
+        <div class="button-row single">
+          <button id="startBtn" class="button primary">새 캐릭터 생성</button>
+        </div>
+        <p class="hint-text">무기와 성격을 바꾸면 준비 상점과 스탯 화면이 현재 캐릭터 기준으로 갱신됩니다.</p>
+      </section>
+
+      <section class="card prep-card stat-card">
+        <p class="eyebrow">STEP 2</p>
+        <h2>스탯 설정</h2>
+        <div id="prepPlayerBox" class="player-box"></div>
+      </section>
+
+      <section class="card prep-card shop-card">
+        <div class="prep-shop-head">
+          <div>
+            <p class="eyebrow">STEP 3</p>
+            <h2>탑 입장 전 준비 상점</h2>
           </div>
-          <p class="hint-text">무기와 성격, 기본 스탯을 정한 뒤 새 캐릭터를 생성하면 전투 박스에 준비 상점이 열립니다.</p>
-        </section>
+          <div id="shopStatusBox" class="shop-gold-pill"></div>
+        </div>
+        <div id="overlayShopBox" class="prep-shop-list"></div>
+        <p class="shop-reset-note">상점 구매 효과는 현재 캐릭터에게만 적용되며, 사망 시 초기화됩니다.</p>
+        <button id="climbBtn" class="button primary climb-button">탑 오르기</button>
+      </section>
+    </section>
 
-        <section class="card">
-          <h2>스탯 설정</h2>
-          <div id="playerBox" class="player-box"></div>
-        </section>
-
-
-        <section class="card">
-          <h2>개발 원칙</h2>
-          <ul class="rule-list">
-            <li>새 패치 블록을 아래에 덧붙이지 않습니다.</li>
-            <li>수정은 담당 파일의 기존 함수와 데이터를 직접 고칩니다.</li>
-            <li>1:1 전투만 고려합니다.</li>
-            <li>맵은 사각형 전장입니다.</li>
-          </ul>
+    <section id="towerScreen" class="screen tower-screen hidden">
+      <aside class="side-panel tower-left-panel">
+        <section class="card compact-card">
+          <h2>내 캐릭터 상태</h2>
+          <div id="towerPlayerBox" class="player-box"></div>
         </section>
       </aside>
 
@@ -60,78 +74,74 @@
             <div class="result-card">
               <p class="eyebrow">TOWER RESULT</p>
               <h2 id="resultTitle">READY</h2>
-              <p id="resultText">무기와 성격을 선택하고 새 캐릭터를 생성하세요.</p>
-              <div id="overlayShopBox" class="overlay-shop-box hidden"></div>
+              <p id="resultText">전투 결과가 이곳에 표시됩니다.</p>
               <div id="overlayRewardBox" class="overlay-reward-box hidden"></div>
-              <button id="overlayActionBtn" class="button primary">탑 오르기</button>
+              <button id="overlayActionBtn" class="button primary">전투 시작</button>
             </div>
           </div>
         </div>
-
-        <section class="card shop-resource-card">
-          <h2>보유 자원 / 상점</h2>
-          <div id="shopStatusBox" class="tower-box"></div>
-          <p class="hint-text">상점은 탑에 오르기 전 한 번만 이용할 수 있고, 1층에 올라가는 순간 비활성화됩니다.</p>
-        </section>
       </section>
 
-      <aside class="info-panel side-panel">
+      <aside class="info-panel side-panel tower-right-panel">
         <section class="card compact-card">
           <div class="panel-head">
             <h2>탑 정보</h2>
-            <div class="panel-actions"><button id="pauseBtn" class="button mini">일시정지</button><button id="giveUpBtn" class="button mini danger">포기</button></div>
+            <div class="panel-actions">
+              <button id="pauseBtn" class="button mini">일시정지</button>
+              <button id="giveUpBtn" class="button mini danger">포기</button>
+            </div>
           </div>
           <div id="towerBox" class="tower-box"></div>
           <p id="enemyPreview" class="hint-text"></p>
         </section>
 
-        <section class="card">
-          <h2>상태</h2>
+        <section class="card compact-card">
+          <h2>전투 상태</h2>
           <div id="statusBox" class="status-box"></div>
         </section>
       </aside>
     </section>
 
     <section id="simulatorPanel" class="card simulator-panel simulator-drawer hidden">
-          <div class="simulator-head">
-            <div>
-              <h2>전투 시뮬레이터</h2>
-              <p class="hint-text">1층 기본 스탯 5 기준으로 실제 전투 로직을 반복 실행합니다. 전체 비교는 내 조합과 상대 조합을 모두 돌리며, A/B 양방향 보정과 미러전 검증을 지원합니다.</p>
-            </div>
-            <div class="sim-badge">기본 10회</div>
-          </div>
-          <div class="sim-grid sim-grid-wide">
-            <label class="field compact-field">
-              <span>내 무기</span>
-              <select id="simPlayerWeapon"></select>
-            </label>
-            <label class="field compact-field">
-              <span>내 성격</span>
-              <select id="simPlayerPersonality"></select>
-            </label>
-            <label class="field compact-field">
-              <span>상대 무기</span>
-              <select id="simEnemyWeapon"></select>
-            </label>
-            <label class="field compact-field">
-              <span>상대 성격</span>
-              <select id="simEnemyPersonality"></select>
-            </label>
-            <label class="field compact-field">
-              <span>반복 횟수</span>
-              <input id="simCount" type="number" min="1" max="50" value="10" />
-            </label>
-          </div>
-          <div class="button-row simulator-buttons">
-            <button id="simRunBtn" class="button">선택 조합 실행</button>
-            <button id="simMatrixBtn" class="button primary">전체 256조합 비교</button>
-            <button id="simMirrorAuditBtn" class="button">미러전 검증</button>
-            <button id="simCopyBtn" class="button">결과 복사</button>
-          </div>
-          <div id="simResultBox" class="sim-result-box large">아직 시뮬레이션을 실행하지 않았습니다.</div>
-        </section>
+      <div class="simulator-head">
+        <div>
+          <h2>전투 시뮬레이터</h2>
+          <p class="hint-text">1층 기본 스탯 5 기준으로 실제 전투 로직을 반복 실행합니다. 전체 비교는 내 조합과 상대 조합을 모두 돌리며, A/B 양방향 보정과 미러전 검증을 지원합니다.</p>
+        </div>
+        <div class="sim-badge">기본 10회</div>
+      </div>
+      <div class="sim-grid sim-grid-wide">
+        <label class="field compact-field">
+          <span>내 무기</span>
+          <select id="simPlayerWeapon"></select>
+        </label>
+        <label class="field compact-field">
+          <span>내 성격</span>
+          <select id="simPlayerPersonality"></select>
+        </label>
+        <label class="field compact-field">
+          <span>상대 무기</span>
+          <select id="simEnemyWeapon"></select>
+        </label>
+        <label class="field compact-field">
+          <span>상대 성격</span>
+          <select id="simEnemyPersonality"></select>
+        </label>
+        <label class="field compact-field">
+          <span>반복 횟수</span>
+          <input id="simCount" type="number" min="1" max="50" value="10" />
+        </label>
+      </div>
+      <div class="button-row simulator-buttons">
+        <button id="simRunBtn" class="button">선택 조합 실행</button>
+        <button id="simMatrixBtn" class="button primary">전체 256조합 비교</button>
+        <button id="simMirrorAuditBtn" class="button">미러전 검증</button>
+        <button id="simCopyBtn" class="button">결과 복사</button>
+      </div>
+      <div id="simResultBox" class="sim-result-box large">아직 시뮬레이션을 실행하지 않았습니다.</div>
+    </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.26"></script>
+  <script type="module" src="./js/main.js?v=0.7.27"></script>
 </body>
 </html>
