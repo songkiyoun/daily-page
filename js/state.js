@@ -30,6 +30,7 @@ export function getWeaponGrowthInfo(player) {
   const evolutionIndex = options.findIndex((item) => item.id === player.weaponEvolution);
   const currentIndex = evolutionIndex >= 0 ? evolutionIndex : 0;
   const currentStage = options[currentIndex] || null;
+  const nextStage = currentIndex < options.length - 1 ? options[currentIndex + 1] : null;
 
   return {
     grade,
@@ -38,9 +39,12 @@ export function getWeaponGrowthInfo(player) {
     evolution: evolutionIndex >= 0 ? options[evolutionIndex] : null,
     options,
     currentStage,
+    nextStage,
     currentStageNumber: currentStage ? currentIndex + 1 : 0,
+    nextStageNumber: nextStage ? currentIndex + 2 : null,
     currentStageText: currentStage ? `${currentIndex + 1}단계 : ${currentStage.name}` : '단계 없음',
-    isEvolutionActive: evolutionIndex >= 0
+    isEvolutionActive: evolutionIndex >= 0,
+    isMaxStage: !nextStage
   };
 }
 
@@ -66,6 +70,17 @@ function upgradeWeaponGrade(player, amount = 1) {
   const nextGrade = WEAPON_GRADES.find((item) => item.order === targetOrder) || growth.grade;
   player.weaponGrade = nextGrade.id;
   return nextGrade;
+}
+
+function upgradeWeaponStage(player, amount = 1) {
+  const growth = getWeaponGrowthInfo(player);
+  if (growth.isMaxStage || !growth.options.length) return growth.currentStage;
+
+  const currentIndex = Math.max(0, growth.currentStageNumber - 1);
+  const targetIndex = Math.min(currentIndex + amount, growth.options.length - 1);
+  const nextStage = growth.options[targetIndex] || growth.currentStage;
+  player.weaponEvolution = nextStage?.id || null;
+  return nextStage;
 }
 
 
@@ -719,7 +734,7 @@ function createRewardByRarity(run, rarity) {
     normal: createNormalReward,
     rare: createRareReward,
     hero: createHeroReward,
-    legendary: createLegendaryRewardPlaceholder
+    legendary: createLegendaryReward
   };
 
   const reward = factories[rarity]?.(run);
@@ -914,8 +929,22 @@ function createHeroReward(run) {
   return pool.length ? sample(pool) : createRareReward(run);
 }
 
-function createLegendaryRewardPlaceholder(run) {
-  return null;
+function createLegendaryReward(run) {
+  const pool = [];
+  const weaponGrowth = getWeaponGrowthInfo(run.player);
+
+  if (!weaponGrowth.isMaxStage && weaponGrowth.nextStage) {
+    pool.push({
+      id: `legendary-weapon-stage-${weaponGrowth.nextStage.id}`,
+      type: 'weaponStageUp',
+      rarity: 'legendary',
+      amount: 1,
+      title: `무기 단계 상승`,
+      description: `${weaponGrowth.currentStage.name} → ${weaponGrowth.nextStage.name}`
+    });
+  }
+
+  return pool.length ? sample(pool) : null;
 }
 
 function getFallbackRewards(run) {
@@ -1039,6 +1068,12 @@ function applyReward(run, reward) {
     const before = getWeaponGrowthInfo(player).grade;
     const after = upgradeWeaponGrade(player, reward.amount || 1);
     run.lastRewardLog = `무기 등급 상승: ${before.name} → ${after.name}`;
+  }
+
+  if (reward.type === 'weaponStageUp') {
+    const before = getWeaponGrowthInfo(player).currentStage;
+    const after = upgradeWeaponStage(player, reward.amount || 1);
+    run.lastRewardLog = `무기 단계 상승: ${before.name} → ${after.name}`;
   }
 
   const profile = derivePlayerProfile(player);
