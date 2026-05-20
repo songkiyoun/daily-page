@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.21';
+export const VERSION = '0.7.22';
 
 export const WEAPONS = {
   spear: {
@@ -185,9 +185,9 @@ export const WEAPONS = {
     parryKnockbackTaken: 1.08,
     clashKnockbackScale: 1.04,
     crit: 0.1,
-    description: '빠른 진입과 연속 공격이 강한 무기입니다.',
-    identity: '연속 압박',
-    identityNote: '명중 시 짧은 연속베기 기회를 얻고 빠르게 다시 압박한다.',
+    description: '짧게 자세를 잡고 앞으로 베어 지나가는 발도 돌파가 강한 무기입니다.',
+    identity: '발도 돌파',
+    identityNote: '순간적으로 선을 긋듯 베고 적을 관통해 뒤쪽으로 빠져나간다.',
     closePushScale: 0.86,
     staggerRecoveryPenalty: 0.88,
     parryRecoveryPenalty: 0.82,
@@ -563,15 +563,25 @@ export const SKILLS = {
     description: '서양검 전용. 측후면 공격을 감지하면 상대 방향으로 몸을 돌리고 짧게 밀어냅니다.'
   },
 
+  easternIaiSlash: {
+    id: 'easternIaiSlash',
+    name: '발도술',
+    source: 'weapon',
+    owner: 'eastern',
+    type: 'attack',
+    maxLevel: 3,
+    cooldown: 980,
+    description: '동양검 전용. 앞으로 빠르게 나아가며 베고, 적을 관통해 뒤쪽으로 지나갑니다.'
+  },
   easternComboSlash: {
     id: 'easternComboSlash',
     name: '연속베기',
     source: 'weapon',
     owner: 'eastern',
-    type: 'attack',
+    type: 'evolution',
     maxLevel: 3,
     cooldown: 1200,
-    description: '동양검 전용. 명중 후 짧게 추격하며 약한 추가 베기를 시도합니다.'
+    description: '동양검 후반 강화/진화 후보입니다. 기본 장착 스킬에서는 제외하고 무신연참 계열로 확장할 예정입니다.'
   },
   easternMindFocus: {
     id: 'easternMindFocus',
@@ -783,7 +793,7 @@ export const SKILLS = {
 
 export const WEAPON_SKILL_LOADOUTS = {
   western: ['westernBash', 'westernLastStand', 'westernKnightInstinct'],
-  eastern: ['easternComboSlash', 'easternMindFocus', 'easternBambooStance'],
+  eastern: ['easternIaiSlash', 'easternMindFocus', 'easternBambooStance'],
   spear: ['spearDoubleThrust', 'spearFocus', 'spearSweep'],
   dagger: ['daggerVitalStrike', 'daggerDecoyDoll', 'daggerHighSpeed']
 };

@@ -62,6 +62,46 @@ function getWeaponGradeEffects(unit) {
   };
 }
 
+function getWeaponStageEffects(unit) {
+  const growth = getWeaponGrowthInfo(unit);
+  const stageStep = Math.max(0, (growth.currentStageNumber || 1) - 1);
+  const effects = {
+    attackBonus: 0,
+    postureDamageBonus: 0,
+    reachBonus: 0,
+    critBonus: 0,
+    cooldownBonus: 0,
+    turnSpeedBonus: 0,
+    easternFlowBonus: 0,
+    flankDamageBonus: 0
+  };
+
+  if (stageStep <= 0) return effects;
+
+  if (unit.weaponId === 'western') {
+    effects.attackBonus = stageStep * 0.01;
+    effects.postureDamageBonus = stageStep * 0.018;
+  }
+
+  if (unit.weaponId === 'eastern') {
+    effects.cooldownBonus = -stageStep * 0.008;
+    effects.turnSpeedBonus = stageStep * 0.01;
+    effects.easternFlowBonus = stageStep * 0.035;
+  }
+
+  if (unit.weaponId === 'spear') {
+    effects.reachBonus = stageStep * 2;
+    effects.postureDamageBonus = stageStep * 0.016;
+  }
+
+  if (unit.weaponId === 'dagger') {
+    effects.critBonus = stageStep * 0.01;
+    effects.flankDamageBonus = stageStep * 0.018;
+  }
+
+  return effects;
+}
+
 function upgradeWeaponGrade(player, amount = 1) {
   const growth = getWeaponGrowthInfo(player);
   if (growth.isMaxGrade) return growth.grade;
@@ -211,6 +251,7 @@ export function derivePlayerProfile(player) {
   const skillEffects = collectSkillEffects(player.skills, player.skillLevels);
   const rewardEffects = collectRewardEffects(player.rewardTraits);
   const gradeEffects = getWeaponGradeEffects(player);
+  const stageEffects = getWeaponStageEffects(player);
   const stats = player.stats;
 
   const maxHp = Math.round((
@@ -236,7 +277,8 @@ export function derivePlayerProfile(player) {
     (personality.attackBonus || 0) +
     (skillEffects.attackBonus || 0) +
     (rewardEffects.attackBonus || 0) +
-    (gradeEffects.attackBonus || 0);
+    (gradeEffects.attackBonus || 0) +
+    (stageEffects.attackBonus || 0);
 
   const defense = clamp(
     0.035 +
@@ -265,15 +307,16 @@ export function derivePlayerProfile(player) {
     stats.luck * 0.008 +
     (personality.critBonus || 0) +
     (skillEffects.critBonus || 0) +
-    (rewardEffects.critBonus || 0),
+    (rewardEffects.critBonus || 0) +
+    (stageEffects.critBonus || 0),
     0,
     BASE_STATS.critCap
   );
 
   const speedScales = getWeaponAgilityScales(weapon, stats, player.mastery, skillEffects, true);
   const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (1 + (rewardEffects.moveSpeedBonus || 0));
-  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1) * (1 + (rewardEffects.cooldownBonus || 0));
-  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1);
+  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1) * (1 + (rewardEffects.cooldownBonus || 0) + (stageEffects.cooldownBonus || 0));
+  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (1 + (stageEffects.turnSpeedBonus || 0));
   const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
 
   return {
@@ -289,6 +332,10 @@ export function derivePlayerProfile(player) {
     critDamage,
     lowHpAttackBonus: skillEffects.lowHpAttackBonus || 0,
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0,
+    stagePostureDamageBonus: stageEffects.postureDamageBonus || 0,
+    stageReachBonus: stageEffects.reachBonus || 0,
+    easternFlowBonus: stageEffects.easternFlowBonus || 0,
+    stageFlankDamageBonus: stageEffects.flankDamageBonus || 0,
     postureDamageTakenRewardScale: 1 + (rewardEffects.postureTakenBonus || 0)
   };
 }
@@ -356,6 +403,10 @@ function createUnitFromPlayer(player, x, y) {
     critDamage: profile.critDamage,
     lowHpAttackBonus: profile.lowHpAttackBonus,
     lowHpDefenseBonus: profile.lowHpDefenseBonus,
+    stagePostureDamageBonus: profile.stagePostureDamageBonus,
+    stageReachBonus: profile.stageReachBonus,
+    easternFlowBonus: profile.easternFlowBonus,
+    stageFlankDamageBonus: profile.stageFlankDamageBonus,
     moveSpeedScale: profile.moveSpeedScale,
     cooldownScale: profile.cooldownScale,
     turnSpeedScale: profile.turnSpeedScale,
@@ -437,6 +488,10 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     critDamage: profile.critDamage,
     lowHpAttackBonus: profile.lowHpAttackBonus,
     lowHpDefenseBonus: profile.lowHpDefenseBonus,
+    stagePostureDamageBonus: profile.stagePostureDamageBonus,
+    stageReachBonus: profile.stageReachBonus,
+    easternFlowBonus: profile.easternFlowBonus,
+    stageFlankDamageBonus: profile.stageFlankDamageBonus,
     moveSpeedScale: profile.moveSpeedScale,
     cooldownScale: profile.cooldownScale,
     turnSpeedScale: profile.turnSpeedScale,
@@ -522,6 +577,7 @@ function deriveEnemyProfile(enemy, floor) {
   const personality = PERSONALITIES[enemy.personalityId];
   const skillEffects = collectSkillEffects(enemy.skills, enemy.skillLevels);
   const gradeEffects = getWeaponGradeEffects(enemy);
+  const stageEffects = getWeaponStageEffects(enemy);
   const stats = enemy.stats;
   const floorIndex = Math.max(0, floor - 1);
   const bossMult = floor % TOWER_RULES.bossInterval === 0 ? 1.18 : 1;
@@ -550,7 +606,8 @@ function deriveEnemyProfile(enemy, floor) {
     floorIndex * TOWER_RULES.damageGrowthPerFloor * 0.32 +
     (personality.attackBonus || 0) +
     (skillEffects.attackBonus || 0) +
-    (gradeEffects.attackBonus || 0)) * bossMult;
+    (gradeEffects.attackBonus || 0) +
+    (stageEffects.attackBonus || 0)) * bossMult;
 
   const defense = clamp(
     0.025 +
@@ -577,7 +634,8 @@ function deriveEnemyProfile(enemy, floor) {
     weapon.crit +
     stats.luck * 0.006 +
     (personality.critBonus || 0) +
-    (skillEffects.critBonus || 0),
+    (skillEffects.critBonus || 0) +
+    (stageEffects.critBonus || 0),
     0,
     0.48
   );
@@ -592,11 +650,15 @@ function deriveEnemyProfile(enemy, floor) {
     evasion,
     crit,
     moveSpeedScale: speedScales.moveSpeedScale * (personality.moveSpeedScale || 1),
-    cooldownScale: speedScales.cooldownScale * (personality.cooldownScale || 1),
-    turnSpeedScale: speedScales.turnSpeedScale * (personality.turnSpeedScale || 1),
+    cooldownScale: speedScales.cooldownScale * (personality.cooldownScale || 1) * (1 + (stageEffects.cooldownBonus || 0)),
+    turnSpeedScale: speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (1 + (stageEffects.turnSpeedBonus || 0)),
     critDamage: 1.5 + stats.luck * 0.004 + (skillEffects.critDamageBonus || 0),
     lowHpAttackBonus: skillEffects.lowHpAttackBonus || 0,
-    lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0
+    lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0,
+    stagePostureDamageBonus: stageEffects.postureDamageBonus || 0,
+    stageReachBonus: stageEffects.reachBonus || 0,
+    easternFlowBonus: stageEffects.easternFlowBonus || 0,
+    stageFlankDamageBonus: stageEffects.flankDamageBonus || 0
   };
 }
 

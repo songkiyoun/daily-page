@@ -258,6 +258,9 @@ function getWeaponVisual(unit, weapon) {
     } else if (weapon.id === 'dagger') {
       angle = base - side * (weapon.swingVisualArc || 0.54) * (0.42 + phase * 0.16);
       reachScale = 0.66 + phase * 0.16;
+    } else if (unit.activeSkillAttack === 'easternIaiSlash') {
+      angle = base - side * 0.12 * (1 - phase);
+      reachScale = 0.62 + phase * 0.22;
     } else if (weapon.id === 'eastern') {
       angle = base - side * (weapon.swingVisualArc || weapon.arc) * (0.42 - phase * 0.1);
       reachScale = 0.72 + phase * 0.12;
@@ -275,6 +278,9 @@ function getWeaponVisual(unit, weapon) {
     } else if (weapon.id === 'dagger') {
       angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || 0.54) * 0.92);
       reachScale = 1.02 + Math.sin(phase * Math.PI) * 0.22;
+    } else if (unit.activeSkillAttack === 'easternIaiSlash') {
+      angle = base + side * ((phase - 0.5) * 0.18);
+      reachScale = 1.12 + Math.sin(phase * Math.PI) * 0.24;
     } else if (weapon.id === 'eastern') {
       angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || weapon.arc) * 1.08);
       reachScale = 1.0 + Math.sin(phase * Math.PI) * 0.18;
@@ -286,6 +292,9 @@ function getWeaponVisual(unit, weapon) {
     if (unit.activeSkillAttack === 'spearSweep') {
       angle = base + side * 0.82;
       reachScale = 0.72;
+    } else if (unit.activeSkillAttack === 'easternIaiSlash') {
+      angle = base + side * 0.14;
+      reachScale = 0.72;
     } else {
       angle = base + side * (weapon.swingVisualArc || weapon.arc) * (weapon.id === 'spear' ? -0.06 : weapon.id === 'dagger' ? 0.18 : 0.34);
       reachScale = weapon.id === 'spear' ? 0.48 : weapon.id === 'dagger' ? 0.68 : weapon.id === 'eastern' ? 0.78 : 0.8;
@@ -295,7 +304,7 @@ function getWeaponVisual(unit, weapon) {
   return {
     angle,
     reachScale,
-    maxDrawLength: weapon.id === 'spear' ? 152 : weapon.id === 'western' ? 76 : weapon.id === 'eastern' ? 68 : 52
+    maxDrawLength: weapon.id === 'spear' ? 152 : weapon.id === 'western' ? 76 : unit.activeSkillAttack === 'easternIaiSlash' ? 82 : weapon.id === 'eastern' ? 68 : 52
   };
 }
 

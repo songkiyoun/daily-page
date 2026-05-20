@@ -207,6 +207,20 @@ function emitHitSpark(state, attacker, defender, weapon, crit = false, skillId =
     });
   }
 
+  if (skillId === 'easternIaiSlash') {
+    emitVisualEffect(state, {
+      type: 'shockline',
+      x,
+      y,
+      angle,
+      color,
+      life: crit ? 22 : 17,
+      maxLife: crit ? 22 : 17,
+      length: crit ? 104 : 86,
+      width: crit ? 4.6 : 3.4
+    });
+  }
+
   if (weapon.id === 'spear') {
     emitVisualEffect(state, {
       type: 'shockline',
@@ -693,6 +707,7 @@ function getActiveFrames(attacker) {
   const weapon = WEAPONS[attacker.weaponId];
   if (attacker.activeSkillAttack === 'westernBash') return (weapon?.activeFrames || 5) + 3;
   if (attacker.activeSkillAttack === 'spearDoubleThrust') return (weapon?.activeFrames || 5) + 2;
+  if (attacker.activeSkillAttack === 'easternIaiSlash') return (weapon?.activeFrames || 5) + 2;
   if (attacker.activeSkillAttack === 'spearSweep') return (weapon?.activeFrames || 5) + 4;
   return weapon?.activeFrames || 5;
 }
@@ -709,6 +724,7 @@ function getAttackEntryBrake(weaponId) {
 function getSkillWindupLabel(skillId) {
   if (skillId === 'westernBash') return '베쉬 준비';
   if (skillId === 'daggerVitalStrike') return '급소 찌르기 준비';
+  if (skillId === 'easternIaiSlash') return '발도술 준비';
   if (skillId === 'spearSweep') return '창 휘두르기 준비';
   return '';
 }
@@ -716,6 +732,7 @@ function getSkillWindupLabel(skillId) {
 function getSkillActiveLabel(skillId) {
   if (skillId === 'westernBash') return '베쉬!';
   if (skillId === 'daggerVitalStrike') return '급소 찌르기!';
+  if (skillId === 'easternIaiSlash') return '발도술!';
   if (skillId === 'spearDoubleThrust') return '연속 찌르기!';
   if (skillId === 'spearSweep') return '벤다!';
   return '';
@@ -767,7 +784,8 @@ function getAttackRecoveryDuration(attacker, weapon) {
 function getRecoveryCooldown(attacker, weapon) {
   let cooldown = Math.max(8, Math.round(weapon.cooldown * (attacker.cooldownScale || 1)));
   if (weapon.id === 'eastern' && attacker.comboTimer > 0 && (attacker.comboCount || 0) <= (POSTURE_RULES.easternComboMax || 2)) {
-    cooldown = Math.max(9, Math.round(cooldown * (weapon.comboCooldownScale || 0.58)));
+    const stageFlowScale = Math.max(0.86, 1 - (attacker.easternFlowBonus || 0));
+    cooldown = Math.max(9, Math.round(cooldown * (weapon.comboCooldownScale || 0.58) * stageFlowScale));
   }
   if (attacker.riposteTimer > 0 && (weapon.riposteOnParry || false)) {
     cooldown = Math.max(4, Math.round(cooldown * (weapon.riposteCooldownScale || 0.55)));
@@ -835,6 +853,9 @@ function applyAttackLunge(attacker, weapon, scale = 1) {
   if (attacker.activeSkillAttack === 'spearDoubleThrust') {
     baseForward *= 5.4;
     baseSide *= 0.12;
+  } else if (attacker.activeSkillAttack === 'easternIaiSlash') {
+    baseForward *= 5.35;
+    baseSide *= 0.1;
   } else if (attacker.activeSkillAttack === 'spearSweep') {
     baseForward *= 1.9;
     baseSide *= 1.6;
@@ -862,7 +883,9 @@ function applyAttackLunge(attacker, weapon, scale = 1) {
 
   const maxBurst = attacker.activeSkillAttack === 'spearDoubleThrust'
     ? 8.4
-    : attacker.activeSkillAttack === 'spearSweep'
+    : attacker.activeSkillAttack === 'easternIaiSlash'
+      ? 8.2
+      : attacker.activeSkillAttack === 'spearSweep'
       ? 6.6
       : weapon.id === 'spear' ? 7.4 : weapon.id === 'dagger' ? 7.0 : weapon.id === 'eastern' ? 6.6 : 5.9;
   const speed = Math.hypot(attacker.vx, attacker.vy);
@@ -921,6 +944,12 @@ function chooseAttackSkill(attacker, defender) {
     return 'westernBash';
   }
 
+  if (hasReadySkill(attacker, 'easternIaiSlash') && attacker.weaponId === 'eastern') {
+    useSkill(attacker, 'easternIaiSlash');
+    attacker.lastAction = '발도술 준비';
+    return 'easternIaiSlash';
+  }
+
   if (hasReadySkill(attacker, 'daggerVitalStrike') && attacker.weaponId === 'dagger' && hasDaggerVitalStrikeAngle(attacker, defender)) {
     useSkill(attacker, 'daggerVitalStrike');
     attacker.lastAction = '급소 찌르기 준비';
@@ -937,6 +966,7 @@ function getSkillArcBonus(attacker) {
 
 function getSkillDamageBonus(attacker, defender, skillId) {
   if (skillId === 'westernBash') return 1.06 + getUnitSkillLevel(attacker, skillId) * 0.02;
+  if (skillId === 'easternIaiSlash') return 1.04 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'daggerVitalStrike') return 1.0 + getUnitSkillLevel(attacker, skillId) * 0.025;
   if (skillId === 'spearDoubleThrust') return 0.42 + getUnitSkillLevel(attacker, skillId) * 0.04;
   if (skillId === 'spearSweep') return 0.28 + getUnitSkillLevel(attacker, skillId) * 0.035;
@@ -945,6 +975,7 @@ function getSkillDamageBonus(attacker, defender, skillId) {
 
 function getSkillPostureDamageScale(attacker, skillId) {
   if (skillId === 'westernBash') return 1.06 + getUnitSkillLevel(attacker, skillId) * 0.02;
+  if (skillId === 'easternIaiSlash') return 1.1 + getUnitSkillLevel(attacker, skillId) * 0.025;
   if (skillId === 'daggerVitalStrike') return 0.94;
   if (skillId === 'spearDoubleThrust') return 0.56 + getUnitSkillLevel(attacker, skillId) * 0.04;
   if (skillId === 'spearSweep') return 0.72 + getUnitSkillLevel(attacker, skillId) * 0.045;
@@ -966,7 +997,7 @@ function applyOffensiveSkillFollowUp(attacker, defender, weapon, skillId, hitQua
     emitCombatEvent(state, '연속 찌르기!', attacker.x, attacker.y - 46, '#9fe8ff');
   }
 
-  if (weapon.id === 'eastern' && hasReadySkill(attacker, 'easternComboSlash')) {
+  if (weapon.id === 'eastern' && skillId !== 'easternIaiSlash' && hasReadySkill(attacker, 'easternComboSlash')) {
     const level = getUnitSkillLevel(attacker, 'easternComboSlash');
     useSkill(attacker, 'easternComboSlash');
     const extra = Math.max(1, weapon.damage * attacker.attackScale * (0.06 + level * 0.012) * (1 - getEffectiveDefense(defender)));
@@ -1317,6 +1348,7 @@ function resolveAttack(attacker, defender, state) {
   applyWeaponHitReaction(attacker, defender, weapon, hitQuality);
   emitKnockbackLine(state, attacker, defender, weapon.color, hitQuality + 0.6);
   applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality);
+  if (skillAttack === 'easternIaiSlash') applyEasternIaiPassThrough(attacker, defender, weapon, state, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
   applyImpactStop(attacker, defender, weapon);
   applyReflectDamage(defender, attacker, damage, state);
@@ -1330,6 +1362,37 @@ function resolveAttack(attacker, defender, state) {
   }
 
   return true;
+}
+
+
+function applyEasternIaiPassThrough(attacker, defender, weapon, state, hitQuality = 0) {
+  const passAngle = attacker.attackAim ?? angleTo(attacker, defender);
+  const fromX = attacker.x;
+  const fromY = attacker.y;
+  const passDistance = defender.radius + attacker.radius + 16 + hitQuality * 8 + (attacker.easternFlowBonus || 0) * 20;
+
+  attacker.x = defender.x + Math.cos(passAngle) * passDistance;
+  attacker.y = defender.y + Math.sin(passAngle) * passDistance;
+  attacker.vx += Math.cos(passAngle) * (2.6 + hitQuality * 1.15);
+  attacker.vy += Math.sin(passAngle) * (2.6 + hitQuality * 1.15);
+  attacker.attackTimer = Math.min(attacker.attackTimer || weapon.recovery, Math.max(6, Math.round(weapon.recovery * 0.52)));
+  attacker.cooldownTimer = Math.max(attacker.cooldownTimer || 0, 6);
+  attacker.lastAction = '발도 관통';
+
+  emitVisualEffect(state, {
+    type: 'trail',
+    x1: fromX,
+    y1: fromY,
+    x2: attacker.x,
+    y2: attacker.y,
+    color: weapon.color,
+    life: 18,
+    maxLife: 18,
+    width: 5.4,
+    weaponId: weapon.id,
+    skillId: 'easternIaiSlash'
+  });
+  emitCombatEvent(state, '관통', attacker.x, attacker.y - 38, '#ffe28a');
 }
 
 
@@ -1505,6 +1568,7 @@ function getHitQuality(attacker, defender, weapon, dist, angleGap, hitArc) {
 
 function getHitArc(attacker, weapon) {
   if (attacker.activeSkillAttack === 'westernBash') return weapon.arc * 1.34;
+  if (attacker.activeSkillAttack === 'easternIaiSlash') return weapon.arc * 0.76;
   if (attacker.activeSkillAttack === 'spearSweep') return Math.max(weapon.arc * 3.15, 1.28);
   if (weapon.id === 'western') return weapon.arc * 1.02;
   if (weapon.id === 'eastern') return weapon.arc * 1.04;
@@ -1521,17 +1585,20 @@ function getHitReach(attacker, defender, weapon) {
   const hitReachBonus = weapon.hitReachBonus || 0;
   const skillReach = attacker.activeSkillAttack === 'westernBash'
     ? 8
-    : attacker.activeSkillAttack === 'spearSweep'
-      ? -Math.max(4, weapon.range * 0.22)
-      : 0;
+    : attacker.activeSkillAttack === 'easternIaiSlash'
+      ? 12
+      : attacker.activeSkillAttack === 'spearSweep'
+        ? -Math.max(4, weapon.range * 0.22)
+        : 0;
   return weapon.range + defender.radius + hitReachBonus + skillReach;
 }
 
 function getReachBonus(attacker, weapon) {
-  if (weapon.id === 'western') return 5;
-  if (weapon.id === 'eastern') return 4;
-  if (weapon.id === 'dagger') return 3;
-  return 0;
+  let base = 0;
+  if (weapon.id === 'western') base = 5;
+  if (weapon.id === 'eastern') base = 4;
+  if (weapon.id === 'dagger') base = 3;
+  return base + (attacker.stageReachBonus || 0);
 }
 
 function hasDaggerAttackAngle(attacker, defender) {
@@ -1578,15 +1645,17 @@ function getPositionalBonus(attacker, defender) {
   const otherSideGap = Math.abs(angleDiff(defender.facing - Math.PI / 2, attackerFromDefender));
   const flankGap = Math.min(sideGap, otherSideGap);
 
+  const stageFlankScale = 1 + (attacker.stageFlankDamageBonus || 0);
+
   if (defender.weaponId === 'spear') {
-    if (flankGap < 1.08) return Math.min(weapon.flankBonus || 1, 1.08);
-    if (backGap < 0.58) return Math.min(weapon.backBonus || 1.08, 1.08);
-    if (defender.flankPressureTimer > 0 && flankGap < 1.28) return 1.06;
+    if (flankGap < 1.08) return Math.min((weapon.flankBonus || 1) * stageFlankScale, 1.08 + (attacker.stageFlankDamageBonus || 0) * 0.5);
+    if (backGap < 0.58) return Math.min((weapon.backBonus || 1.08) * stageFlankScale, 1.08 + (attacker.stageFlankDamageBonus || 0) * 0.5);
+    if (defender.flankPressureTimer > 0 && flankGap < 1.28) return 1.06 * stageFlankScale;
   }
 
-  if (flankGap < 1.08) return weapon.flankBonus;
-  if (backGap < 0.58) return weapon.backBonus || 1.12;
-  if (defender.flankPressureTimer > 0 && flankGap < 1.28) return (weapon.flankBonus + 1) / 2;
+  if (flankGap < 1.08) return weapon.flankBonus * stageFlankScale;
+  if (backGap < 0.58) return (weapon.backBonus || 1.12) * stageFlankScale;
+  if (defender.flankPressureTimer > 0 && flankGap < 1.28) return ((weapon.flankBonus + 1) / 2) * stageFlankScale;
   return 1;
 }
 
@@ -1620,9 +1689,10 @@ function getPostureDamage(attacker, defender, weapon, positionalBonus, crit, hit
   const attackerPersonality = PERSONALITIES[attacker.personalityId];
   const defenderPersonality = PERSONALITIES[defender.personalityId];
   const personalityPostureScale = (attackerPersonality.postureDamageDealtScale || 1) * (defenderPersonality.postureDamageTakenScale || 1);
+  const stagePostureScale = 1 + (attacker.stagePostureDamageBonus || 0);
   return Math.max(
     POSTURE_RULES.minPostureDamage,
-    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction * personalityPostureScale
+    weapon.postureDamage * weaponPostureScale * positionalBonus * daggerPostureBonus * attackStateBonus * critBonus * counterPostureBonus * qualityBonus * defenseReduction * personalityPostureScale * stagePostureScale
   );
 }
 
