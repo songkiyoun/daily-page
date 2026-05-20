@@ -583,8 +583,7 @@ function buildGrowthSimulationText(result) {
     ].join('	'));
   });
 
-  return lines.join('
-');
+  return lines.join('\n');
 }
 
 function handleSimulationCopy() {
