@@ -798,3 +798,33 @@ input[type="number"] {
     grid-template-columns: 1fr 62px 72px;
   }
 }
+
+.prep-card.is-disabled {
+  opacity: 0.56;
+}
+
+.prep-card.is-disabled .shop-line,
+.prep-card.is-disabled .stat-button,
+.prep-card.is-disabled .climb-button {
+  pointer-events: none;
+}
+
+.empty-panel {
+  display: grid;
+  gap: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+  padding: 14px;
+  line-height: 1.5;
+}
+
+.empty-panel strong {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.empty-panel span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}

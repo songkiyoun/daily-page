@@ -30,6 +30,9 @@ const ctx = canvas.getContext('2d');
 const controls = {
   prepScreen: document.getElementById('prepScreen'),
   towerScreen: document.getElementById('towerScreen'),
+  characterSetupCard: document.getElementById('characterSetupCard'),
+  prepStatCard: document.getElementById('prepStatCard'),
+  prepShopCard: document.getElementById('prepShopCard'),
   playerWeapon: document.getElementById('playerWeapon'),
   playerPersonality: document.getElementById('playerPersonality'),
   startBtn: document.getElementById('startBtn'),
@@ -108,13 +111,12 @@ function init() {
   controls.simMirrorAuditBtn.addEventListener('click', handleMirrorAudit);
   controls.simCopyBtn.addEventListener('click', handleSimulationCopy);
 
-  run = createRun(readConfig());
-  bankGold = run.player.gold || 0;
-  state = createBattleState(run);
-  render(ctx, state);
-  renderAllPanels(true);
+  run = null;
+  state = null;
+  bankGold = null;
+  clearPanelKeys();
   showPrepScreen();
-  renderShopBox(true);
+  renderAllPanels(true);
   console.info(`Circle Battle Tower Rebuild v${VERSION}`);
 }
 
@@ -157,7 +159,6 @@ function handleMainButton() {
   if (state.running && !state.result) return;
 
   if (isPreTowerShopAvailable(run)) {
-    startNewRun();
     return;
   }
 
@@ -173,14 +174,8 @@ function handleMainButton() {
 
 function handleConfigChange() {
   if (!canEditCharacterSetup()) return;
-  const startingGold = Number.isFinite(bankGold) ? bankGold : undefined;
-  run = createRun({ ...readConfig(), startingGold });
-  state = createBattleState(run);
   clearPanelKeys();
-  render(ctx, state);
   renderAllPanels(true);
-  showPrepScreen();
-  renderShopBox(true);
 }
 
 function startCurrentFloor() {
@@ -202,10 +197,11 @@ function canCreateNewCharacter() {
 }
 
 function canEditCharacterSetup() {
-  return !state ||
-    state.result === 'defeat' ||
-    state.result === 'draw' ||
-    (run?.floor === TOWER_RULES.startFloor && run?.victories === 0 && !state.running && !state.result);
+  return !state || state.result === 'defeat' || state.result === 'draw';
+}
+
+function hasPreparedCharacter() {
+  return !!run && !!state && isPreTowerShopAvailable(run) && !state.running && !state.result;
 }
 
 function handleOverlayAction() {
@@ -805,7 +801,18 @@ function renderTowerInfo(force = false) {
 }
 
 function renderPlayerInfo(force = false) {
-  if (!run || !state) return;
+  if (!run || !state) {
+    const emptyHtml = `
+      <div class="empty-panel">
+        <strong>캐릭터 생성 전</strong>
+        <span>먼저 무기와 성격을 선택한 뒤 새 캐릭터를 생성하세요.</span>
+      </div>
+    `;
+    if (controls.prepPlayerBox) controls.prepPlayerBox.innerHTML = emptyHtml;
+    if (controls.towerPlayerBox) controls.towerPlayerBox.innerHTML = '';
+    panelKeys.player = 'empty';
+    return;
+  }
   const player = run.player;
   const expNeed = getNextLevelExp(player.level);
   const expRatio = Math.min(100, Math.round((player.exp / expNeed) * 100));
@@ -873,7 +880,12 @@ function renderPlayerInfo(force = false) {
 }
 
 function renderShopStatus(force = false) {
-  if (!run || !controls.shopStatusBox) return;
+  if (!controls.shopStatusBox) return;
+  if (!run) {
+    controls.shopStatusBox.dataset.key = 'empty';
+    controls.shopStatusBox.innerHTML = `<span>보유 골드</span><strong>-</strong>`;
+    return;
+  }
   const summary = getShopSummary(run);
   if (!summary) return;
   const key = [summary.gold, summary.lastLog].join('|');
@@ -883,7 +895,19 @@ function renderShopStatus(force = false) {
 }
 
 function renderShopBox(force = false, message = '') {
-  if (!run || !state || !isPreTowerShopAvailable(run)) {
+  if (!run || !state) {
+    panelKeys.shop = 'empty';
+    controls.overlayShopBox.classList.remove('hidden');
+    controls.overlayShopBox.innerHTML = `
+      <div class="empty-panel">
+        <strong>준비 상점 비활성화</strong>
+        <span>새 캐릭터 생성 후 상점과 탑 오르기가 활성화됩니다.</span>
+      </div>
+    `;
+    return;
+  }
+
+  if (!isPreTowerShopAvailable(run)) {
     hideShopBox();
     return;
   }
@@ -957,42 +981,50 @@ function hideRewardBox() {
 }
 
 function renderControlState(force = false) {
-  if (!state) return;
+  const prepared = hasPreparedCharacter();
   const setupEditable = canEditCharacterSetup();
   const canStartFloor = canStartCurrentFloor();
   const canNewCharacter = canCreateNewCharacter();
   const key = [
-    state.running ? 'running' : 'idle',
-    state.result || 'none',
-    state.paused ? 'paused' : 'live',
+    state?.running ? 'running' : 'idle',
+    state?.result || 'none',
+    state?.paused ? 'paused' : 'live',
     setupEditable ? 'setup' : 'locked',
+    prepared ? 'prepared' : 'notPrepared',
     run?.floor || 0,
     run?.victories || 0
   ].join('|');
   if (!force && panelKeys.controls === key) return;
   panelKeys.controls = key;
 
-  controls.playerWeapon.disabled = !setupEditable;
-  controls.playerPersonality.disabled = !setupEditable;
-  controls.pauseBtn.disabled = !state.running || !!state.result;
-  const freshReady = !state.running && !state.result && run?.floor === TOWER_RULES.startFloor && run?.victories === 0;
-  controls.giveUpBtn.disabled = !run?.active || !!state.result || freshReady;
-  controls.climbBtn.disabled = !canStartFloor || !isPreTowerShopAvailable(run);
+  controls.playerWeapon.disabled = !setupEditable || prepared;
+  controls.playerPersonality.disabled = !setupEditable || prepared;
+  controls.pauseBtn.disabled = !state?.running || !!state?.result;
+  const freshReady = !!state && !state.running && !state.result && run?.floor === TOWER_RULES.startFloor && run?.victories === 0;
+  controls.giveUpBtn.disabled = !run?.active || !!state?.result || freshReady;
+  controls.climbBtn.disabled = !prepared;
 
-  if (state.running && !state.result) {
+  controls.characterSetupCard?.classList.toggle('is-disabled', prepared);
+  controls.prepStatCard?.classList.toggle('is-disabled', !prepared);
+  controls.prepShopCard?.classList.toggle('is-disabled', !prepared);
+
+  if (!state) {
+    controls.startBtn.textContent = '새 캐릭터 생성';
+    controls.startBtn.disabled = false;
+  } else if (state.running && !state.result) {
     controls.startBtn.textContent = '전투 진행 중';
     controls.startBtn.disabled = true;
   } else if (state.result === 'victory') {
     controls.startBtn.textContent = '보상 선택 필요';
     controls.startBtn.disabled = true;
-  } else if (isPreTowerShopAvailable(run)) {
+  } else if (prepared) {
+    controls.startBtn.textContent = '캐릭터 생성 완료';
+    controls.startBtn.disabled = true;
+  } else if (canNewCharacter) {
     controls.startBtn.textContent = '새 캐릭터 생성';
     controls.startBtn.disabled = false;
   } else if (canStartFloor) {
     controls.startBtn.textContent = run.floor === TOWER_RULES.startFloor && run.victories === 0 ? '탑 오르기' : '현재 층 전투 시작';
-    controls.startBtn.disabled = false;
-  } else if (canNewCharacter) {
-    controls.startBtn.textContent = '새 캐릭터 생성';
     controls.startBtn.disabled = false;
   } else {
     controls.startBtn.textContent = '진행 불가';
@@ -1010,11 +1042,12 @@ function renderResultIfNeeded() {
     completeFloorVictory(state);
     const nextFloor = state.run.floor + 1;
     const levelText = state.run.levelMessage ? `${state.run.levelMessage}\n` : '';
+    const goldText = state.run.victoryGoldMessage ? `${state.run.victoryGoldMessage}\n` : '';
     panelKeys.player = '';
     panelKeys.tower = '';
     showOverlay(
       'VICTORY',
-      `${levelText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`,
+      `${levelText}${goldText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`,
       '',
       'waitReward',
       { hideButton: true }

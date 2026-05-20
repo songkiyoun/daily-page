@@ -199,6 +199,14 @@ function getGoldRewardAmount(player, amount) {
   return Math.max(0, Math.round(amount * (1 + bonus)));
 }
 
+function getVictoryGoldAmount(player, floor) {
+  const base = (REWARD_RULES.victoryGoldBase || 0) + Math.max(0, floor - 1) * (REWARD_RULES.victoryGoldPerFloor || 0);
+  return {
+    base,
+    amount: getGoldRewardAmount(player, base)
+  };
+}
+
 function getExpRewardAmount(player, amount) {
   const bonus = getShopBoosts(player).expBonus || 0;
   return Math.max(0, Math.round(amount * (1 + bonus)));
@@ -561,6 +569,14 @@ export function completeFloorVictory(state) {
   const currentProfile = derivePlayerProfile(run.player);
   run.player.hp = clamp(state.player.hp, 0, currentProfile.maxHp);
   run.victories += 1;
+
+  const victoryGold = getVictoryGoldAmount(run.player, run.floor);
+  run.player.gold = (run.player.gold || 0) + victoryGold.amount;
+  run.lastVictoryGold = victoryGold.amount;
+  run.lastVictoryBaseGold = victoryGold.base;
+  run.victoryGoldMessage = victoryGold.amount === victoryGold.base
+    ? `기본 승리 골드 +${victoryGold.amount}G`
+    : `기본 승리 골드 +${victoryGold.amount}G / 기본 ${victoryGold.base}G`;
 
   const baseExpGain = REWARD_RULES.baseExp + run.floor * REWARD_RULES.expPerFloor;
   const expGain = getExpRewardAmount(run.player, baseExpGain);
