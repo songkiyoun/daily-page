@@ -128,18 +128,165 @@ export function isPreTowerShopAvailable(run) {
   return !!run?.shop?.available && run.floor === TOWER_RULES.startFloor && run.victories === 0 && !!run.active;
 }
 
+function ensureShopState(run) {
+  if (!run.shop) run.shop = {};
+  run.shop.purchases = {
+    rewardChoice: !!run.shop.purchases?.rewardChoice,
+    victoryGoldBoost: !!run.shop.purchases?.victoryGoldBoost,
+    expBoost: !!run.shop.purchases?.expBoost
+  };
+  if (!run.player.shopBoosts) {
+    run.player.shopBoosts = {
+      rewardChoiceBonus: 0,
+      highRewardPurchases: 0,
+      victoryGoldBonus: 0,
+      expBonus: 0,
+      personalityBoostLevel: 0
+    };
+  }
+  return run.shop;
+}
+
+function getShopBoosts(player) {
+  return player?.shopBoosts || {
+    rewardChoiceBonus: 0,
+    highRewardPurchases: 0,
+    victoryGoldBonus: 0,
+    expBonus: 0,
+    personalityBoostLevel: 0
+  };
+}
+
+function getRewardChoiceCount(run) {
+  const boost = getShopBoosts(run.player).rewardChoiceBonus || 0;
+  return REWARD_RULES.choices + boost;
+}
+
+function getRewardRarityWeights(run, floor = run?.floor || TOWER_RULES.startFloor, extraHighRewardPurchases = 0) {
+  const floorBonus = Math.max(0, floor - 1);
+  const weights = { ...REWARD_RULES.rarityWeights };
+
+  weights.hero += Math.floor(floorBonus / 5);
+  weights.rare += Math.floor(floorBonus / 3);
+  if (floor >= 5) weights.legendary += 1;
+  if (floor >= 10) weights.legendary += 1;
+  if (floor % TOWER_RULES.bossInterval === 0) {
+    weights.rare += 12;
+    weights.hero += 5;
+    weights.legendary += 2;
+  }
+
+  const highRewardPurchases = (getShopBoosts(run.player).highRewardPurchases || 0) + extraHighRewardPurchases;
+  weights.rare += highRewardPurchases * SHOP_RULES.highRewardRareWeightBonus;
+  weights.hero += highRewardPurchases * SHOP_RULES.highRewardHeroWeightBonus;
+
+  return weights;
+}
+
+function getAdvancedRewardChance(run, extraHighRewardPurchases = 0) {
+  const weights = getRewardRarityWeights(run, run?.floor || TOWER_RULES.startFloor, extraHighRewardPurchases);
+  const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
+  if (!total) return 0;
+  return ((weights.rare || 0) + (weights.hero || 0) + (weights.legendary || 0)) / total;
+}
+
+function formatPercent(value) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function getGoldRewardAmount(player, amount) {
+  const bonus = getShopBoosts(player).victoryGoldBonus || 0;
+  return Math.max(0, Math.round(amount * (1 + bonus)));
+}
+
+function getExpRewardAmount(player, amount) {
+  const bonus = getShopBoosts(player).expBonus || 0;
+  return Math.max(0, Math.round(amount * (1 + bonus)));
+}
+
+function getPersonalityBoostEffects(player) {
+  const level = Math.min(SHOP_RULES.personalityBoostMaxLevel, getShopBoosts(player).personalityBoostLevel || 0);
+  const effects = {
+    maxHpBonus: 0,
+    postureBonus: 0,
+    attackBonus: 0,
+    defenseBonus: 0,
+    evasionBonus: 0,
+    critBonus: 0,
+    moveSpeedBonus: 0,
+    cooldownBonus: 0,
+    turnSpeedBonus: 0
+  };
+  if (level <= 0) return effects;
+
+  if (player.personalityId === 'balanced') {
+    effects.attackBonus = level * 0.012;
+    effects.defenseBonus = level * 0.006;
+    effects.evasionBonus = level * 0.004;
+    effects.critBonus = level * 0.004;
+    effects.postureBonus = level * 0.008;
+  }
+
+  if (player.personalityId === 'aggressive') {
+    effects.attackBonus = level * 0.025;
+    effects.cooldownBonus = -level * 0.012;
+    effects.critBonus = level * 0.004;
+  }
+
+  if (player.personalityId === 'defensive') {
+    effects.maxHpBonus = level * 0.01;
+    effects.postureBonus = level * 0.02;
+    effects.defenseBonus = level * 0.012;
+  }
+
+  if (player.personalityId === 'assassin') {
+    effects.critBonus = level * 0.012;
+    effects.evasionBonus = level * 0.01;
+    effects.moveSpeedBonus = level * 0.008;
+    effects.turnSpeedBonus = level * 0.008;
+  }
+
+  return effects;
+}
+
+export function getShopSummary(run) {
+  if (!run?.player) return null;
+  ensureShopState(run);
+  const boosts = getShopBoosts(run.player);
+  return {
+    gold: run.player.gold || 0,
+    available: isPreTowerShopAvailable(run),
+    rewardChoices: getRewardChoiceCount(run),
+    advancedRewardChance: formatPercent(getAdvancedRewardChance(run)),
+    personalityBoostLevel: boosts.personalityBoostLevel || 0,
+    highRewardPurchases: boosts.highRewardPurchases || 0,
+    goldBonusPercent: Math.round((boosts.victoryGoldBonus || 0) * 100),
+    expBonusPercent: Math.round((boosts.expBonus || 0) * 100),
+    lastLog: run.lastRewardLog || ''
+  };
+}
+
 export function getShopOffers(run) {
   if (!run?.player) return [];
+  ensureShopState(run);
   const player = run.player;
+  const boosts = getShopBoosts(player);
+  const purchases = run.shop.purchases || {};
   const growth = getWeaponGrowthInfo(player);
   const gradePrice = SHOP_RULES.weaponGradeBasePrice + (growth.grade?.order || 0) * SHOP_RULES.weaponGradePriceStep;
   const stageStep = Math.max(0, (growth.currentStageNumber || 1) - 1);
   const stagePrice = SHOP_RULES.weaponStageBasePrice + stageStep * SHOP_RULES.weaponStagePriceStep;
+  const personalityLevel = boosts.personalityBoostLevel || 0;
+  const personalityPrice = SHOP_RULES.personalityBoostBasePrice + personalityLevel * SHOP_RULES.personalityBoostPriceStep;
+  const highRewardPurchases = boosts.highRewardPurchases || 0;
+  const highRewardPrice = SHOP_RULES.highRewardChanceBasePrice + highRewardPurchases * SHOP_RULES.highRewardChancePriceStep;
+  const currentHighRewardChance = formatPercent(getAdvancedRewardChance(run));
+  const nextHighRewardChance = formatPercent(getAdvancedRewardChance(run, 1));
 
   return [
     createShopOffer({
       id: 'statPoint',
-      title: '스탯포인트 구매',
+      title: '스탯포인트 +1',
       description: '스탯포인트 +1. 좌측 스탯 설정에서 원하는 능력치에 배분할 수 있습니다.',
       price: SHOP_RULES.statPointPrice,
       disabled: false,
@@ -147,7 +294,7 @@ export function getShopOffers(run) {
     }, player.gold),
     createShopOffer({
       id: 'weaponGradeUp',
-      title: '무기 등급 올리기',
+      title: '무기 등급 강화',
       description: growth.isMaxGrade ? '이미 최고 등급입니다.' : `${growth.grade.name} → ${growth.nextGrade.name}`,
       price: gradePrice,
       disabled: growth.isMaxGrade,
@@ -155,11 +302,59 @@ export function getShopOffers(run) {
     }, player.gold),
     createShopOffer({
       id: 'weaponStageUp',
-      title: '무기 진화시키기',
+      title: '무기 진화',
       description: growth.isMaxStage ? '이미 최종 단계입니다.' : `${growth.currentStage.name} → ${growth.nextStage.name}`,
       price: stagePrice,
       disabled: growth.isMaxStage,
       disabledReason: '이미 최종 단계입니다.'
+    }, player.gold),
+    createShopOffer({
+      id: 'masteryUp',
+      title: '무기 숙련도 +1',
+      description: `현재 무기 숙련도 ${player.mastery || 0} → ${(player.mastery || 0) + 1}`,
+      price: SHOP_RULES.masteryPrice,
+      disabled: false,
+      disabledReason: ''
+    }, player.gold),
+    createShopOffer({
+      id: 'personalityBoost',
+      title: '성격 강화',
+      description: personalityLevel >= SHOP_RULES.personalityBoostMaxLevel ? '이미 최대 강화 단계입니다.' : `${PERSONALITIES[player.personalityId].name} 강화 Lv.${personalityLevel} → Lv.${personalityLevel + 1}`,
+      price: personalityPrice,
+      disabled: personalityLevel >= SHOP_RULES.personalityBoostMaxLevel,
+      disabledReason: '이미 최대 강화 단계입니다.'
+    }, player.gold),
+    createShopOffer({
+      id: 'rewardChoicePlus',
+      title: '보상 선택지 +1',
+      description: purchases.rewardChoice ? '구매 완료. 이번 런 보상 선택지가 1개 늘어났습니다.' : `이번 런 보상 선택지 ${REWARD_RULES.choices}개 → ${REWARD_RULES.choices + 1}개`,
+      price: SHOP_RULES.rewardChoicePrice,
+      disabled: purchases.rewardChoice,
+      disabledReason: '한 번만 구매할 수 있습니다.'
+    }, player.gold),
+    createShopOffer({
+      id: 'highRewardChanceUp',
+      title: '고급보상 확률증가',
+      description: `현재 희귀 이상 확률 ${currentHighRewardChance} → ${nextHighRewardChance}`,
+      price: highRewardPrice,
+      disabled: false,
+      disabledReason: ''
+    }, player.gold),
+    createShopOffer({
+      id: 'victoryGoldBoost',
+      title: '승리골드 보상 +10%',
+      description: purchases.victoryGoldBoost ? '구매 완료. 이번 런의 골드 보상 획득량이 증가했습니다.' : '이번 런의 골드 보상 획득량이 10% 증가합니다.',
+      price: SHOP_RULES.victoryGoldBoostPrice,
+      disabled: purchases.victoryGoldBoost,
+      disabledReason: '한 번만 구매할 수 있습니다.'
+    }, player.gold),
+    createShopOffer({
+      id: 'expBoost',
+      title: '경험치 보상 +10%',
+      description: purchases.expBoost ? '구매 완료. 이번 런의 경험치 보상 획득량이 증가했습니다.' : '이번 런의 경험치 보상 획득량이 10% 증가합니다.',
+      price: SHOP_RULES.expBoostPrice,
+      disabled: purchases.expBoost,
+      disabledReason: '한 번만 구매할 수 있습니다.'
     }, player.gold)
   ];
 }
@@ -175,11 +370,14 @@ function createShopOffer(offer, gold) {
 
 export function purchasePreTowerShopItem(run, itemId) {
   if (!isPreTowerShopAvailable(run)) return { ok: false, message: '상점은 탑에 오르기 전까지만 이용할 수 있습니다.' };
+  ensureShopState(run);
   const offer = getShopOffers(run).find((item) => item.id === itemId);
   if (!offer) return { ok: false, message: '구매할 수 없는 상품입니다.' };
   if (offer.disabled) return { ok: false, message: offer.disabledReason || '구매할 수 없습니다.' };
 
   const player = run.player;
+  const boosts = getShopBoosts(player);
+  const purchases = run.shop.purchases;
   player.gold = Math.max(0, (player.gold || 0) - offer.price);
 
   if (itemId === 'statPoint') {
@@ -199,6 +397,40 @@ export function purchasePreTowerShopItem(run, itemId) {
     run.lastRewardLog = `상점 구매: 무기 단계 ${before.name} → ${after.name}`;
   }
 
+  if (itemId === 'masteryUp') {
+    player.mastery += 1;
+    run.lastRewardLog = `상점 구매: 무기 숙련도 +1`;
+  }
+
+  if (itemId === 'personalityBoost') {
+    boosts.personalityBoostLevel = Math.min(SHOP_RULES.personalityBoostMaxLevel, (boosts.personalityBoostLevel || 0) + 1);
+    run.lastRewardLog = `상점 구매: ${PERSONALITIES[player.personalityId].name} 강화 Lv.${boosts.personalityBoostLevel}`;
+  }
+
+  if (itemId === 'rewardChoicePlus') {
+    purchases.rewardChoice = true;
+    boosts.rewardChoiceBonus = 1;
+    run.lastRewardLog = `상점 구매: 보상 선택지 +1`;
+  }
+
+  if (itemId === 'highRewardChanceUp') {
+    boosts.highRewardPurchases = (boosts.highRewardPurchases || 0) + 1;
+    run.lastRewardLog = `상점 구매: 고급보상 확률증가 · 현재 ${formatPercent(getAdvancedRewardChance(run))}`;
+  }
+
+  if (itemId === 'victoryGoldBoost') {
+    purchases.victoryGoldBoost = true;
+    boosts.victoryGoldBonus = SHOP_RULES.victoryGoldBoostScale;
+    run.lastRewardLog = `상점 구매: 승리골드 보상 +10%`;
+  }
+
+  if (itemId === 'expBoost') {
+    purchases.expBoost = true;
+    boosts.expBonus = SHOP_RULES.expBoostScale;
+    run.lastRewardLog = `상점 구매: 경험치 보상 +10%`;
+  }
+
+  player.shopBoosts = boosts;
   healPlayerToFull(player);
   return { ok: true, message: run.lastRewardLog };
 }
@@ -221,7 +453,12 @@ export function createRun(config) {
     levelMessage: '',
     shop: {
       available: true,
-      enteredTower: false
+      enteredTower: false,
+      purchases: {
+        rewardChoice: false,
+        victoryGoldBoost: false,
+        expBoost: false
+      }
     },
     player: {
       name: 'PLAYER',
@@ -233,6 +470,13 @@ export function createRun(config) {
       statPoints: PLAYER_START_STAT_POINTS,
       stats: { ...PLAYER_START_STATS },
       rewardTraits: [],
+      shopBoosts: {
+        rewardChoiceBonus: 0,
+        highRewardPurchases: 0,
+        victoryGoldBonus: 0,
+        expBonus: 0,
+        personalityBoostLevel: 0
+      },
       weaponGrade: 'common',
       weaponEvolution: null,
       weaponEvolutionOptions: getWeaponEvolutionOptions(config.playerWeapon),
@@ -318,7 +562,8 @@ export function completeFloorVictory(state) {
   run.player.hp = clamp(state.player.hp, 0, currentProfile.maxHp);
   run.victories += 1;
 
-  const expGain = REWARD_RULES.baseExp + run.floor * REWARD_RULES.expPerFloor;
+  const baseExpGain = REWARD_RULES.baseExp + run.floor * REWARD_RULES.expPerFloor;
+  const expGain = getExpRewardAmount(run.player, baseExpGain);
   run.levelMessage = grantExp(run.player, expGain);
   run.pendingRewards = generateRewardChoices(run);
   state.rewardsPrepared = true;
@@ -348,6 +593,7 @@ export function derivePlayerProfile(player) {
   const rewardEffects = collectRewardEffects(player.rewardTraits);
   const gradeEffects = getWeaponGradeEffects(player);
   const stageEffects = getWeaponStageEffects(player);
+  const personalityBoostEffects = getPersonalityBoostEffects(player);
   const stats = player.stats;
 
   const maxHp = Math.round((
@@ -356,14 +602,14 @@ export function derivePlayerProfile(player) {
     stats.str * 2 +
     stats.def * 4 +
     player.level * 7
-  ) * (1 + (rewardEffects.maxHpBonus || 0)));
+  ) * (1 + (rewardEffects.maxHpBonus || 0) + (personalityBoostEffects.maxHpBonus || 0)));
 
   const maxPosture = Math.round((
     POSTURE_RULES.baseMax +
     stats.def * POSTURE_RULES.defenseToMax +
     stats.vit * POSTURE_RULES.vitalityToMax +
     player.level * POSTURE_RULES.levelToMax
-  ) * (personality.postureMaxScale || 1) * (1 + (rewardEffects.postureBonus || 0) + (gradeEffects.postureBonus || 0)));
+  ) * (personality.postureMaxScale || 1) * (1 + (rewardEffects.postureBonus || 0) + (gradeEffects.postureBonus || 0) + (personalityBoostEffects.postureBonus || 0)));
 
   const attackScale =
     1 +
@@ -373,6 +619,7 @@ export function derivePlayerProfile(player) {
     (personality.attackBonus || 0) +
     (skillEffects.attackBonus || 0) +
     (rewardEffects.attackBonus || 0) +
+    (personalityBoostEffects.attackBonus || 0) +
     (gradeEffects.attackBonus || 0) +
     (stageEffects.attackBonus || 0);
 
@@ -382,7 +629,8 @@ export function derivePlayerProfile(player) {
     stats.vit * 0.002 +
     (personality.defenseBonus || 0) +
     (skillEffects.defenseBonus || 0) +
-    (rewardEffects.defenseBonus || 0),
+    (rewardEffects.defenseBonus || 0) +
+    (personalityBoostEffects.defenseBonus || 0),
     0,
     BASE_STATS.defenseCap
   );
@@ -393,7 +641,8 @@ export function derivePlayerProfile(player) {
     stats.luck * 0.002 +
     (personality.evasionBonus || 0) +
     (skillEffects.evasionBonus || 0) +
-    (rewardEffects.evasionBonus || 0),
+    (rewardEffects.evasionBonus || 0) +
+    (personalityBoostEffects.evasionBonus || 0),
     0,
     BASE_STATS.evasionCap
   );
@@ -404,15 +653,16 @@ export function derivePlayerProfile(player) {
     (personality.critBonus || 0) +
     (skillEffects.critBonus || 0) +
     (rewardEffects.critBonus || 0) +
+    (personalityBoostEffects.critBonus || 0) +
     (stageEffects.critBonus || 0),
     0,
     BASE_STATS.critCap
   );
 
   const speedScales = getWeaponAgilityScales(weapon, stats, player.mastery, skillEffects, true);
-  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (1 + (rewardEffects.moveSpeedBonus || 0));
-  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1) * (1 + (rewardEffects.cooldownBonus || 0) + (stageEffects.cooldownBonus || 0));
-  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (1 + (stageEffects.turnSpeedBonus || 0));
+  const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (1 + (rewardEffects.moveSpeedBonus || 0) + (personalityBoostEffects.moveSpeedBonus || 0));
+  const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1) * (1 + (rewardEffects.cooldownBonus || 0) + (stageEffects.cooldownBonus || 0) + (personalityBoostEffects.cooldownBonus || 0));
+  const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (1 + (stageEffects.turnSpeedBonus || 0) + (personalityBoostEffects.turnSpeedBonus || 0));
   const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
 
   return {
@@ -825,9 +1075,10 @@ function generateRewardChoices(run) {
   const rewards = [];
   const usedIds = new Set();
   const usedFamilies = new Set();
+  const choiceCount = getRewardChoiceCount(run);
   let guard = 0;
 
-  while (rewards.length < REWARD_RULES.choices && guard < 80) {
+  while (rewards.length < choiceCount && guard < 100) {
     guard += 1;
     const rarity = rollRewardRarity(run);
     const reward = createRewardByRarity(run, rarity);
@@ -839,10 +1090,10 @@ function generateRewardChoices(run) {
     rewards.push(reward);
   }
 
-  if (rewards.length < REWARD_RULES.choices) {
+  if (rewards.length < choiceCount) {
     getFallbackRewards(run).forEach((reward) => {
       const family = getRewardFamily(reward);
-      if (rewards.length < REWARD_RULES.choices && reward && !usedIds.has(reward.id) && !usedFamilies.has(family)) {
+      if (rewards.length < choiceCount && reward && !usedIds.has(reward.id) && !usedFamilies.has(family)) {
         usedIds.add(reward.id);
         usedFamilies.add(family);
         rewards.push(reward);
@@ -850,7 +1101,7 @@ function generateRewardChoices(run) {
     });
   }
 
-  return rewards.slice(0, REWARD_RULES.choices);
+  return rewards.slice(0, choiceCount);
 }
 
 function getRewardFamily(reward) {
@@ -863,19 +1114,7 @@ function getRewardFamily(reward) {
 }
 
 function rollRewardRarity(run) {
-  const floorBonus = Math.max(0, run.floor - 1);
-  const weights = { ...REWARD_RULES.rarityWeights };
-
-  weights.hero += Math.floor(floorBonus / 5);
-  weights.rare += Math.floor(floorBonus / 3);
-  if (run.floor >= 5) weights.legendary += 1;
-  if (run.floor >= 10) weights.legendary += 1;
-  if (run.floor % TOWER_RULES.bossInterval === 0) {
-    weights.rare += 12;
-    weights.hero += 5;
-    weights.legendary += 2;
-  }
-
+  const weights = getRewardRarityWeights(run, run.floor);
   const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
   let roll = Math.random() * total;
 
@@ -947,24 +1186,26 @@ function createNormalReward(run) {
     });
   }
 
-  const gold = randomInt(REWARD_RULES.normalGoldMin, REWARD_RULES.normalGoldMax);
+  const baseGold = randomInt(REWARD_RULES.normalGoldMin, REWARD_RULES.normalGoldMax);
+  const gold = getGoldRewardAmount(run.player, baseGold);
   pool.push({
-    id: `normal-gold-${gold}`,
+    id: `normal-gold-${baseGold}`,
     type: 'gold',
     rarity: 'normal',
     amount: gold,
     title: `골드 보상`,
-    description: `골드 +${gold}`
+    description: gold === baseGold ? `골드 +${gold}` : `골드 +${gold} / 기본 ${baseGold}`
   });
 
-  const exp = randomInt(REWARD_RULES.normalExpMin, REWARD_RULES.normalExpMax);
+  const baseExp = randomInt(REWARD_RULES.normalExpMin, REWARD_RULES.normalExpMax);
+  const exp = getExpRewardAmount(run.player, baseExp);
   pool.push({
-    id: `normal-exp-${exp}`,
+    id: `normal-exp-${baseExp}`,
     type: 'exp',
     rarity: 'normal',
     amount: exp,
     title: `경험치 획득`,
-    description: `경험치 +${exp}`
+    description: exp === baseExp ? `경험치 +${exp}` : `경험치 +${exp} / 기본 ${baseExp}`
   });
 
   return sample(pool);

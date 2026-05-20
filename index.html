@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.24-pre-tower-shop-ui" />
-  <title>Circle Battle Tower Rebuild v0.7.24</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.24" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.25-expanded-pre-tower-shop" />
+  <title>Circle Battle Tower Rebuild v0.7.25</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.25" />
 </head>
 <body>
   <main class="app">
@@ -13,9 +13,9 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">탑 입장 전 준비 상점과 골드 UI를 분리한 v0.7.24 뼈대입니다.</p>
+        <p class="subtext">탑 입장 전 준비 상점의 상품과 보유 자원 UI를 확장한 v0.7.25 뼈대입니다.</p>
       </div>
-      <div class="topbar-actions"><button id="simToggleBtn" class="button mini">시뮬레이터</button><div id="versionBadge" class="version">v0.7.24</div></div>
+      <div class="topbar-actions"><button id="simToggleBtn" class="button mini">시뮬레이터</button><div id="versionBadge" class="version">v0.7.25</div></div>
     </header>
 
     <section class="layout">
@@ -41,11 +41,6 @@
           <div id="playerBox" class="player-box"></div>
         </section>
 
-        <section class="card">
-          <h2>보유 자원 / 상점</h2>
-          <div id="shopStatusBox" class="tower-box"></div>
-          <p class="hint-text">상점은 탑에 오르기 전 한 번만 이용할 수 있고, 1층에 올라가는 순간 비활성화됩니다.</p>
-        </section>
 
         <section class="card">
           <h2>개발 원칙</h2>
@@ -73,7 +68,11 @@
           </div>
         </div>
 
-
+        <section class="card shop-resource-card">
+          <h2>보유 자원 / 상점</h2>
+          <div id="shopStatusBox" class="tower-box"></div>
+          <p class="hint-text">상점은 탑에 오르기 전 한 번만 이용할 수 있고, 1층에 올라가는 순간 비활성화됩니다.</p>
+        </section>
       </section>
 
       <aside class="info-panel side-panel">
@@ -133,6 +132,6 @@
         </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.24"></script>
+  <script type="module" src="./js/main.js?v=0.7.25"></script>
 </body>
 </html>

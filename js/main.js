@@ -11,6 +11,7 @@ import {
   createRun,
   getNextLevelExp,
   getShopOffers,
+  getShopSummary,
   getWeaponGrowthInfo,
   isPreTowerShopAvailable,
   lockPreTowerShop,
@@ -813,6 +814,7 @@ function renderPlayerInfo(force = false) {
     player.gold || 0,
     player.statPoints,
     player.mastery,
+    JSON.stringify(player.shopBoosts || {}),
     player.weaponGrade || 'common',
     player.weaponEvolution || 'none',
     (player.rewardTraits || []).join(','),
@@ -848,6 +850,7 @@ function renderPlayerInfo(force = false) {
     <div class="tower-row"><span>골드</span><strong>${player.gold || 0}</strong></div>
     <div class="tower-row"><span>스탯 포인트</span><strong>${player.statPoints}</strong></div>
     <div class="tower-row"><span>무기 숙련</span><strong>${player.mastery}</strong></div>
+    <div class="tower-row"><span>성격 강화</span><strong>Lv.${player.shopBoosts?.personalityBoostLevel || 0}</strong></div>
     <div class="tower-row"><span>무기 등급</span><strong>${weaponGrowth.grade.name}</strong></div>
     <div class="tower-row"><span>무기 단계</span><strong>${weaponGrowth.currentStageText}</strong></div>
     <div class="stat-grid">${statButtons}</div>
@@ -859,14 +862,32 @@ function renderPlayerInfo(force = false) {
 
 function renderShopStatus(force = false) {
   if (!run || !controls.shopStatusBox) return;
-  const shopState = isPreTowerShopAvailable(run) ? '탑 입장 전 이용 가능' : '탑 입장 후 비활성화';
-  const key = [run.player.gold || 0, shopState, run.lastRewardLog || ''].join('|');
+  const summary = getShopSummary(run);
+  if (!summary) return;
+  const shopState = summary.available ? '탑 입장 전 이용 가능' : '탑 입장 후 비활성화';
+  const key = [
+    summary.gold,
+    shopState,
+    summary.rewardChoices,
+    summary.advancedRewardChance,
+    summary.personalityBoostLevel,
+    summary.goldBonusPercent,
+    summary.expBonusPercent,
+    summary.lastLog
+  ].join('|');
   if (!force && controls.shopStatusBox.dataset.key === key) return;
   controls.shopStatusBox.dataset.key = key;
   controls.shopStatusBox.innerHTML = `
-    <div class="tower-row"><span>보유 골드</span><strong>${run.player.gold || 0}G</strong></div>
-    <div class="tower-row"><span>상점 상태</span><strong>${shopState}</strong></div>
-    <p class="hint-text">${run.lastRewardLog || '상점 구매 효과는 현재 캐릭터에게만 적용됩니다.'}</p>
+    <div class="shop-summary-grid">
+      <div class="tower-row"><span>보유 골드</span><strong>${summary.gold}G</strong></div>
+      <div class="tower-row"><span>상점 상태</span><strong>${shopState}</strong></div>
+      <div class="tower-row"><span>보상 선택지</span><strong>${summary.rewardChoices}개</strong></div>
+      <div class="tower-row"><span>고급보상 확률</span><strong>${summary.advancedRewardChance}</strong></div>
+      <div class="tower-row"><span>성격 강화</span><strong>Lv.${summary.personalityBoostLevel}</strong></div>
+      <div class="tower-row"><span>골드 보너스</span><strong>+${summary.goldBonusPercent}%</strong></div>
+      <div class="tower-row"><span>경험치 보너스</span><strong>+${summary.expBonusPercent}%</strong></div>
+    </div>
+    <p class="hint-text">${summary.lastLog || '상점 구매 효과는 현재 캐릭터에게만 적용되며 죽을 경우 초기화됩니다.'}</p>
   `;
 }
 
@@ -877,7 +898,7 @@ function renderShopBox(force = false) {
   }
 
   const offers = getShopOffers(run);
-  const key = [run.player.gold || 0, run.player.statPoints, run.player.weaponGrade, run.player.weaponEvolution, offers.map((item) => `${item.id}:${item.price}:${item.disabled}`).join('|')].join('|');
+  const key = [run.player.gold || 0, run.player.statPoints, run.player.weaponGrade, run.player.weaponEvolution, offers.map((item) => `${item.id}:${item.price}:${item.disabled}:${item.description}`).join('|')].join('|');
   if (!force && panelKeys.shop === key) return;
   panelKeys.shop = key;
 
@@ -1007,10 +1028,9 @@ function renderResultIfNeeded() {
 
 function showShopOverlay(message = '') {
   if (!run || !state) return;
-  const text = message
-    ? `${message}
-탑에 오르기 전 준비 상점입니다. 이 상점에서 구매한 스탯포인트, 무기 등급, 무기 진화는 현재 캐릭터에게만 적용되며 죽을 경우 초기화됩니다.`
-    : '탑에 오르기 전 준비 상점입니다. 이 상점에서 구매한 스탯포인트, 무기 등급, 무기 진화는 현재 캐릭터에게만 적용되며 죽을 경우 초기화됩니다.';
+  const guide = '탑에 오르기 전 준비 상점입니다. 이 상점에서 구매한 스탯포인트, 무기 강화, 무기 진화, 숙련도, 성격 강화, 보상 관련 효과는 현재 캐릭터에게만 적용되며 죽을 경우 초기화됩니다.';
+  const text = message ? `${message}
+${guide}` : guide;
   showOverlay('PREP SHOP', text, '탑 오르기', 'climbTower', { keepShop: true });
   renderShopBox(true);
 }

@@ -100,6 +100,16 @@ h2 {
   gap: 14px;
 }
 
+.shop-resource-card {
+  background: rgba(255, 212, 90, 0.045);
+}
+
+.shop-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .arena-panel {
   position: relative;
   border: 1px solid rgba(168, 136, 255, 0.26);
@@ -129,7 +139,9 @@ canvas {
 }
 
 .result-card {
-  width: min(560px, 100%);
+  width: min(640px, 100%);
+  max-height: calc(100vh - 80px);
+  overflow: auto;
   border: 1px solid rgba(255, 212, 90, 0.42);
   background: rgba(12, 11, 23, 0.94);
   padding: 22px;
@@ -657,7 +669,7 @@ input[type="number"] {
 }
 
 .shop-button {
-  min-height: 132px;
+  min-height: 104px;
   border: 1px solid rgba(168, 136, 255, 0.34);
   background: rgba(168, 136, 255, 0.075);
   color: var(--text);
@@ -706,7 +718,8 @@ input[type="number"] {
     justify-content: space-between;
   }
 
-  .overlay-shop-box {
+  .overlay-shop-box,
+  .shop-summary-grid {
     grid-template-columns: 1fr;
   }
 }

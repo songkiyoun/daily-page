@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.24';
+export const VERSION = '0.7.25';
 
 export const WEAPONS = {
   spear: {
@@ -813,7 +813,20 @@ export const SHOP_RULES = {
   weaponGradeBasePrice: 150,
   weaponGradePriceStep: 75,
   weaponStageBasePrice: 190,
-  weaponStagePriceStep: 95
+  weaponStagePriceStep: 95,
+  masteryPrice: 90,
+  personalityBoostBasePrice: 130,
+  personalityBoostPriceStep: 90,
+  personalityBoostMaxLevel: 3,
+  rewardChoicePrice: 180,
+  highRewardChanceBasePrice: 140,
+  highRewardChancePriceStep: 85,
+  highRewardRareWeightBonus: 6,
+  highRewardHeroWeightBonus: 2,
+  victoryGoldBoostPrice: 160,
+  victoryGoldBoostScale: 0.1,
+  expBoostPrice: 160,
+  expBoostScale: 0.1
 };
 
 export const REWARD_RULES = {
