@@ -173,6 +173,12 @@ export function createBattleState(run, options = {}) {
     screenShake: 0,
     camera: { x: 0, y: 0 },
     eventLocks: {},
+    engagement: {
+      defensiveMirrorStallFrames: 0,
+      defensiveMirrorForceFrames: 0,
+      lastPlayerHits: 0,
+      lastEnemyHits: 0
+    },
     run,
     arena: {
       width: 760,

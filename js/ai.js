@@ -20,6 +20,10 @@ export function decideMovement(self, enemy, state = null) {
     return { ax: 0, ay: 0, faceAngle: toEnemy, label: '공격 동작' };
   }
 
+  if (isDefensiveMirrorEngagementForced(self, enemy, state)) {
+    return defensiveMirrorForceMovement(self, enemy, weapon, toEnemy, dist);
+  }
+
   if (weapon.id === 'dagger' && enemy.weaponId !== 'western') {
     const flankPower = clamp((weapon.flankBias || 0.5) * 0.62 + personality.flankPreference * 0.58, 0.5, 1.55);
     const immediateSideCommit = daggerSideCommitMovement(self, enemy, desired, toEnemy, fromEnemy, dist, relation, flankPower, getDaggerOpportunity(enemy), true);
@@ -76,6 +80,35 @@ export function decideMovement(self, enemy, state = null) {
   return standardMovement(self, enemy, desired, toEnemy, fromEnemy, dist, personality);
 }
 
+
+
+function isDefensiveMirrorEngagementForced(self, enemy, state) {
+  return (
+    (state?.engagement?.defensiveMirrorForceFrames || 0) > 0 &&
+    self.weaponId === enemy.weaponId &&
+    self.personalityId === 'defensive' &&
+    enemy.personalityId === 'defensive'
+  );
+}
+
+function defensiveMirrorForceMovement(self, enemy, weapon, toEnemy, dist) {
+  const forceDistance = getDefensiveMirrorForceDistance(self, enemy, weapon);
+  const closeEnough = dist <= forceDistance + 4;
+  const power = closeEnough
+    ? (weapon.id === 'dagger' ? 0.56 : 0.44)
+    : (weapon.id === 'dagger' ? 1.78 : weapon.id === 'eastern' ? 1.54 : 1.36);
+  return vectorFromAngle(toEnemy, power, toEnemy, closeEnough ? '방어형 미러 교전 시작' : '방어형 미러 강제 접근');
+}
+
+function getDefensiveMirrorForceDistance(self, enemy, weapon) {
+  const bodySafeDistance = self.radius + enemy.radius + 8;
+  const attackDistance = weapon.id === 'dagger'
+    ? WEAPONS.dagger.range + enemy.radius + 2
+    : weapon.id === 'eastern'
+      ? weapon.idealRange + enemy.radius * 0.55
+      : weapon.idealRange + enemy.radius * 0.65;
+  return Math.max(bodySafeDistance, attackDistance, weapon.minRange + enemy.radius + 8);
+}
 
 function getBattleUrgency(state) {
   if (!state) return 0;
