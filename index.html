@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.29-challenge-end-inventory" />
-  <title>Circle Battle Tower Rebuild v0.7.29</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.29" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.30-boss-floor-growth-simulator" />
+  <title>Circle Battle Tower Rebuild v0.7.30</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.30" />
 </head>
 <body>
   <main class="app">
@@ -13,11 +13,11 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">준비 화면과 등반 화면을 분리해 캐릭터 생성, 상점, 전투, 보상을 단계별로 정리한 v0.7.29 뼈대입니다.</p>
+        <p class="subtext">10층마다 보스층을 추가하고 경험치 성장과 등반 성장 시뮬레이션을 확장한 v0.7.30 뼈대입니다.</p>
       </div>
       <div class="topbar-actions">
         <button id="simToggleBtn" class="button mini">시뮬레이터</button>
-        <div id="versionBadge" class="version">v0.7.29</div>
+        <div id="versionBadge" class="version">v0.7.30</div>
       </div>
     </header>
 
@@ -142,12 +142,13 @@
         <button id="simRunBtn" class="button">선택 조합 실행</button>
         <button id="simMatrixBtn" class="button primary">전체 256조합 비교</button>
         <button id="simMirrorAuditBtn" class="button">미러전 검증</button>
+        <button id="simGrowthBtn" class="button">성장 등반 예측</button>
         <button id="simCopyBtn" class="button">결과 복사</button>
       </div>
       <div id="simResultBox" class="sim-result-box large">아직 시뮬레이션을 실행하지 않았습니다.</div>
     </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.29"></script>
+  <script type="module" src="./js/main.js?v=0.7.30"></script>
 </body>
 </html>

@@ -493,6 +493,7 @@ export function createRun(config) {
     lastVictoryGold: 0,
     lastVictoryBaseGold: 0,
     victoryGoldMessage: '',
+    lastBossRewardMessage: '',
     challenge: {
       startGold: Number.isFinite(config.startingGold) ? Math.max(0, Math.floor(config.startingGold)) : SHOP_RULES.initialGold,
       startEnhancementStone: Number.isFinite(config.startingEnhancementStone) ? Math.max(0, Math.floor(config.startingEnhancementStone)) : 0,
@@ -623,6 +624,15 @@ export function completeFloorVictory(state) {
   run.victoryGoldMessage = victoryGold.amount === victoryGold.base
     ? `기본 승리 골드 +${victoryGold.amount}G`
     : `기본 승리 골드 +${victoryGold.amount}G / 기본 ${victoryGold.base}G`;
+
+  const isBossFloor = run.floor > 0 && run.floor % TOWER_RULES.bossInterval === 0;
+  run.lastBossRewardMessage = '';
+  if (isBossFloor) {
+    const bossSoulReward = TOWER_RULES.bossSoulReward || 1;
+    run.player.bossSoul = (run.player.bossSoul || 0) + bossSoulReward;
+    if (run.challenge) run.challenge.earnedBossSoul = (run.challenge.earnedBossSoul || 0) + bossSoulReward;
+    run.lastBossRewardMessage = `보스 처치 보상 · 보스의 영혼 +${bossSoulReward}`;
+  }
 
   const baseExpGain = REWARD_RULES.baseExp + run.floor * REWARD_RULES.expPerFloor;
   const expGain = getExpRewardAmount(run.player, baseExpGain);
@@ -1125,12 +1135,13 @@ function grantExp(player, amount) {
   while (player.exp >= getNextLevelExp(player.level)) {
     player.exp -= getNextLevelExp(player.level);
     player.level += 1;
-    player.statPoints += 2;
+    player.statPoints += REWARD_RULES.levelUpStatPoints || 5;
     levelUps += 1;
   }
 
+  const gainedStatPoints = levelUps * (REWARD_RULES.levelUpStatPoints || 5);
   if (!levelUps) return `경험치 +${amount}`;
-  return `경험치 +${amount} · 레벨 ${levelUps}회 상승 · 스탯 포인트 +${levelUps * 2}`;
+  return `경험치 +${amount} · 레벨 ${levelUps}회 상승 · 스탯 포인트 +${gainedStatPoints}`;
 }
 
 function generateRewardChoices(run) {

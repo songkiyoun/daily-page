@@ -377,6 +377,10 @@ select option {
   color: var(--muted);
 }
 
+.boss-row strong {
+  color: var(--gold);
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -683,7 +687,7 @@ input[type="number"] {
 }
 
 .simulator-buttons {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   margin-top: 10px;
 }
 

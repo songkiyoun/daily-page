@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.29';
+export const VERSION = '0.7.30';
 
 export const WEAPONS = {
   spear: {
@@ -840,14 +840,15 @@ export const REWARD_RULES = {
   externalSkillLimit: 2,
   externalSkillMaxLevel: 2,
   bonusStatPoints: 1,
-  baseExp: 44,
-  expPerFloor: 7,
+  baseExp: 70,
+  expPerFloor: 12,
+  levelUpStatPoints: 5,
   victoryGoldBase: 24,
   victoryGoldPerFloor: 6,
   normalGoldMin: 32,
   normalGoldMax: 68,
-  normalExpMin: 24,
-  normalExpMax: 48,
+  normalExpMin: 36,
+  normalExpMax: 72,
   rarityWeights: {
     normal: 68,
     rare: 24,
@@ -956,7 +957,8 @@ export const TOWER_RULES = {
   damageGrowthPerFloor: 0.075,
   defenseGrowthPerFloor: 0.006,
   maxEnemyDefense: 0.28,
-  bossInterval: 10
+  bossInterval: 10,
+  bossSoulReward: 1
 };
 
 export const ENEMY_NAMES = [

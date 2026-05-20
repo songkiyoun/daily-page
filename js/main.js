@@ -64,6 +64,7 @@ const controls = {
   simRunBtn: document.getElementById('simRunBtn'),
   simMatrixBtn: document.getElementById('simMatrixBtn'),
   simMirrorAuditBtn: document.getElementById('simMirrorAuditBtn'),
+  simGrowthBtn: document.getElementById('simGrowthBtn'),
   simCopyBtn: document.getElementById('simCopyBtn'),
   simResultBox: document.getElementById('simResultBox'),
   version: document.getElementById('versionBadge')
@@ -114,6 +115,7 @@ function init() {
   controls.simRunBtn.addEventListener('click', handleSimulationRun);
   controls.simMatrixBtn.addEventListener('click', handleSimulationMatrix);
   controls.simMirrorAuditBtn.addEventListener('click', handleMirrorAudit);
+  controls.simGrowthBtn.addEventListener('click', handleGrowthSimulation);
   controls.simCopyBtn.addEventListener('click', handleSimulationCopy);
 
   run = null;
@@ -351,6 +353,220 @@ function handleMirrorAudit() {
     count
   }));
   renderMirrorAudit(rows, count);
+}
+
+
+function handleGrowthSimulation() {
+  const count = Math.min(readSimulationCount(6), 8);
+  const result = simulateGrowthProgressionSet({
+    playerWeapon: controls.simPlayerWeapon.value,
+    playerPersonality: controls.simPlayerPersonality.value,
+    count
+  });
+  renderGrowthSimulation(result);
+}
+
+const GROWTH_PROFILES = [
+  {
+    id: 'early',
+    name: '초반형',
+    description: '초반 생존과 빠른 화력을 우선합니다.',
+    statPriority: ['str', 'agi', 'vit', 'def', 'luck'],
+    rewardBias: { stat: 11, skillLevel: 10, mastery: 9, weaponGradeUp: 8, weaponStageUp: 8, trait: 6, statPoint: 5, exp: 4, gold: 1 }
+  },
+  {
+    id: 'mid',
+    name: '중반형',
+    description: '능력치, 스킬, 무기 성장을 고르게 챙깁니다.',
+    statPriority: ['vit', 'str', 'def', 'agi', 'luck'],
+    rewardBias: { weaponGradeUp: 12, weaponStageUp: 12, trait: 10, skillLevel: 9, mastery: 9, stat: 8, statPoint: 6, exp: 5, gold: 1 }
+  },
+  {
+    id: 'late',
+    name: '후반형',
+    description: '보스층과 장기 등반을 보고 내구와 무기 성장을 우선합니다.',
+    statPriority: ['def', 'vit', 'str', 'luck', 'agi'],
+    rewardBias: { weaponStageUp: 15, weaponGradeUp: 14, trait: 11, mastery: 10, skillLevel: 8, statPoint: 8, stat: 6, exp: 5, gold: 1 }
+  }
+];
+
+function simulateGrowthProgressionSet({ playerWeapon, playerPersonality, count }) {
+  const rows = GROWTH_PROFILES.map((profile) => {
+    const attempts = [];
+    for (let i = 0; i < count; i += 1) {
+      attempts.push(simulateSingleProgressionRun({ playerWeapon, playerPersonality, profile, seedIndex: i }));
+    }
+    return summarizeProgressionProfile(profile, attempts);
+  });
+
+  return {
+    playerWeapon,
+    playerPersonality,
+    count,
+    rows
+  };
+}
+
+function simulateSingleProgressionRun({ playerWeapon, playerPersonality, profile, seedIndex }) {
+  let simRun = createRun({ playerWeapon, playerPersonality, startingGold: 0, startingEnhancementStone: 0, startingBossSoul: 0 });
+  allocateProgressionStats(simRun, profile);
+
+  const maxFloor = 60;
+  let clearedFloor = 0;
+  let bossClears = 0;
+  let lastResult = 'defeat';
+
+  while (simRun.floor <= maxFloor) {
+    const spawnSkew = getSymmetricSpawnSkew(simRun.floor + seedIndex);
+    let simState = createBattleState(simRun, { spawnSkew });
+    startState(simState);
+
+    const maxFrames = 60 * 85;
+    while (!simState.result && simState.frame < maxFrames) {
+      updateBattle(simState);
+    }
+
+    if (!simState.result) {
+      simState.result = 'draw';
+      simState.running = false;
+    }
+
+    if (simState.result !== 'victory') {
+      lastResult = simState.result;
+      break;
+    }
+
+    completeFloorVictory(simState);
+    const isBoss = simRun.floor % TOWER_RULES.bossInterval === 0;
+    if (isBoss) bossClears += 1;
+    clearedFloor = simRun.floor;
+
+    const reward = chooseProgressionReward(simRun.pendingRewards, profile);
+    if (!reward) break;
+    simState = applyRewardAndAdvance(simState, reward.id);
+    simRun = simState.run;
+    allocateProgressionStats(simRun, profile);
+    lastResult = 'victory';
+  }
+
+  return {
+    clearedFloor,
+    failedFloor: lastResult === 'victory' ? clearedFloor + 1 : simRun.floor,
+    bossClears,
+    finalLevel: simRun.player.level,
+    finalStats: { ...simRun.player.stats },
+    finalGrade: getWeaponGrowthInfo(simRun.player).grade.name,
+    finalStage: getWeaponGrowthInfo(simRun.player).currentStageText,
+    result: lastResult
+  };
+}
+
+function allocateProgressionStats(simRun, profile) {
+  let guard = 0;
+  while (simRun.player.statPoints > 0 && guard < 200) {
+    guard += 1;
+    const statKey = profile.statPriority[(guard - 1) % profile.statPriority.length];
+    spendPlayerStat(simRun, statKey);
+  }
+}
+
+function chooseProgressionReward(rewards, profile) {
+  if (!rewards?.length) return null;
+  return [...rewards].sort((a, b) => scoreProgressionReward(b, profile) - scoreProgressionReward(a, profile))[0];
+}
+
+function scoreProgressionReward(reward, profile) {
+  const bias = profile.rewardBias || {};
+  let score = bias[reward.type] || 0;
+  if (reward.type === 'skillLevelMastery' || reward.type === 'skillLevelStatPoint') score += bias.skillLevel || 0;
+  if (reward.type === 'stat' && profile.statPriority.includes(reward.statKey)) {
+    score += Math.max(1, profile.statPriority.length - profile.statPriority.indexOf(reward.statKey));
+  }
+  if (reward.rarity === 'rare') score += 1.5;
+  if (reward.rarity === 'hero') score += 3;
+  if (reward.rarity === 'legendary') score += 5;
+  return score + Math.random() * 0.2;
+}
+
+function summarizeProgressionProfile(profile, attempts) {
+  const count = Math.max(1, attempts.length);
+  const avgFloor = attempts.reduce((sum, item) => sum + item.clearedFloor, 0) / count;
+  const avgBoss = attempts.reduce((sum, item) => sum + item.bossClears, 0) / count;
+  const avgLevel = attempts.reduce((sum, item) => sum + item.finalLevel, 0) / count;
+  const best = attempts.reduce((bestItem, item) => item.clearedFloor > bestItem.clearedFloor ? item : bestItem, attempts[0]);
+  const worst = attempts.reduce((worstItem, item) => item.clearedFloor < worstItem.clearedFloor ? item : worstItem, attempts[0]);
+  return {
+    profile,
+    attempts,
+    avgFloor,
+    avgBoss,
+    avgLevel,
+    best,
+    worst
+  };
+}
+
+function renderGrowthSimulation(result) {
+  lastSimulationText = buildGrowthSimulationText(result);
+  const rows = result.rows.map((row) => `
+    <tr>
+      <td>${row.profile.name}</td>
+      <td>${row.avgFloor.toFixed(1)}층</td>
+      <td>${row.best.clearedFloor}층</td>
+      <td>${row.worst.clearedFloor}층</td>
+      <td>${row.avgBoss.toFixed(1)}회</td>
+      <td>Lv.${row.avgLevel.toFixed(1)}</td>
+      <td>${row.profile.description}</td>
+    </tr>
+  `).join('');
+
+  controls.simResultBox.innerHTML = `
+    <div class="sim-summary">
+      <strong>성장 등반 예측 · ${combatantLabel(result.playerWeapon, result.playerPersonality)}</strong>
+      <span>초반형·중반형·후반형 자동 성장 기준 · 각 ${result.count}회 · 최대 60층까지 실제 전투 로직 반복</span>
+    </div>
+    <table class="sim-table">
+      <thead>
+        <tr>
+          <th>성장 유형</th>
+          <th>평균 클리어</th>
+          <th>최고</th>
+          <th>최저</th>
+          <th>평균 보스 처치</th>
+          <th>평균 레벨</th>
+          <th>성향</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <textarea class="sim-copy-text" readonly>${escapeTextarea(lastSimulationText)}</textarea>
+  `;
+}
+
+function buildGrowthSimulationText(result) {
+  const lines = [
+    '[성장 등반 예측]',
+    `버전: v${VERSION}`,
+    `내 세팅: ${combatantLabel(result.playerWeapon, result.playerPersonality)}`,
+    `반복: 유형별 ${result.count}회`,
+    '기준: 자동 스탯 분배 + 자동 보상 선택 + 실제 전투 로직 / 최대 60층',
+    '',
+    '성장유형\t평균클리어층\t최고층\t최저층\t평균보스처치\t평균레벨\t설명'
+  ];
+
+  result.rows.forEach((row) => {
+    lines.push([
+      row.profile.name,
+      row.avgFloor.toFixed(1),
+      row.best.clearedFloor,
+      row.worst.clearedFloor,
+      row.avgBoss.toFixed(1),
+      row.avgLevel.toFixed(1),
+      row.profile.description
+    ].join('\t'));
+  });
+
+  return lines.join('\n');
 }
 
 function handleSimulationCopy() {
@@ -823,8 +1039,13 @@ function renderTowerInfo(force = false) {
   if (!force && panelKeys.tower === key) return;
   panelKeys.tower = key;
 
+  const nextBossFloor = Math.ceil(state.run.floor / TOWER_RULES.bossInterval) * TOWER_RULES.bossInterval;
+  const floorsToBoss = isBossFloor ? 0 : Math.max(0, nextBossFloor - state.run.floor);
+
   controls.towerBox.innerHTML = `
-    <div class="tower-row"><span>현재 층</span><strong>${state.run.floor}층${isBossFloor ? ' · 보스' : ''}</strong></div>
+    <div class="tower-row boss-row"><span>현재 층</span><strong>${state.run.floor}층${isBossFloor ? ' · 보스' : ''}</strong></div>
+    <div class="tower-row"><span>층 유형</span><strong>${isBossFloor ? '보스층' : '일반층'}</strong></div>
+    <div class="tower-row"><span>다음 보스층</span><strong>${isBossFloor ? '현재 층' : `${nextBossFloor}층 · ${floorsToBoss}층 남음`}</strong></div>
     <div class="tower-row"><span>승리 횟수</span><strong>${state.run.victories}회</strong></div>
     <div class="tower-row"><span>상대 무기</span><strong>${enemyWeapon.name}</strong></div>
     <div class="tower-row"><span>상대 성격</span><strong>${enemyPersonality.name}</strong></div>
@@ -834,7 +1055,9 @@ function renderTowerInfo(force = false) {
     <div class="tower-row"><span>상대 최대 체력</span><strong>${state.enemy.maxHp}</strong></div>
   `;
 
-  controls.enemyPreview.textContent = '상대는 매 층 무기, 성격, 스탯, 스킬이 랜덤으로 정해지며 층이 오를수록 강해집니다.';
+  controls.enemyPreview.textContent = isBossFloor
+    ? '보스층입니다. 일반층보다 체력, 자세, 공격 성능이 높고 처치 시 보스의 영혼을 얻습니다.'
+    : `상대는 매 층 랜덤으로 정해지며 ${nextBossFloor}층마다 보스가 등장합니다.`;
 }
 
 function renderPlayerInfo(force = false) {
@@ -1135,11 +1358,12 @@ function renderResultIfNeeded() {
     const nextFloor = state.run.floor + 1;
     const levelText = state.run.levelMessage ? `${state.run.levelMessage}\n` : '';
     const goldText = state.run.victoryGoldMessage ? `${state.run.victoryGoldMessage}\n` : '';
+    const bossText = state.run.lastBossRewardMessage ? `${state.run.lastBossRewardMessage}\n` : '';
     panelKeys.player = '';
     panelKeys.tower = '';
     showOverlay(
-      'VICTORY',
-      `${levelText}${goldText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`,
+      state.run.lastBossRewardMessage ? 'BOSS CLEAR' : 'VICTORY',
+      `${levelText}${goldText}${bossText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`,
       '',
       'waitReward',
       { hideButton: true }
