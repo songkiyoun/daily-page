@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.23-defensive-mirror-engage" />
-  <title>Circle Battle Tower Rebuild v0.7.23</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.23" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.24-pre-tower-shop-ui" />
+  <title>Circle Battle Tower Rebuild v0.7.24</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.24" />
 </head>
 <body>
   <main class="app">
@@ -13,9 +13,9 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">방어형 미러전의 장기 간보기 루프를 교전 압축으로 정리한 v0.7.23 뼈대입니다.</p>
+        <p class="subtext">탑 입장 전 준비 상점과 골드 UI를 분리한 v0.7.24 뼈대입니다.</p>
       </div>
-      <div id="versionBadge" class="version">v0.7.23</div>
+      <div class="topbar-actions"><button id="simToggleBtn" class="button mini">시뮬레이터</button><div id="versionBadge" class="version">v0.7.24</div></div>
     </header>
 
     <section class="layout">
@@ -31,9 +31,9 @@
             <select id="playerPersonality"></select>
           </label>
           <div class="button-row single">
-            <button id="startBtn" class="button primary">새 런 시작</button>
+            <button id="startBtn" class="button primary">새 캐릭터 생성</button>
           </div>
-          <p class="hint-text">무기와 성격은 새 캐릭터 생성 시에만 선택합니다. 한 번 탑 등반을 시작하면 해당 런이 끝날 때까지 바꿀 수 없습니다.</p>
+          <p class="hint-text">무기와 성격, 기본 스탯을 정한 뒤 새 캐릭터를 생성하면 전투 박스에 준비 상점이 열립니다.</p>
         </section>
 
         <section class="card">
@@ -41,9 +41,10 @@
           <div id="playerBox" class="player-box"></div>
         </section>
 
-        <section class="card future-card">
-          <h2>상점 예정</h2>
-          <p class="hint-text">상점, 시작 강화, 최초 캐릭터 성장 기능은 전투 코어와 보상 구조가 안정된 뒤 추가합니다.</p>
+        <section class="card">
+          <h2>보유 자원 / 상점</h2>
+          <div id="shopStatusBox" class="tower-box"></div>
+          <p class="hint-text">상점은 탑에 오르기 전 한 번만 이용할 수 있고, 1층에 올라가는 순간 비활성화됩니다.</p>
         </section>
 
         <section class="card">
@@ -64,13 +65,35 @@
             <div class="result-card">
               <p class="eyebrow">TOWER RESULT</p>
               <h2 id="resultTitle">READY</h2>
-              <p id="resultText">무기와 성격을 선택하고 탑 등반을 시작하세요.</p>
+              <p id="resultText">무기와 성격을 선택하고 새 캐릭터를 생성하세요.</p>
+              <div id="overlayShopBox" class="overlay-shop-box hidden"></div>
               <div id="overlayRewardBox" class="overlay-reward-box hidden"></div>
-              <button id="overlayActionBtn" class="button primary">탑 등반 시작</button>
+              <button id="overlayActionBtn" class="button primary">탑 오르기</button>
             </div>
           </div>
         </div>
-        <section class="card simulator-panel">
+
+
+      </section>
+
+      <aside class="info-panel side-panel">
+        <section class="card compact-card">
+          <div class="panel-head">
+            <h2>탑 정보</h2>
+            <div class="panel-actions"><button id="pauseBtn" class="button mini">일시정지</button><button id="giveUpBtn" class="button mini danger">포기</button></div>
+          </div>
+          <div id="towerBox" class="tower-box"></div>
+          <p id="enemyPreview" class="hint-text"></p>
+        </section>
+
+        <section class="card">
+          <h2>상태</h2>
+          <div id="statusBox" class="status-box"></div>
+        </section>
+      </aside>
+    </section>
+
+    <section id="simulatorPanel" class="card simulator-panel simulator-drawer hidden">
           <div class="simulator-head">
             <div>
               <h2>전투 시뮬레이터</h2>
@@ -108,27 +131,8 @@
           </div>
           <div id="simResultBox" class="sim-result-box large">아직 시뮬레이션을 실행하지 않았습니다.</div>
         </section>
-
-      </section>
-
-      <aside class="info-panel side-panel">
-        <section class="card compact-card">
-          <div class="panel-head">
-            <h2>탑 정보</h2>
-            <div class="panel-actions"><button id="pauseBtn" class="button mini">일시정지</button><button id="giveUpBtn" class="button mini danger">포기</button></div>
-          </div>
-          <div id="towerBox" class="tower-box"></div>
-          <p id="enemyPreview" class="hint-text"></p>
-        </section>
-
-        <section class="card">
-          <h2>상태</h2>
-          <div id="statusBox" class="status-box"></div>
-        </section>
-      </aside>
-    </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.23"></script>
+  <script type="module" src="./js/main.js?v=0.7.24"></script>
 </body>
 </html>

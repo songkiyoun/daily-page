@@ -633,3 +633,80 @@ input[type="number"] {
 .reward-button.reward-legendary {
   border-color: rgba(255, 209, 102, 0.7);
 }
+
+.hidden {
+  display: none !important;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.overlay-shop-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 16px 0 14px;
+}
+
+.overlay-shop-box.hidden {
+  display: none;
+}
+
+.shop-button {
+  min-height: 132px;
+  border: 1px solid rgba(168, 136, 255, 0.34);
+  background: rgba(168, 136, 255, 0.075);
+  color: var(--text);
+  padding: 13px;
+  cursor: pointer;
+  text-align: left;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.shop-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(168, 136, 255, 0.72);
+  background: rgba(168, 136, 255, 0.13);
+}
+
+.shop-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.shop-button strong {
+  color: var(--gold);
+}
+
+.shop-button span,
+.shop-button em {
+  color: #d9d2e8;
+  line-height: 1.45;
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.shop-button em {
+  color: var(--muted);
+}
+
+.simulator-drawer {
+  margin-top: 16px;
+}
+
+@media (max-width: 860px) {
+  .topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .overlay-shop-box {
+    grid-template-columns: 1fr;
+  }
+}

@@ -12,6 +12,7 @@ import {
   REWARD_RULES,
   REWARD_RARITIES,
   REWARD_TRAITS,
+  SHOP_RULES,
   SKILLS,
   WEAPON_SKILL_LOADOUTS,
   PERSONALITY_SKILL_LOADOUTS,
@@ -123,6 +124,91 @@ function upgradeWeaponStage(player, amount = 1) {
   return nextStage;
 }
 
+export function isPreTowerShopAvailable(run) {
+  return !!run?.shop?.available && run.floor === TOWER_RULES.startFloor && run.victories === 0 && !!run.active;
+}
+
+export function getShopOffers(run) {
+  if (!run?.player) return [];
+  const player = run.player;
+  const growth = getWeaponGrowthInfo(player);
+  const gradePrice = SHOP_RULES.weaponGradeBasePrice + (growth.grade?.order || 0) * SHOP_RULES.weaponGradePriceStep;
+  const stageStep = Math.max(0, (growth.currentStageNumber || 1) - 1);
+  const stagePrice = SHOP_RULES.weaponStageBasePrice + stageStep * SHOP_RULES.weaponStagePriceStep;
+
+  return [
+    createShopOffer({
+      id: 'statPoint',
+      title: '스탯포인트 구매',
+      description: '스탯포인트 +1. 좌측 스탯 설정에서 원하는 능력치에 배분할 수 있습니다.',
+      price: SHOP_RULES.statPointPrice,
+      disabled: false,
+      disabledReason: ''
+    }, player.gold),
+    createShopOffer({
+      id: 'weaponGradeUp',
+      title: '무기 등급 올리기',
+      description: growth.isMaxGrade ? '이미 최고 등급입니다.' : `${growth.grade.name} → ${growth.nextGrade.name}`,
+      price: gradePrice,
+      disabled: growth.isMaxGrade,
+      disabledReason: '이미 최고 등급입니다.'
+    }, player.gold),
+    createShopOffer({
+      id: 'weaponStageUp',
+      title: '무기 진화시키기',
+      description: growth.isMaxStage ? '이미 최종 단계입니다.' : `${growth.currentStage.name} → ${growth.nextStage.name}`,
+      price: stagePrice,
+      disabled: growth.isMaxStage,
+      disabledReason: '이미 최종 단계입니다.'
+    }, player.gold)
+  ];
+}
+
+function createShopOffer(offer, gold) {
+  const notEnoughGold = (gold || 0) < offer.price;
+  return {
+    ...offer,
+    disabled: offer.disabled || notEnoughGold,
+    disabledReason: offer.disabled ? offer.disabledReason : (notEnoughGold ? '골드가 부족합니다.' : '')
+  };
+}
+
+export function purchasePreTowerShopItem(run, itemId) {
+  if (!isPreTowerShopAvailable(run)) return { ok: false, message: '상점은 탑에 오르기 전까지만 이용할 수 있습니다.' };
+  const offer = getShopOffers(run).find((item) => item.id === itemId);
+  if (!offer) return { ok: false, message: '구매할 수 없는 상품입니다.' };
+  if (offer.disabled) return { ok: false, message: offer.disabledReason || '구매할 수 없습니다.' };
+
+  const player = run.player;
+  player.gold = Math.max(0, (player.gold || 0) - offer.price);
+
+  if (itemId === 'statPoint') {
+    player.statPoints += 1;
+    run.lastRewardLog = '상점 구매: 스탯포인트 +1';
+  }
+
+  if (itemId === 'weaponGradeUp') {
+    const before = getWeaponGrowthInfo(player).grade;
+    const after = upgradeWeaponGrade(player, 1);
+    run.lastRewardLog = `상점 구매: 무기 등급 ${before.name} → ${after.name}`;
+  }
+
+  if (itemId === 'weaponStageUp') {
+    const before = getWeaponGrowthInfo(player).currentStage;
+    const after = upgradeWeaponStage(player, 1);
+    run.lastRewardLog = `상점 구매: 무기 단계 ${before.name} → ${after.name}`;
+  }
+
+  healPlayerToFull(player);
+  return { ok: true, message: run.lastRewardLog };
+}
+
+export function lockPreTowerShop(run) {
+  if (!run?.shop) return;
+  run.shop.available = false;
+  run.shop.enteredTower = true;
+}
+
 
 export function createRun(config) {
   return {
@@ -133,13 +219,17 @@ export function createRun(config) {
     pendingRewards: [],
     lastRewardLog: '',
     levelMessage: '',
+    shop: {
+      available: true,
+      enteredTower: false
+    },
     player: {
       name: 'PLAYER',
       weaponId: config.playerWeapon,
       personalityId: config.playerPersonality,
       level: 1,
       exp: 0,
-      gold: 0,
+      gold: Number.isFinite(config.startingGold) ? Math.max(0, Math.floor(config.startingGold)) : SHOP_RULES.initialGold,
       statPoints: PLAYER_START_STAT_POINTS,
       stats: { ...PLAYER_START_STATS },
       rewardTraits: [],

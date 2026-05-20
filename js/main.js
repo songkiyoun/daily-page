@@ -10,7 +10,11 @@ import {
   createFixedEnemyConfig,
   createRun,
   getNextLevelExp,
+  getShopOffers,
   getWeaponGrowthInfo,
+  isPreTowerShopAvailable,
+  lockPreTowerShop,
+  purchasePreTowerShopItem,
   refreshPlayerUnit,
   spendPlayerStat,
   startState,
@@ -26,10 +30,14 @@ const controls = {
   playerWeapon: document.getElementById('playerWeapon'),
   playerPersonality: document.getElementById('playerPersonality'),
   startBtn: document.getElementById('startBtn'),
+  simToggleBtn: document.getElementById('simToggleBtn'),
+  shopStatusBox: document.getElementById('shopStatusBox'),
+  simulatorPanel: document.getElementById('simulatorPanel'),
   pauseBtn: document.getElementById('pauseBtn'),
   giveUpBtn: document.getElementById('giveUpBtn'),
   overlayActionBtn: document.getElementById('overlayActionBtn'),
   overlayRewardBox: document.getElementById('overlayRewardBox'),
+  overlayShopBox: document.getElementById('overlayShopBox'),
   statusBox: document.getElementById('statusBox'),
   towerBox: document.getElementById('towerBox'),
   playerBox: document.getElementById('playerBox'),
@@ -52,11 +60,13 @@ const controls = {
 
 let state = null;
 let run = null;
+let bankGold = null;
 let lastSimulationText = '아직 복사할 시뮬레이션 결과가 없습니다.';
 let panelKeys = {
   player: '',
   tower: '',
   reward: '',
+  shop: '',
   controls: ''
 };
 
@@ -84,16 +94,19 @@ function init() {
   controls.giveUpBtn.addEventListener('click', handleGiveUp);
   controls.playerBox.addEventListener('click', handleStatClick);
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
+  controls.overlayShopBox.addEventListener('click', handleShopClick);
+  controls.simToggleBtn.addEventListener('click', handleSimulatorToggle);
   controls.simRunBtn.addEventListener('click', handleSimulationRun);
   controls.simMatrixBtn.addEventListener('click', handleSimulationMatrix);
   controls.simMirrorAuditBtn.addEventListener('click', handleMirrorAudit);
   controls.simCopyBtn.addEventListener('click', handleSimulationCopy);
 
   run = createRun(readConfig());
+  bankGold = run.player.gold || 0;
   state = createBattleState(run);
   render(ctx, state);
   renderAllPanels(true);
-  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'start');
+  showShopOverlay();
   console.info(`Circle Battle Tower Rebuild v${VERSION}`);
 }
 
@@ -116,12 +129,13 @@ function readConfig() {
 }
 
 function startNewRun() {
-  run = createRun(readConfig());
+  const startingGold = Number.isFinite(bankGold) ? bankGold : undefined;
+  run = createRun({ ...readConfig(), startingGold });
   state = createBattleState(run);
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
-  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'start');
+  showShopOverlay();
   updatePauseButton();
 }
 
@@ -132,6 +146,11 @@ function handleMainButton() {
   }
 
   if (state.running && !state.result) return;
+
+  if (isPreTowerShopAvailable(run)) {
+    startNewRun();
+    return;
+  }
 
   if (canStartCurrentFloor()) {
     startCurrentFloor();
@@ -145,16 +164,18 @@ function handleMainButton() {
 
 function handleConfigChange() {
   if (!canEditCharacterSetup()) return;
-  run = createRun(readConfig());
+  const startingGold = Number.isFinite(bankGold) ? bankGold : undefined;
+  run = createRun({ ...readConfig(), startingGold });
   state = createBattleState(run);
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
-  showOverlay('READY', '무기와 성격, 기본 스탯을 정한 뒤 탑 등반을 시작하세요.', '탑 등반 시작', 'start');
+  showShopOverlay();
 }
 
 function startCurrentFloor() {
   if (!canStartCurrentFloor()) return;
+  lockPreTowerShop(run);
   startState(state);
   hideOverlay();
   updatePauseButton();
@@ -182,7 +203,7 @@ function handleOverlayAction() {
     startNewRun();
     return;
   }
-  if (action === 'start') {
+  if (action === 'start' || action === 'climbTower') {
     startCurrentFloor();
   }
 }
@@ -194,6 +215,7 @@ function handleGiveUp() {
   state.result = 'defeat';
   state.player.isDead = true;
   state.player.lastAction = '런 포기';
+  bankGold = run?.player?.gold || 0;
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
@@ -216,6 +238,7 @@ function handleRewardClick(event) {
   if (!button || !state?.run?.pendingRewards?.length || state.result !== 'victory') return;
   state = applyRewardAndAdvance(state, button.dataset.reward);
   run = state.run;
+  bankGold = run.player.gold || 0;
   clearPanelKeys();
   updatePauseButton();
   render(ctx, state);
@@ -226,6 +249,23 @@ function handleRewardClick(event) {
     '전투 시작',
     'start'
   );
+}
+
+function handleShopClick(event) {
+  const button = event.target.closest('.shop-button');
+  if (!button || !run || !state) return;
+  const result = purchasePreTowerShopItem(run, button.dataset.shopItem);
+  bankGold = run.player.gold || 0;
+  refreshPlayerUnit(state);
+  clearPanelKeys();
+  render(ctx, state);
+  renderAllPanels(true);
+  showShopOverlay(result.message);
+}
+
+function handleSimulatorToggle() {
+  const isHidden = controls.simulatorPanel.classList.toggle('hidden');
+  controls.simToggleBtn.textContent = isHidden ? '시뮬레이터' : '시뮬레이터 닫기';
 }
 
 
@@ -686,7 +726,9 @@ function renderAllPanels(force = false) {
   renderStatus();
   renderTowerInfo(force);
   renderPlayerInfo(force);
+  renderShopStatus(force);
   renderRewardBox(force);
+  renderShopBox(force);
   renderControlState(force);
 }
 
@@ -811,8 +853,48 @@ function renderPlayerInfo(force = false) {
     <div class="stat-grid">${statButtons}</div>
     <div class="skill-list">${skillText}</div>
     <div class="skill-list">${traitText}</div>
-    <p class="hint-text">전투 전과 다음 층 대기 상태에서 스탯을 배분할 수 있습니다.</p>
+    <p class="hint-text">스탯 포인트는 탑 입장 전 또는 다음 층 대기 상태에서 배분할 수 있습니다.</p>
   `;
+}
+
+function renderShopStatus(force = false) {
+  if (!run || !controls.shopStatusBox) return;
+  const shopState = isPreTowerShopAvailable(run) ? '탑 입장 전 이용 가능' : '탑 입장 후 비활성화';
+  const key = [run.player.gold || 0, shopState, run.lastRewardLog || ''].join('|');
+  if (!force && controls.shopStatusBox.dataset.key === key) return;
+  controls.shopStatusBox.dataset.key = key;
+  controls.shopStatusBox.innerHTML = `
+    <div class="tower-row"><span>보유 골드</span><strong>${run.player.gold || 0}G</strong></div>
+    <div class="tower-row"><span>상점 상태</span><strong>${shopState}</strong></div>
+    <p class="hint-text">${run.lastRewardLog || '상점 구매 효과는 현재 캐릭터에게만 적용됩니다.'}</p>
+  `;
+}
+
+function renderShopBox(force = false) {
+  if (!run || !state || !isPreTowerShopAvailable(run) || controls.resultOverlay.classList.contains('hidden')) {
+    hideShopBox();
+    return;
+  }
+
+  const offers = getShopOffers(run);
+  const key = [run.player.gold || 0, run.player.statPoints, run.player.weaponGrade, run.player.weaponEvolution, offers.map((item) => `${item.id}:${item.price}:${item.disabled}`).join('|')].join('|');
+  if (!force && panelKeys.shop === key) return;
+  panelKeys.shop = key;
+
+  controls.overlayShopBox.classList.remove('hidden');
+  controls.overlayShopBox.innerHTML = offers.map((item) => `
+    <button class="shop-button" type="button" data-shop-item="${item.id}" ${item.disabled ? 'disabled' : ''}>
+      <strong>${item.title}</strong>
+      <span>${item.description}</span>
+      <em>${item.price}G${item.disabledReason ? ` · ${item.disabledReason}` : ''}</em>
+    </button>
+  `).join('');
+}
+
+function hideShopBox() {
+  panelKeys.shop = '';
+  controls.overlayShopBox.classList.add('hidden');
+  controls.overlayShopBox.innerHTML = '';
 }
 
 function renderRewardBox(force = false) {
@@ -873,8 +955,11 @@ function renderControlState(force = false) {
   } else if (state.result === 'victory') {
     controls.startBtn.textContent = '보상 선택 필요';
     controls.startBtn.disabled = true;
+  } else if (isPreTowerShopAvailable(run)) {
+    controls.startBtn.textContent = '새 캐릭터 생성';
+    controls.startBtn.disabled = false;
   } else if (canStartFloor) {
-    controls.startBtn.textContent = run.floor === TOWER_RULES.startFloor && run.victories === 0 ? '탑 등반 시작' : '현재 층 전투 시작';
+    controls.startBtn.textContent = run.floor === TOWER_RULES.startFloor && run.victories === 0 ? '탑 오르기' : '현재 층 전투 시작';
     controls.startBtn.disabled = false;
   } else if (canNewCharacter) {
     controls.startBtn.textContent = '새 캐릭터 생성';
@@ -906,6 +991,7 @@ function renderResultIfNeeded() {
     );
     renderAllPanels(true);
   } else if (state.result === 'defeat') {
+    bankGold = state.run.player.gold || 0;
     showOverlay(
       'DEFEAT',
       `${state.run.floor}층에서 쓰러졌습니다. 같은 구조로 새 런을 다시 시작합니다.`,
@@ -919,6 +1005,16 @@ function renderResultIfNeeded() {
   }
 }
 
+function showShopOverlay(message = '') {
+  if (!run || !state) return;
+  const text = message
+    ? `${message}
+탑에 오르기 전 준비 상점입니다. 이 상점에서 구매한 스탯포인트, 무기 등급, 무기 진화는 현재 캐릭터에게만 적용되며 죽을 경우 초기화됩니다.`
+    : '탑에 오르기 전 준비 상점입니다. 이 상점에서 구매한 스탯포인트, 무기 등급, 무기 진화는 현재 캐릭터에게만 적용되며 죽을 경우 초기화됩니다.';
+  showOverlay('PREP SHOP', text, '탑 오르기', 'climbTower', { keepShop: true });
+  renderShopBox(true);
+}
+
 function showOverlay(title, text, buttonText, action, options = {}) {
   controls.resultTitle.textContent = title;
   controls.resultText.textContent = text;
@@ -927,6 +1023,7 @@ function showOverlay(title, text, buttonText, action, options = {}) {
   controls.overlayActionBtn.disabled = !!options.disabled;
   controls.overlayActionBtn.classList.toggle('hidden', !!options.hideButton);
   if (!options.keepRewards) hideRewardBox();
+  if (!options.keepShop) hideShopBox();
   controls.resultOverlay.classList.remove('hidden');
 }
 
@@ -935,6 +1032,7 @@ function hideOverlay() {
   controls.overlayActionBtn.disabled = false;
   controls.overlayActionBtn.classList.remove('hidden');
   hideRewardBox();
+  hideShopBox();
   delete controls.resultOverlay.dataset.resultFrame;
 }
 
@@ -947,6 +1045,7 @@ function clearPanelKeys() {
     player: '',
     tower: '',
     reward: '',
+    shop: '',
     controls: ''
   };
 }
