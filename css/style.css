@@ -115,6 +115,7 @@ h2 {
   border: 1px solid rgba(168, 136, 255, 0.26);
   background: rgba(0, 0, 0, 0.18);
   box-shadow: 0 24px 70px var(--shadow);
+  overflow: hidden;
 }
 
 canvas {
@@ -139,19 +140,19 @@ canvas {
 }
 
 .result-card {
-  width: min(640px, 100%);
-  max-height: calc(100vh - 80px);
+  width: min(700px, 100%);
+  max-height: calc(100% - 28px);
   overflow: auto;
   border: 1px solid rgba(255, 212, 90, 0.42);
   background: rgba(12, 11, 23, 0.94);
-  padding: 22px;
+  padding: 16px;
   text-align: center;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
 }
 
 .result-card h2 {
-  margin-bottom: 8px;
-  font-size: 2rem;
+  margin-bottom: 6px;
+  font-size: 1.55rem;
 }
 
 .card {
@@ -659,26 +660,50 @@ input[type="number"] {
 
 .overlay-shop-box {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin: 16px 0 14px;
+  gap: 8px;
+  margin: 12px 0 12px;
+  text-align: left;
 }
 
 .overlay-shop-box.hidden {
   display: none;
 }
 
+.shop-inline-head {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 212, 90, 0.24);
+  background: rgba(255, 212, 90, 0.055);
+  font-size: 0.78rem;
+}
+
+.shop-inline-head span {
+  color: var(--muted);
+}
+
+.shop-inline-head strong {
+  color: var(--gold);
+}
+
+.shop-inline-list {
+  display: grid;
+  gap: 5px;
+}
+
 .shop-button {
-  min-height: 104px;
-  border: 1px solid rgba(168, 136, 255, 0.34);
-  background: rgba(168, 136, 255, 0.075);
+  min-height: 0;
+  border: 1px solid rgba(168, 136, 255, 0.26);
+  background: rgba(168, 136, 255, 0.055);
   color: var(--text);
-  padding: 13px;
+  padding: 7px 9px;
   cursor: pointer;
   text-align: left;
   display: grid;
+  grid-template-columns: minmax(118px, 0.75fr) minmax(0, 1.6fr) auto;
   gap: 8px;
-  align-content: start;
+  align-items: center;
 }
 
 .shop-button:hover:not(:disabled) {
@@ -694,18 +719,21 @@ input[type="number"] {
 
 .shop-button strong {
   color: var(--gold);
+  font-size: 0.82rem;
 }
 
 .shop-button span,
 .shop-button em {
   color: #d9d2e8;
-  line-height: 1.45;
-  font-size: 0.8rem;
+  line-height: 1.35;
+  font-size: 0.74rem;
   font-style: normal;
 }
 
 .shop-button em {
   color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .simulator-drawer {
@@ -718,8 +746,16 @@ input[type="number"] {
     justify-content: space-between;
   }
 
-  .overlay-shop-box,
   .shop-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .shop-inline-head,
+  .shop-button {
+    grid-template-columns: 1fr;
+  }
+
+  .shop-button em {
+    text-align: left;
   }
 }

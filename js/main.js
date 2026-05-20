@@ -902,14 +902,25 @@ function renderShopBox(force = false) {
   if (!force && panelKeys.shop === key) return;
   panelKeys.shop = key;
 
+  const summary = getShopSummary(run);
   controls.overlayShopBox.classList.remove('hidden');
-  controls.overlayShopBox.innerHTML = offers.map((item) => `
-    <button class="shop-button" type="button" data-shop-item="${item.id}" ${item.disabled ? 'disabled' : ''}>
-      <strong>${item.title}</strong>
-      <span>${item.description}</span>
-      <em>${item.price}G${item.disabledReason ? ` · ${item.disabledReason}` : ''}</em>
-    </button>
-  `).join('');
+  controls.overlayShopBox.innerHTML = `
+    <div class="shop-inline-head">
+      <div><span>보유 골드</span> <strong>${summary.gold}G</strong></div>
+      <div><span>보상 선택지</span> <strong>${summary.rewardChoices}개</strong></div>
+      <div><span>고급보상</span> <strong>${summary.advancedRewardChance}</strong></div>
+      <div><span>상점 상태</span> <strong>${summary.available ? '이용 가능' : '비활성'}</strong></div>
+    </div>
+    <div class="shop-inline-list">
+      ${offers.map((item) => `
+        <button class="shop-button" type="button" data-shop-item="${item.id}" ${item.disabled ? 'disabled' : ''}>
+          <strong>${item.title}</strong>
+          <span>${item.description}</span>
+          <em>${item.price}G${item.disabledReason ? ` · ${item.disabledReason}` : ''}</em>
+        </button>
+      `).join('')}
+    </div>
+  `;
 }
 
 function hideShopBox() {
@@ -1028,7 +1039,7 @@ function renderResultIfNeeded() {
 
 function showShopOverlay(message = '') {
   if (!run || !state) return;
-  const guide = '탑에 오르기 전 준비 상점입니다. 이 상점에서 구매한 스탯포인트, 무기 강화, 무기 진화, 숙련도, 성격 강화, 보상 관련 효과는 현재 캐릭터에게만 적용되며 죽을 경우 초기화됩니다.';
+  const guide = '탑 입장 전 준비 상점입니다. 구매 효과는 현재 캐릭터 전용이며 죽으면 초기화됩니다.';
   const text = message ? `${message}
 ${guide}` : guide;
   showOverlay('PREP SHOP', text, '탑 오르기', 'climbTower', { keepShop: true });
