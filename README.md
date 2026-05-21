@@ -1,5 +1,17 @@
-# Circle Battle Tower Rebuild v0.7.45
+# Circle Battle Tower Rebuild v0.7.46
 
+
+
+## v0.7.46 핵심 변경
+
+- A씨앗 테스트 조건을 7일 성장 / 2일마다 물 주기에서 3분 성장 / 물 주기 1회로 변경했습니다.
+- 마이 농장 화면에서 1초 단위로 성장 상태가 갱신되도록 했습니다.
+- 계정별 농장 데이터는 기존 저장 데이터 안의 farmData와 함께 `palm` 시트에도 별도 저장되도록 구조를 추가했습니다.
+- `palm` 시트 컬럼은 id / farmData / updatedAt / version 기준입니다.
+- 로그인 시 `palm` 시트의 농장 데이터를 우선 불러오며, 기존 save 데이터 안의 farmData가 있으면 palm 시트로 보정 저장합니다.
+- 이번 업데이트는 Apps Script 수정이 필요하므로 ZIP에 `google-apps-script/Code.gs`를 예외적으로 포함했습니다.
+
+---
 
 ## v0.7.45 핵심 변경
 

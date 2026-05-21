@@ -115,8 +115,9 @@ const FARM_SEED_DEFS = {
   aSeed: {
     id: 'aSeed',
     name: 'A씨앗',
-    growthDays: 7,
-    waterIntervalDays: 2,
+    growthMinutes: 3,
+    requiredWaterCount: 1,
+    waterIntervalMinutes: 0,
     reward: { gold: 500, seeds: { aSeed: 1 } },
     rewardHint: '수확 시 골드 +500 / A씨앗 +1'
   }
@@ -159,6 +160,7 @@ let panelKeys = {
 
 init();
 requestAnimationFrame(loop);
+setInterval(refreshFarmTicker, 1000);
 
 function init() {
   populateSelect(controls.playerWeapon, WEAPONS, 'eastern');
@@ -622,7 +624,33 @@ function normalizeFarmData(data = {}) {
   };
 }
 
+function getFarmGrowthMs(seed) {
+  if (Number.isFinite(seed?.growthMinutes)) return Math.max(1, seed.growthMinutes * 60 * 1000);
+  if (Number.isFinite(seed?.growthDays)) return Math.max(1, seed.growthDays * 24 * 60 * 60 * 1000);
+  return 1;
+}
+
+function getFarmGrowthLabel(seed) {
+  if (Number.isFinite(seed?.growthMinutes)) return `${seed.growthMinutes}분 성장`;
+  if (Number.isFinite(seed?.growthDays)) return `${seed.growthDays}일 성장`;
+  return '성장 시간 없음';
+}
+
+function getFarmWaterIntervalMs(seed) {
+  if (Number.isFinite(seed?.waterIntervalMinutes)) return Math.max(0, seed.waterIntervalMinutes * 60 * 1000);
+  if (Number.isFinite(seed?.waterIntervalDays)) return Math.max(1, seed.waterIntervalDays * 24 * 60 * 60 * 1000);
+  return 0;
+}
+
+function getFarmWaterLabel(seed, requiredWaterCount) {
+  if (requiredWaterCount <= 0) return '물 주기 없음';
+  if (Number.isFinite(seed?.waterIntervalMinutes) && seed.waterIntervalMinutes > 0) return `${seed.waterIntervalMinutes}분마다 물 주기`;
+  if (Number.isFinite(seed?.waterIntervalDays) && seed.waterIntervalDays > 0) return `${seed.waterIntervalDays}일마다 물 주기`;
+  return `물 주기 ${requiredWaterCount}회`;
+}
+
 function getFarmRequiredWaterCount(seed) {
+  if (Number.isFinite(seed?.requiredWaterCount)) return Math.max(0, Math.floor(seed.requiredWaterCount));
   if (!seed?.waterIntervalDays || !seed?.growthDays) return 0;
   return Math.max(0, Math.floor(seed.growthDays / seed.waterIntervalDays));
 }
@@ -641,26 +669,28 @@ function getFarmSlotView(slot, now = Date.now()) {
     };
   }
 
-  const seed = FARM_SEED_DEFS[slot.seedId] || { name: slot.seedId, growthDays: 0, waterIntervalDays: 0, rewardHint: '-' };
+  const seed = FARM_SEED_DEFS[slot.seedId] || { name: slot.seedId, rewardHint: '-' };
   const plantedAt = Date.parse(slot.plantedAt || '');
   const elapsedMs = Number.isFinite(plantedAt) ? Math.max(0, now - plantedAt) : 0;
-  const growthMs = Math.max(1, seed.growthDays * 24 * 60 * 60 * 1000);
+  const growthMs = getFarmGrowthMs(seed);
   const progress = Math.min(100, Math.floor((elapsedMs / growthMs) * 100));
   const lastWaterMs = Date.parse(slot.lastWateredAt || slot.plantedAt || '');
-  const waterDueMs = Math.max(1, seed.waterIntervalDays * 24 * 60 * 60 * 1000);
-  const needsWater = Number.isFinite(lastWaterMs) && now - lastWaterMs >= waterDueMs;
   const requiredWaterCount = getFarmRequiredWaterCount(seed);
   const waterCount = Array.isArray(slot.wateredAt) ? slot.wateredAt.length : 0;
   const enoughWater = waterCount >= requiredWaterCount;
-  const ready = progress >= 100 && enoughWater && !needsWater;
+  const waterIntervalMs = getFarmWaterIntervalMs(seed);
+  const needsWater = !enoughWater && (waterIntervalMs <= 0 || (Number.isFinite(lastWaterMs) && now - lastWaterMs >= waterIntervalMs));
+  const ready = progress >= 100 && enoughWater;
   const delayed = progress >= 100 && !enoughWater;
+  const remainingMs = Math.max(0, growthMs - elapsedMs);
+  const remainingText = ready ? '수확 가능' : `남은 시간 약 ${Math.ceil(remainingMs / 1000)}초`;
 
   return {
     title: `슬롯 ${slot.index + 1}`,
     status: ready ? '수확 가능' : needsWater ? '물 필요' : delayed ? '성장 지연' : '성장 중',
     progress,
-    detail: `${seed.name} · 성장 ${seed.growthDays}일 · ${seed.waterIntervalDays}일마다 물 주기`,
-    water: `물 주기 ${waterCount}/${requiredWaterCount}${needsWater ? ' · 지금 물 필요' : ''}`,
+    detail: `${seed.name} · ${getFarmGrowthLabel(seed)} · ${remainingText}`,
+    water: `물 주기 ${waterCount}/${requiredWaterCount} · ${getFarmWaterLabel(seed, requiredWaterCount)}${needsWater ? ' · 지금 물 필요' : ''}`,
     action: ready ? 'harvest' : needsWater ? 'water' : 'none',
     actionText: ready ? '수확' : needsWater ? '물 주기' : '대기',
     actionDisabled: !ready && !needsWater,
@@ -719,9 +749,9 @@ function renderFarmPanel(force = false) {
   `;
 
   controls.farmGuideBox.innerHTML = `
-    <strong>마이 농장 1차</strong>
-    <span>A씨앗은 심은 시점부터 7일 후 수확할 수 있습니다.</span>
-    <span>2일마다 물을 줘야 정상 성장하며, 물 주기가 부족하면 수확이 지연됩니다.</span>
+    <strong>마이 농장 테스트 조건</strong>
+    <span>A씨앗은 심은 시점부터 3분 후 수확할 수 있습니다.</span>
+    <span>물 주기는 1회만 충족하면 되며, 농장 데이터는 계정별 palm 시트 저장 대상입니다.</span>
   `;
 }
 
@@ -1603,7 +1633,7 @@ async function handleCreateAccount() {
     const result = await requestCloudSave('createAccount', { id: credentials.id, pw: credentials.pw, saveData });
     if (!result.ok) throw new Error(result.message || '아이디 생성에 실패했습니다.');
     setLoggedInAccount(credentials.id, credentials.endpoint, 'cloud', credentials.pw, extractAccountRole(result));
-    applySavePayload(result.saveData || saveData, { restoreSession: false, showDefaultScreen: false });
+    applySavePayload(mergeCloudFarmData(result, saveData), { restoreSession: false, showDefaultScreen: false });
     showContentScreen();
     renderAllPanels(true);
     saveTemporarySnapshot('accountCreated');
@@ -1627,7 +1657,7 @@ async function handleAccountLogin() {
     const result = await requestCloudSave('login', { id: credentials.id, pw: credentials.pw });
     if (!result.ok) throw new Error(result.message || '로그인에 실패했습니다.');
     setLoggedInAccount(credentials.id, credentials.endpoint, 'cloud', credentials.pw, extractAccountRole(result));
-    applySavePayload(result.saveData || createEmptySavePayload('loginEmpty'), { restoreSession: false, showDefaultScreen: false });
+    applySavePayload(mergeCloudFarmData(result, createEmptySavePayload('loginEmpty')), { restoreSession: false, showDefaultScreen: false });
     showContentScreen();
     renderAllPanels(true);
     saveTemporarySnapshot('login');
@@ -1737,6 +1767,13 @@ async function requestCloudSave(action, payload = {}) {
   });
   if (!response.ok) throw new Error(`스프레드시트 요청 실패: ${response.status}`);
   return response.json();
+}
+
+function mergeCloudFarmData(result = {}, fallbackPayload = null) {
+  const base = result.saveData || fallbackPayload || createEmptySavePayload('loginEmpty');
+  const merged = { ...base };
+  if (result.farmData) merged.farmData = result.farmData;
+  return merged;
 }
 
 function createEmptySavePayload(reason = 'empty') {
@@ -1863,6 +1900,11 @@ function getCurrentScreenName() {
   return 'prep';
 }
 
+
+function refreshFarmTicker() {
+  if (!controls.farmScreen || controls.farmScreen.classList.contains('hidden')) return;
+  renderFarmPanel(true);
+}
 
 function loop() {
   if (state) {
