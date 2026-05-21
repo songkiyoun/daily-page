@@ -11,6 +11,7 @@ import {
   createFixedEnemyConfig,
   createPermanentProgress,
   createRun,
+  applyPermanentProgressToPlayer,
   getNextLevelExp,
   getPermanentProgressSummary,
   getPermanentResetRules,
@@ -18,10 +19,12 @@ import {
   getPlayerInventory,
   getShopOffers,
   getShopSummary,
+  getSoulEngravingOffers,
   getWeaponGrowthInfo,
   isPreTowerShopAvailable,
   lockPreTowerShop,
   purchasePreTowerShopItem,
+  purchaseSoulEngraving,
   refreshPlayerUnit,
   spendPlayerStat,
   startState,
@@ -359,16 +362,50 @@ function handleRewardClick(event) {
 }
 
 function handleShopClick(event) {
-  const button = event.target.closest('.shop-button');
-  if (!button || !run || !state || activePrepTab !== 'shop') return;
-  const result = purchasePreTowerShopItem(run, button.dataset.shopItem);
-  syncBankFromRun();
-  refreshPlayerUnit(state);
+  const shopButton = event.target.closest('.shop-button');
+  if (shopButton && run && state && activePrepTab === 'shop') {
+    const result = purchasePreTowerShopItem(run, shopButton.dataset.shopItem);
+    syncBankFromRun();
+    refreshPlayerUnit(state);
+    clearPanelKeys();
+    render(ctx, state);
+    renderAllPanels(true);
+    renderPrepGrowthContent(true, result.message);
+    saveTemporarySnapshot('shopPurchase');
+    return;
+  }
+
+  const soulButton = event.target.closest('.soul-button');
+  if (soulButton && activePrepTab === 'soul') {
+    handleSoulEngravingPurchase(soulButton.dataset.soulItem);
+  }
+}
+
+function handleSoulEngravingPurchase(itemId) {
+  const currentResources = getCurrentPersistentResources();
+  const result = purchaseSoulEngraving(permanentProgress, currentResources, itemId);
+  permanentProgress = clonePermanentProgress(result.progress);
+  bankInventory = { ...bankInventory, ...result.resources };
+  bankGold = bankInventory.gold;
+
+  if (run?.player) {
+    run.player.gold = bankInventory.gold;
+    run.player.enhancementStone = bankInventory.enhancementStone;
+    run.player.bossSoul = bankInventory.bossSoul;
+    run.permanentProgress = clonePermanentProgress(permanentProgress);
+    applyPermanentProgressToPlayer(run.player, permanentProgress);
+    if (result.ok && result.itemId === 'startStatPoint' && isPreTowerShopAvailable(run)) {
+      run.player.statPoints = (run.player.statPoints || 0) + 1;
+    }
+    refreshPlayerUnit(state);
+  }
+
   clearPanelKeys();
-  render(ctx, state);
+  if (state) render(ctx, state);
   renderAllPanels(true);
   renderPrepGrowthContent(true, result.message);
-  saveTemporarySnapshot('shopPurchase');
+  saveTemporarySnapshot('soulEngravingPurchase');
+  if (result.ok) autoSaveSafePoint('영혼의 각인 구매');
 }
 
 function handlePrepGrowthTabClick(event) {
@@ -1267,6 +1304,7 @@ function applySavePayload(payload = {}, { restoreSession = false } = {}) {
     run = payload.session.run;
     run.permanentProgress = clonePermanentProgress(run.permanentProgress || permanentProgress);
     permanentProgress = clonePermanentProgress(run.permanentProgress);
+    applyPermanentProgressToPlayer(run.player, permanentProgress);
     state = createBattleState(run);
     clearPanelKeys();
     if (payload.session.screen === 'tower') showTowerScreen();
@@ -1589,7 +1627,7 @@ function renderPrepGrowthContent(force = false, message = '') {
     return;
   }
   if (activePrepTab === 'soul') {
-    renderSoulEngravingBox(force);
+    renderSoulEngravingBox(force, message);
     return;
   }
   if (activePrepTab === 'heirloom') {
@@ -1650,8 +1688,7 @@ function renderShopBox(force = false, message = '') {
   `;
 }
 
-function renderSoulEngravingBox(force = false) {
-  const summary = getPermanentProgressSummary(permanentProgress);
+function renderSoulEngravingBox(force = false, message = '') {
   const resources = run?.player
     ? getPlayerInventory(run.player)
     : {
@@ -1659,24 +1696,30 @@ function renderSoulEngravingBox(force = false) {
       enhancementStone: bankInventory.enhancementStone || 0,
       bossSoul: bankInventory.bossSoul || 0
     };
-  const key = ['soul', resources.gold, summary.soulItems.map((item) => `${item.id}:${item.level}`).join('|')].join('|');
+  const offers = getSoulEngravingOffers(permanentProgress, resources);
+  const key = ['soul', resources.gold, message, offers.map((item) => `${item.id}:${item.level}:${item.price}:${item.disabled}`).join('|')].join('|');
   if (!force && panelKeys.prepGrowth === key) return;
   panelKeys.prepGrowth = key;
   controls.overlayShopBox.classList.remove('hidden');
   controls.overlayShopBox.innerHTML = `
     <div class="permanent-panel">
-      <div class="permanent-head">
+      ${message ? `<div class="shop-message">${message}</div>` : ''}
+      <div class="permanent-head compact">
         <strong>영혼의 각인</strong>
-        <span>골드로 구매하는 캐릭터 기반 영구 성장입니다. 실제 구매는 v0.7.37에서 연결됩니다.</span>
+        <span>골드로 구매하는 영구 성장입니다. 죽어도 유지되며 새 도전과 현재 전투 능력에 반영됩니다.</span>
       </div>
-      <div class="permanent-line-list">
-        ${summary.soulItems.map((item) => `
-          <div class="permanent-line">
+      <div class="permanent-line-list soul-line-list">
+        ${offers.map((item) => `
+          <div class="permanent-line soul-line">
             <div>
               <strong>${item.name}</strong>
               <span>${item.effect} · ${item.next}</span>
             </div>
             <em>${item.level}/${item.maxLevel}</em>
+            <small>${item.isMax ? '완료' : `${item.price}G`}</small>
+            <button class="button mini soul-button" type="button" data-soul-item="${item.id}" ${item.disabled ? 'disabled' : ''}>
+              ${item.disabledReason || '각인'}
+            </button>
           </div>
         `).join('')}
       </div>
@@ -1694,7 +1737,7 @@ function renderHeirloomBox(force = false) {
     <div class="permanent-panel">
       <div class="permanent-head">
         <strong>가보</strong>
-        <span>무기 등급·진화·강화가 영구 저장될 자리입니다. 실제 강화는 v0.7.38 이후 연결됩니다.</span>
+        <span>무기 등급·진화·강화가 영구 저장될 자리입니다. 실제 강화는 다음 가보 업데이트에서 연결됩니다.</span>
       </div>
       <div class="heirloom-grid">
         ${summary.heirloomItems.map((item) => `

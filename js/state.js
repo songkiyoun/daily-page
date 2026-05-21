@@ -24,6 +24,34 @@ import {
 } from './data.js';
 import { clamp, randomInt, randomSign, sample } from './utils.js';
 
+const SOUL_ENGRAVING_RULES = {
+  goldGain: { baseCost: 450, costStep: 240, maxLevel: 10 },
+  startStatPoint: { baseCost: 650, costStep: 330, maxLevel: 10 },
+  attack: { baseCost: 520, costStep: 280, maxLevel: 10 },
+  defense: { baseCost: 520, costStep: 280, maxLevel: 10 },
+  critDamage: { baseCost: 580, costStep: 310, maxLevel: 10 },
+  evasion: { baseCost: 700, costStep: 380, maxLevel: 10 }
+};
+
+function getSoulEngravingPrice(itemId, level) {
+  const rule = SOUL_ENGRAVING_RULES[itemId];
+  if (!rule) return 0;
+  const safeLevel = Math.max(0, Math.floor(level || 0));
+  return rule.baseCost + safeLevel * rule.costStep + Math.floor(Math.max(0, safeLevel - 2) ** 2 * rule.costStep * 0.18);
+}
+
+function getSoulEngravingEffects(progress = {}) {
+  const soul = createPermanentProgress(progress).soulEngraving;
+  return {
+    goldGainBonus: soul.goldGain * 0.05,
+    startStatPointBonus: soul.startStatPoint,
+    attackBonus: soul.attack * 0.02,
+    defenseBonus: soul.defense * 0.02,
+    critDamageBonus: soul.critDamage * 0.05,
+    evasionBonus: soul.evasion * 0.01
+  };
+}
+
 
 export function createPermanentProgress(source = {}) {
   const soulSource = source.soulEngraving || {};
@@ -76,7 +104,11 @@ export function getPermanentProgressSummary(progress = {}) {
     { id: 'defense', name: '방어력 증가', level: soul.defense, maxLevel: 10, effect: `방어력 +${soul.defense * 2}%`, next: soul.defense < 10 ? `다음 +${(soul.defense + 1) * 2}%` : '최대 단계' },
     { id: 'critDamage', name: '치명타 피해 증가', level: soul.critDamage, maxLevel: 10, effect: `치명타 피해 +${soul.critDamage * 5}%`, next: soul.critDamage < 10 ? `다음 +${(soul.critDamage + 1) * 5}%` : '최대 단계' },
     { id: 'evasion', name: '회피율 증가', level: soul.evasion, maxLevel: 10, effect: `회피율 +${soul.evasion}%`, next: soul.evasion < 10 ? `다음 +${soul.evasion + 1}%` : '최대 단계' }
-  ];
+  ].map((item) => ({
+    ...item,
+    price: getSoulEngravingPrice(item.id, item.level),
+    isMax: item.level >= item.maxLevel
+  }));
 
   const heirloomItems = Object.values(WEAPONS).map((weapon) => {
     const item = heirloom[weapon.id] || {};
@@ -94,6 +126,55 @@ export function getPermanentProgressSummary(progress = {}) {
   });
 
   return { soulItems, heirloomItems };
+}
+
+export function getSoulEngravingOffers(progress = {}, resources = {}) {
+  const normalized = createPermanentProgress(progress);
+  const summary = getPermanentProgressSummary(normalized);
+  const gold = Math.max(0, Math.floor(resources.gold || 0));
+  return summary.soulItems.map((item) => {
+    const disabled = item.isMax || gold < item.price;
+    return {
+      ...item,
+      disabled,
+      disabledReason: item.isMax ? '최대 단계' : (gold < item.price ? '골드 부족' : '')
+    };
+  });
+}
+
+export function purchaseSoulEngraving(progress = {}, resources = {}, itemId) {
+  const normalized = createPermanentProgress(progress);
+  const offers = getSoulEngravingOffers(normalized, resources);
+  const offer = offers.find((item) => item.id === itemId);
+  if (!offer) return { ok: false, message: '구매할 수 없는 각인입니다.', progress: normalized, resources };
+  if (offer.disabled) return { ok: false, message: offer.disabledReason || '구매할 수 없습니다.', progress: normalized, resources };
+
+  const nextResources = {
+    gold: Math.max(0, Math.floor((resources.gold || 0) - offer.price)),
+    enhancementStone: Math.max(0, Math.floor(resources.enhancementStone || 0)),
+    bossSoul: Math.max(0, Math.floor(resources.bossSoul || 0))
+  };
+  normalized.soulEngraving[itemId] = Math.min(offer.maxLevel, (normalized.soulEngraving[itemId] || 0) + 1);
+  const updated = getPermanentProgressSummary(normalized).soulItems.find((item) => item.id === itemId);
+  return {
+    ok: true,
+    message: `영혼의 각인: ${offer.name} ${updated.level}/${updated.maxLevel}`,
+    progress: normalized,
+    resources: nextResources,
+    itemId,
+    previousLevel: offer.level,
+    currentLevel: updated.level
+  };
+}
+
+export function applyPermanentProgressToPlayer(player, progress = {}) {
+  if (!player) return player;
+  player.permanentProgress = clonePermanentProgress(progress);
+  return player;
+}
+
+export function getPermanentCombatEffects(progress = {}) {
+  return getSoulEngravingEffects(progress);
 }
 
 export function getWeaponGrowthInfo(player) {
@@ -311,8 +392,9 @@ function formatPercent(value) {
 }
 
 function getGoldRewardAmount(player, amount) {
-  const bonus = getShopBoosts(player).victoryGoldBonus || 0;
-  return Math.max(0, Math.round(amount * (1 + bonus)));
+  const shopBonus = getShopBoosts(player).victoryGoldBonus || 0;
+  const permanentBonus = getSoulEngravingEffects(player?.permanentProgress).goldGainBonus || 0;
+  return Math.max(0, Math.round(amount * (1 + shopBonus + permanentBonus)));
 }
 
 function getVictoryGoldAmount(player, floor) {
@@ -573,6 +655,7 @@ export function lockPreTowerShop(run) {
 
 export function createRun(config) {
   const permanentProgress = clonePermanentProgress(config.permanentProgress);
+  const permanentEffects = getSoulEngravingEffects(permanentProgress);
   return {
     active: true,
     floor: TOWER_RULES.startFloor,
@@ -612,8 +695,9 @@ export function createRun(config) {
       gold: Number.isFinite(config.startingGold) ? Math.max(0, Math.floor(config.startingGold)) : SHOP_RULES.initialGold,
       enhancementStone: Number.isFinite(config.startingEnhancementStone) ? Math.max(0, Math.floor(config.startingEnhancementStone)) : 0,
       bossSoul: Number.isFinite(config.startingBossSoul) ? Math.max(0, Math.floor(config.startingBossSoul)) : 0,
-      statPoints: PLAYER_START_STAT_POINTS,
+      statPoints: PLAYER_START_STAT_POINTS + permanentEffects.startStatPointBonus,
       stats: { ...PLAYER_START_STATS },
+      permanentProgress: clonePermanentProgress(permanentProgress),
       rewardTraits: [],
       shopBoosts: {
         rewardChoiceBonus: 0,
@@ -767,6 +851,7 @@ export function derivePlayerProfile(player) {
   const gradeEffects = getWeaponGradeEffects(player);
   const stageEffects = getWeaponStageEffects(player);
   const personalityBoostEffects = getPersonalityBoostEffects(player);
+  const permanentEffects = getSoulEngravingEffects(player.permanentProgress);
   const stats = player.stats;
 
   const maxHp = Math.round((
@@ -793,6 +878,7 @@ export function derivePlayerProfile(player) {
     (skillEffects.attackBonus || 0) +
     (rewardEffects.attackBonus || 0) +
     (personalityBoostEffects.attackBonus || 0) +
+    (permanentEffects.attackBonus || 0) +
     (gradeEffects.attackBonus || 0) +
     (stageEffects.attackBonus || 0);
 
@@ -803,7 +889,8 @@ export function derivePlayerProfile(player) {
     (personality.defenseBonus || 0) +
     (skillEffects.defenseBonus || 0) +
     (rewardEffects.defenseBonus || 0) +
-    (personalityBoostEffects.defenseBonus || 0),
+    (personalityBoostEffects.defenseBonus || 0) +
+    (permanentEffects.defenseBonus || 0),
     0,
     BASE_STATS.defenseCap
   );
@@ -815,7 +902,8 @@ export function derivePlayerProfile(player) {
     (personality.evasionBonus || 0) +
     (skillEffects.evasionBonus || 0) +
     (rewardEffects.evasionBonus || 0) +
-    (personalityBoostEffects.evasionBonus || 0),
+    (personalityBoostEffects.evasionBonus || 0) +
+    (permanentEffects.evasionBonus || 0),
     0,
     BASE_STATS.evasionCap
   );
@@ -836,7 +924,7 @@ export function derivePlayerProfile(player) {
   const moveSpeedScale = speedScales.moveSpeedScale * (personality.moveSpeedScale || 1) * (1 + (rewardEffects.moveSpeedBonus || 0) + (personalityBoostEffects.moveSpeedBonus || 0));
   const cooldownScale = speedScales.cooldownScale * (personality.cooldownScale || 1) * (1 + (rewardEffects.cooldownBonus || 0) + (stageEffects.cooldownBonus || 0) + (personalityBoostEffects.cooldownBonus || 0));
   const turnSpeedScale = speedScales.turnSpeedScale * (personality.turnSpeedScale || 1) * (1 + (stageEffects.turnSpeedBonus || 0) + (personalityBoostEffects.turnSpeedBonus || 0));
-  const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0);
+  const critDamage = 1.55 + stats.luck * 0.006 + (skillEffects.critDamageBonus || 0) + (permanentEffects.critDamageBonus || 0);
 
   return {
     maxHp,

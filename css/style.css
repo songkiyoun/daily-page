@@ -1230,3 +1230,30 @@ input[type="url"] {
     max-width: none;
   }
 }
+
+
+.soul-line {
+  grid-template-columns: minmax(0, 1fr) 56px 76px 78px;
+}
+
+.soul-line small {
+  color: #d9d2e8;
+  font-size: 0.76rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.soul-line .soul-button {
+  width: 100%;
+  padding: 6px 7px;
+}
+
+.permanent-head.compact {
+  padding: 8px 10px;
+}
+
+@media (max-width: 860px) {
+  .soul-line {
+    grid-template-columns: minmax(0, 1fr) 48px 66px 70px;
+  }
+}
