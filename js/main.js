@@ -79,22 +79,20 @@ const controls = {
   accountBadge: document.getElementById('accountBadge'),
   accountId: document.getElementById('accountId'),
   accountPw: document.getElementById('accountPw'),
-  accountEndpoint: document.getElementById('accountEndpoint'),
   createAccountBtn: document.getElementById('createAccountBtn'),
   loginBtn: document.getElementById('loginBtn'),
   tempLoadBtn: document.getElementById('tempLoadBtn'),
-  guestStartBtn: document.getElementById('guestStartBtn'),
   accountMessage: document.getElementById('accountMessage')
 };
 
 const SAVE_SCHEMA_VERSION = 1;
 const LOCAL_TEMP_SAVE_KEY = 'circleBattleTowerRebuild.tempSave.v1';
-const LOCAL_ENDPOINT_KEY = 'circleBattleTowerRebuild.appsScriptUrl';
+const CLOUD_SAVE_API_URL = 'https://script.google.com/macros/s/AKfycbyWV1AKwISvdbzBC8-mP4ze-GAy_z5YIZoxpoi__YXCFsKQULafCs7E4M-urFR1P5Ym8g/exec';
 
 let account = {
   loggedIn: false,
   id: '',
-  endpoint: window.localStorage?.getItem(LOCAL_ENDPOINT_KEY) || '',
+  endpoint: CLOUD_SAVE_API_URL,
   mode: 'none',
   pw: ''
 };
@@ -128,14 +126,11 @@ function init() {
   populateSelect(controls.simEnemyWeapon, WEAPONS, 'dagger');
   populateSelect(controls.simEnemyPersonality, PERSONALITIES, 'assassin');
   controls.version.textContent = `v${VERSION}`;
-  if (controls.accountEndpoint) controls.accountEndpoint.value = account.endpoint || '';
   updateAccountBadge();
 
   controls.createAccountBtn?.addEventListener('click', handleCreateAccount);
   controls.loginBtn?.addEventListener('click', handleAccountLogin);
   controls.tempLoadBtn?.addEventListener('click', handleTempLoad);
-  controls.guestStartBtn?.addEventListener('click', handleGuestStart);
-  controls.accountEndpoint?.addEventListener('change', handleEndpointChange);
   controls.startBtn.addEventListener('click', handleMainButton);
   controls.climbBtn.addEventListener('click', startCurrentFloor);
   controls.playerWeapon.addEventListener('change', handleConfigChange);
@@ -1073,13 +1068,6 @@ function escapeTextarea(text) {
 
 
 
-function handleEndpointChange() {
-  account.endpoint = (controls.accountEndpoint?.value || '').trim();
-  if (account.endpoint) window.localStorage?.setItem(LOCAL_ENDPOINT_KEY, account.endpoint);
-  else window.localStorage?.removeItem(LOCAL_ENDPOINT_KEY);
-  showAccountMessage(account.endpoint ? 'Apps Script URL이 저장되었습니다.' : 'Apps Script URL이 비어 있습니다.', account.endpoint ? 'good' : 'warn');
-}
-
 async function handleCreateAccount() {
   const credentials = readAccountCredentials();
   if (!credentials.ok) {
@@ -1149,24 +1137,12 @@ function handleTempLoad() {
   }
 }
 
-function handleGuestStart() {
-  account = { ...account, loggedIn: true, id: 'guest', mode: 'guest', pw: '' };
-  updateAccountBadge();
-  showPrepScreen();
-  renderAllPanels(true);
-  saveTemporarySnapshot('guestStart');
-  showAccountMessage('게스트 모드로 시작합니다. 스프레드시트 저장은 사용하지 않습니다.', 'warn');
-}
-
 function readAccountCredentials() {
   const id = (controls.accountId?.value || '').trim();
   const pw = controls.accountPw?.value || '';
-  const endpoint = (controls.accountEndpoint?.value || account.endpoint || '').trim();
+  const endpoint = CLOUD_SAVE_API_URL;
   if (!id) return { ok: false, message: '아이디를 입력하세요.' };
   if (!pw) return { ok: false, message: '비밀번호를 입력하세요.' };
-  if (!endpoint) return { ok: false, message: 'Apps Script 웹 앱 URL을 입력하세요.' };
-  account.endpoint = endpoint;
-  window.localStorage?.setItem(LOCAL_ENDPOINT_KEY, endpoint);
   return { ok: true, id, pw, endpoint };
 }
 
@@ -1174,11 +1150,10 @@ function setLoggedInAccount(id, endpoint, mode = 'cloud', pw = '') {
   account = {
     loggedIn: true,
     id,
-    endpoint: endpoint || account.endpoint || '',
+    endpoint: endpoint || CLOUD_SAVE_API_URL,
     mode,
     pw
   };
-  if (account.endpoint) window.localStorage?.setItem(LOCAL_ENDPOINT_KEY, account.endpoint);
   updateAccountBadge();
 }
 
@@ -1188,13 +1163,12 @@ function updateAccountBadge() {
     controls.accountBadge.textContent = '로그인 전';
     return;
   }
-  if (account.mode === 'guest') controls.accountBadge.textContent = '게스트';
-  else if (account.mode === 'temp') controls.accountBadge.textContent = `${account.id} · 임시`;
+  if (account.mode === 'temp') controls.accountBadge.textContent = `${account.id} · 임시`;
   else controls.accountBadge.textContent = `${account.id} · 로그인`;
 }
 
 function setAccountButtonsDisabled(disabled) {
-  [controls.createAccountBtn, controls.loginBtn, controls.tempLoadBtn, controls.guestStartBtn].forEach((button) => {
+  [controls.createAccountBtn, controls.loginBtn, controls.tempLoadBtn].forEach((button) => {
     if (button) button.disabled = disabled;
   });
 }
@@ -1207,8 +1181,8 @@ function showAccountMessage(message, type = '') {
 }
 
 async function requestCloudSave(action, payload = {}) {
-  const endpoint = payload.endpoint || account.endpoint || (controls.accountEndpoint?.value || '').trim();
-  if (!endpoint) throw new Error('Apps Script 웹 앱 URL이 없습니다.');
+  const endpoint = payload.endpoint || account.endpoint || CLOUD_SAVE_API_URL;
+  if (!endpoint) throw new Error('저장 서버 URL이 없습니다.');
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
