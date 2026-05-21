@@ -239,41 +239,98 @@ function drawUnit(ctx, unit) {
 
 function drawUnitBody(ctx, unit, weapon) {
   const imageUrl = unit.side === 'player' ? String(unit.profileImageUrl || '').trim() : '';
-  const image = imageUrl ? getCachedUnitImage(imageUrl) : null;
+  const imageRecord = imageUrl ? getCachedUnitImage(imageUrl) : null;
+  const image = imageRecord?.image || null;
+  const imageReady = imageRecord?.status === 'loaded' && image?.naturalWidth > 0 && image?.naturalHeight > 0;
 
   ctx.save();
   ctx.beginPath();
   ctx.arc(0, 0, unit.radius, 0, Math.PI * 2);
   ctx.closePath();
 
-  if (image?.complete && image.naturalWidth > 0) {
+  if (imageReady) {
     ctx.clip();
-    const size = unit.radius * 2;
-    const scale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
-    const drawW = image.naturalWidth * scale;
-    const drawH = image.naturalHeight * scale;
-    ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
+    drawCoverImage(ctx, image, -unit.radius, -unit.radius, unit.radius * 2, unit.radius * 2);
   } else {
-    ctx.fillStyle = unit.side === 'player' ? '#67e59d' : '#ff6577';
-    ctx.fill();
+    drawDefaultUnitFill(ctx, unit, weapon);
   }
   ctx.restore();
 
   ctx.beginPath();
   ctx.arc(0, 0, unit.radius, 0, Math.PI * 2);
-  ctx.lineWidth = image?.complete && image.naturalWidth > 0 ? 3 : 2;
+  ctx.lineWidth = imageReady ? 3 : 2;
   ctx.strokeStyle = unit.staggerTimer > 0 ? '#ffd45a' : weapon.color;
   ctx.stroke();
 }
 
+function drawDefaultUnitFill(ctx, unit, weapon) {
+  const gradient = ctx.createRadialGradient(-6, -7, 2, 0, 0, unit.radius);
+  gradient.addColorStop(0, unit.side === 'player' ? '#a8ffd1' : '#ffb1bb');
+  gradient.addColorStop(1, unit.side === 'player' ? '#42b874' : '#c83e51');
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  if (unit.side === 'player' && unit.profileImageUrl) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fill();
+  }
+}
+
+function drawCoverImage(ctx, image, x, y, width, height) {
+  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const boxRatio = width / height;
+
+  let sx = 0;
+  let sy = 0;
+  let sw = image.naturalWidth;
+  let sh = image.naturalHeight;
+
+  if (imageRatio > boxRatio) {
+    sw = image.naturalHeight * boxRatio;
+    sx = (image.naturalWidth - sw) / 2;
+  } else {
+    sh = image.naturalWidth / boxRatio;
+    sy = (image.naturalHeight - sh) / 2;
+  }
+
+  ctx.drawImage(image, sx, sy, sw, sh, x, y, width, height);
+}
+
 function getCachedUnitImage(url) {
   if (!url) return null;
-  if (unitImageCache.has(url)) return unitImageCache.get(url);
+  const normalizedUrl = normalizeUnitImageUrl(url);
+  if (unitImageCache.has(normalizedUrl)) return unitImageCache.get(normalizedUrl);
+
   const image = new Image();
+  const record = { image, status: 'loading', url: normalizedUrl };
   image.referrerPolicy = 'no-referrer';
-  image.src = url;
-  unitImageCache.set(url, image);
-  return image;
+  image.onload = () => { record.status = 'loaded'; };
+  image.onerror = () => { record.status = 'error'; };
+  image.src = normalizedUrl;
+  unitImageCache.set(normalizedUrl, record);
+  return record;
+}
+
+function normalizeUnitImageUrl(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+
+  const googleDriveMatch = value.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (googleDriveMatch?.[1]) {
+    return `https://drive.google.com/uc?export=view&id=${googleDriveMatch[1]}`;
+  }
+
+  const googleOpenMatch = value.match(/[?&]id=([^&]+)/);
+  if (value.includes('drive.google.com/open') && googleOpenMatch?.[1]) {
+    return `https://drive.google.com/uc?export=view&id=${googleOpenMatch[1]}`;
+  }
+
+  const dropboxMatch = value.match(/dropbox\.com\/(.+)/);
+  if (dropboxMatch) {
+    return value.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=0', '').replace('?dl=1', '');
+  }
+
+  return value;
 }
 
 
