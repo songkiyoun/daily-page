@@ -118,8 +118,39 @@ const FARM_SEED_DEFS = {
     growthMinutes: 3,
     requiredWaterCount: 1,
     waterIntervalMinutes: 0,
-    reward: { gold: 500, seeds: { aSeed: 1 } },
-    rewardHint: '수확 시 골드 +500 / A씨앗 +1'
+    reward: { gold: 500, seeds: { aSeed: 1 }, crops: { aCrop: 1 } },
+    rewardHint: '수확 시 골드 +500 / A씨앗 +1 / A작물 +1'
+  }
+};
+
+const FARM_CROP_DEFS = {
+  aCrop: { id: 'aCrop', name: 'A작물' }
+};
+
+const FARM_EXCHANGE_DEFS = {
+  sellACrop: {
+    id: 'sellACrop',
+    name: 'A작물 납품',
+    cropId: 'aCrop',
+    cropCost: 1,
+    reward: { gold: 800 },
+    description: 'A작물 1개를 골드 800G로 교환합니다.'
+  },
+  refineStone: {
+    id: 'refineStone',
+    name: '강화석 가공',
+    cropId: 'aCrop',
+    cropCost: 3,
+    reward: { enhancementStone: 1 },
+    description: 'A작물 3개를 강화석 1개로 교환합니다.'
+  },
+  condenseSoul: {
+    id: 'condenseSoul',
+    name: '영혼 응축',
+    cropId: 'aCrop',
+    cropCost: 8,
+    reward: { bossSoul: 1 },
+    description: 'A작물 8개를 보스의 영혼 1개로 교환합니다.'
   }
 };
 
@@ -579,12 +610,13 @@ function createDefaultFarmSlot(index) {
 
 function createDefaultFarmData() {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     updatedAt: new Date().toISOString(),
     claimedStarterSeeds: false,
     slots: Array.from({ length: FARM_SLOT_COUNT }, (_, index) => createDefaultFarmSlot(index)),
     inventory: {
-      seeds: { aSeed: 0 }
+      seeds: { aSeed: 0 },
+      crops: { aCrop: 0 }
     }
   };
 }
@@ -615,12 +647,16 @@ function normalizeFarmData(data = {}) {
   Object.keys(seeds).forEach((key) => {
     seeds[key] = Math.max(0, Math.floor(Number(seeds[key]) || 0));
   });
+  const crops = { ...defaults.inventory.crops, ...(data.inventory?.crops || data.crops || {}) };
+  Object.keys(crops).forEach((key) => {
+    crops[key] = Math.max(0, Math.floor(Number(crops[key]) || 0));
+  });
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     updatedAt: data.updatedAt || defaults.updatedAt,
     claimedStarterSeeds: !!data.claimedStarterSeeds,
     slots,
-    inventory: { seeds }
+    inventory: { seeds, crops }
   };
 }
 
@@ -736,22 +772,55 @@ function renderFarmPanel(force = false) {
   const starterButton = accountFarm.claimedStarterSeeds
     ? ''
     : `<button class="mini-button farm-seed-action" type="button" data-farm-seed-action="starter">기본 씨앗 받기 +${FARM_STARTER_SEED_COUNT}</button>`;
+  const cropEntries = Object.entries(accountFarm.inventory.crops || {});
+  const exchangeRows = Object.values(FARM_EXCHANGE_DEFS).map((exchange) => {
+    const owned = accountFarm.inventory.crops?.[exchange.cropId] || 0;
+    const disabled = owned < exchange.cropCost ? 'disabled' : '';
+    return `
+      <div class="farm-exchange-row">
+        <div>
+          <strong>${exchange.name}</strong>
+          <span>${exchange.description}</span>
+        </div>
+        <button class="mini-button farm-seed-action" type="button" data-farm-exchange-id="${exchange.id}" ${disabled}>교환</button>
+      </div>
+    `;
+  }).join('');
+
   controls.farmSeedBox.innerHTML = `
     ${starterButton}
-    ${seedEntries.length
-      ? seedEntries.map(([seedId, count]) => `
-        <div class="farm-seed-row">
-          <span>${FARM_SEED_DEFS[seedId]?.name || seedId}</span>
-          <strong>${count}개</strong>
-        </div>
-      `).join('')
-      : '<p class="hint-text">보유한 씨앗이 없습니다.</p>'}
+    <div class="farm-inventory-block">
+      <strong>씨앗 보관함</strong>
+      ${seedEntries.length
+        ? seedEntries.map(([seedId, count]) => `
+          <div class="farm-seed-row">
+            <span>${FARM_SEED_DEFS[seedId]?.name || seedId}</span>
+            <strong>${count}개</strong>
+          </div>
+        `).join('')
+        : '<p class="hint-text">보유한 씨앗이 없습니다.</p>'}
+    </div>
+    <div class="farm-inventory-block">
+      <strong>수확물 보관함</strong>
+      ${cropEntries.length
+        ? cropEntries.map(([cropId, count]) => `
+          <div class="farm-seed-row">
+            <span>${FARM_CROP_DEFS[cropId]?.name || cropId}</span>
+            <strong>${count}개</strong>
+          </div>
+        `).join('')
+        : '<p class="hint-text">보유한 수확물이 없습니다.</p>'}
+    </div>
+    <div class="farm-inventory-block">
+      <strong>농장 보상 교환</strong>
+      ${exchangeRows}
+    </div>
   `;
 
   controls.farmGuideBox.innerHTML = `
-    <strong>마이 농장 테스트 조건</strong>
-    <span>A씨앗은 심은 시점부터 3분 후 수확할 수 있습니다.</span>
-    <span>물 주기는 1회만 충족하면 되며, 농장 데이터는 계정별 palm 시트 저장 대상입니다.</span>
+    <strong>마이 농장 보상 연결</strong>
+    <span>A씨앗은 3분 성장, 물 주기 1회 조건을 만족하면 수확할 수 있습니다.</span>
+    <span>수확한 A작물은 골드, 강화석, 보스의 영혼으로 교환할 수 있습니다.</span>
   `;
 }
 
@@ -771,6 +840,7 @@ function handleFarmSeedAction(event) {
   const button = event.target.closest('.farm-seed-action');
   if (!button || button.disabled) return;
   if (button.dataset.farmSeedAction === 'starter') claimFarmStarterSeeds();
+  if (button.dataset.farmExchangeId) exchangeFarmCrop(button.dataset.farmExchangeId);
 }
 
 function claimFarmStarterSeeds() {
@@ -780,6 +850,40 @@ function claimFarmStarterSeeds() {
   accountFarm.claimedStarterSeeds = true;
   accountFarm.updatedAt = new Date().toISOString();
   persistFarmChange('기본 씨앗을 받았습니다.');
+}
+
+function exchangeFarmCrop(exchangeId) {
+  accountFarm = normalizeFarmData(accountFarm);
+  const exchange = FARM_EXCHANGE_DEFS[exchangeId];
+  if (!exchange) return;
+  const owned = accountFarm.inventory.crops?.[exchange.cropId] || 0;
+  if (owned < exchange.cropCost) {
+    showAccountMessage('교환에 필요한 수확물이 부족합니다.', 'warn');
+    return;
+  }
+
+  accountFarm.inventory.crops[exchange.cropId] = owned - exchange.cropCost;
+  const reward = exchange.reward || {};
+  const resources = getCurrentPersistentResources();
+  bankInventory = {
+    gold: resources.gold + Math.max(0, Math.floor(reward.gold || 0)),
+    enhancementStone: resources.enhancementStone + Math.max(0, Math.floor(reward.enhancementStone || 0)),
+    bossSoul: resources.bossSoul + Math.max(0, Math.floor(reward.bossSoul || 0))
+  };
+  bankGold = bankInventory.gold;
+  if (run?.player) {
+    run.player.gold = bankInventory.gold;
+    run.player.enhancementStone = bankInventory.enhancementStone;
+    run.player.bossSoul = bankInventory.bossSoul;
+  }
+  accountFarm.updatedAt = new Date().toISOString();
+
+  const rewardText = [
+    reward.gold ? `골드 +${reward.gold}` : '',
+    reward.enhancementStone ? `강화석 +${reward.enhancementStone}` : '',
+    reward.bossSoul ? `보스의 영혼 +${reward.bossSoul}` : ''
+  ].filter(Boolean).join(' / ');
+  persistFarmChange(`${exchange.name} 완료: ${rewardText}`);
 }
 
 function plantFarmSeed(slotIndex, seedId) {
@@ -849,9 +953,13 @@ function harvestFarmSlot(slotIndex) {
   Object.entries(reward.seeds || {}).forEach(([seedId, amount]) => {
     accountFarm.inventory.seeds[seedId] = (accountFarm.inventory.seeds[seedId] || 0) + Math.max(0, Math.floor(amount || 0));
   });
+  Object.entries(reward.crops || {}).forEach(([cropId, amount]) => {
+    accountFarm.inventory.crops[cropId] = (accountFarm.inventory.crops[cropId] || 0) + Math.max(0, Math.floor(amount || 0));
+  });
   accountFarm.slots[slotIndex] = createDefaultFarmSlot(slotIndex);
   accountFarm.updatedAt = new Date().toISOString();
-  persistFarmChange(`${seed.name}을 수확했습니다. 골드 +${reward.gold || 0}`);
+  const cropText = Object.entries(reward.crops || {}).map(([cropId, amount]) => `${FARM_CROP_DEFS[cropId]?.name || cropId} +${amount}`).join(' / ');
+  persistFarmChange(`${seed.name}을 수확했습니다. 골드 +${reward.gold || 0}${cropText ? ` / ${cropText}` : ''}`);
 }
 
 function persistFarmChange(message) {

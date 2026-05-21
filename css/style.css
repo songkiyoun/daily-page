@@ -1698,3 +1698,40 @@ input[type="url"] {
   width: 100%;
   margin-bottom: 9px;
 }
+
+
+/* v0.7.47 farm reward exchange */
+.farm-inventory-block {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.035);
+}
+
+.farm-inventory-block > strong {
+  color: #f6f0dc;
+  font-size: 13px;
+}
+
+.farm-exchange-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.14);
+}
+
+.farm-exchange-row div {
+  display: grid;
+  gap: 2px;
+}
+
+.farm-exchange-row span {
+  color: rgba(244,241,232,0.68);
+  font-size: 12px;
+  line-height: 1.35;
+}
