@@ -1667,3 +1667,34 @@ input[type="url"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* v0.7.45 farm actions */
+.mini-button {
+  border: 1px solid rgba(168, 136, 255, 0.32);
+  background: rgba(168, 136, 255, 0.14);
+  color: var(--text);
+  padding: 6px 9px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.mini-button:hover:not(:disabled) {
+  border-color: rgba(255, 212, 90, 0.5);
+  background: rgba(255, 212, 90, 0.16);
+}
+
+.mini-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.farm-slot-card small {
+  color: rgba(255, 212, 90, 0.82);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.farm-seed-action {
+  width: 100%;
+  margin-bottom: 9px;
+}

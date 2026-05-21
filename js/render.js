@@ -241,7 +241,10 @@ function drawUnitBody(ctx, unit, weapon) {
   const imageUrl = unit.side === 'player' ? String(unit.profileImageUrl || '').trim() : '';
   const imageRecord = imageUrl ? getCachedUnitImage(imageUrl) : null;
   const image = imageRecord?.image || null;
-  const imageReady = imageRecord?.status === 'loaded' && image?.naturalWidth > 0 && image?.naturalHeight > 0;
+  const imageReady = unit.side === 'player'
+    && imageRecord?.status === 'loaded'
+    && image?.naturalWidth > 0
+    && image?.naturalHeight > 0;
 
   ctx.save();
   ctx.beginPath();
@@ -252,34 +255,20 @@ function drawUnitBody(ctx, unit, weapon) {
     ctx.clip();
     drawCoverImage(ctx, image, -unit.radius, -unit.radius, unit.radius * 2, unit.radius * 2);
   } else {
-    drawDefaultUnitFill(ctx, unit, weapon);
+    drawDefaultUnitFill(ctx, unit);
   }
   ctx.restore();
 
   ctx.beginPath();
   ctx.arc(0, 0, unit.radius, 0, Math.PI * 2);
-  ctx.lineWidth = imageReady ? 3 : 2;
+  ctx.lineWidth = 2;
   ctx.strokeStyle = unit.staggerTimer > 0 ? '#ffd45a' : weapon.color;
   ctx.stroke();
 }
 
-function drawDefaultUnitFill(ctx, unit, weapon) {
-  if (unit.side !== 'player') {
-    ctx.fillStyle = '#c83e51';
-    ctx.fill();
-    return;
-  }
-
-  const gradient = ctx.createRadialGradient(-6, -7, 2, 0, 0, unit.radius);
-  gradient.addColorStop(0, '#a8ffd1');
-  gradient.addColorStop(1, '#42b874');
-  ctx.fillStyle = gradient;
+function drawDefaultUnitFill(ctx, unit) {
+  ctx.fillStyle = unit.side === 'player' ? '#67e59d' : '#ff6577';
   ctx.fill();
-
-  if (unit.profileImageUrl) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-    ctx.fill();
-  }
 }
 
 function drawCoverImage(ctx, image, x, y, width, height) {
