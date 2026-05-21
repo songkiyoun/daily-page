@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.8.5';
+export const VERSION = '0.8.6';
 
 export const WEAPONS = {
   spear: {
@@ -1055,6 +1055,74 @@ export const TOWER_RULES = {
   bossStoneBaseMin: 0,
   bossStoneBaseMax: 3
 };
+
+export const BOSS_PROFILES = [
+  {
+    id: 'callon',
+    floorCycle: 1,
+    name: '방랑기사 Callon',
+    title: '방랑기사',
+    weaponId: 'western',
+    personalityId: 'defensive',
+    weaponGrade: 'rare',
+    weaponEvolution: 'caliburn',
+    weaponEnhancement: 2,
+    skills: ['westernBash', 'westernLastStand', 'westernKnightInstinct', 'westernCaliburnCharge', 'defensiveGuardStance'],
+    statBonus: { str: 2, vit: 4, def: 4, agi: 0, luck: 1 },
+    tuning: { hpScale: 1.16, postureScale: 1.18, attackScale: 1.04, defenseBonus: 0.025, evasionBonus: -0.015, critBonus: 0 },
+    description: '정면 교전에 강한 기사형 보스입니다. 자세가 단단하고 반격 흐름이 안정적입니다.',
+    pattern: '돌진 · 방어 · 반격'
+  },
+  {
+    id: 'archer',
+    floorCycle: 2,
+    name: '선봉장 Archer',
+    title: '선봉장',
+    weaponId: 'spear',
+    personalityId: 'aggressive',
+    weaponGrade: 'rare',
+    weaponEvolution: 'dragonKnightSpear',
+    weaponEnhancement: 2,
+    skills: ['spearDoubleThrust', 'spearFocus', 'spearSweep', 'spearPierce', 'aggressiveFullPower'],
+    statBonus: { str: 3, vit: 2, def: 1, agi: 4, luck: 1 },
+    tuning: { hpScale: 1.08, postureScale: 1.06, attackScale: 1.1, defenseBonus: 0.005, evasionBonus: 0.025, critBonus: 0.01 },
+    description: '긴 사거리와 속도로 거리를 잡는 선봉장 보스입니다. 접근을 허용하지 않으려 합니다.',
+    pattern: '거리 유지 · 연속 찌르기 · 밀어내기'
+  },
+  {
+    id: 'arbiter',
+    floorCycle: 3,
+    name: '무신의 기억 Arbiter',
+    title: '무신의 기억',
+    weaponId: 'eastern',
+    personalityId: 'balanced',
+    weaponGrade: 'hero',
+    weaponEvolution: 'martialGodSword',
+    weaponEnhancement: 3,
+    skills: ['easternIaiSlash', 'easternMindFocus', 'easternBambooStance', 'easternComboSlash', 'easternAnnihilation', 'balancedCentering'],
+    statBonus: { str: 3, vit: 3, def: 2, agi: 4, luck: 2 },
+    tuning: { hpScale: 1.12, postureScale: 1.1, attackScale: 1.12, defenseBonus: 0.012, evasionBonus: 0.018, critBonus: 0.015 },
+    description: '발도와 연속 베기를 연결하는 검사형 보스입니다. 짧은 틈을 빠르게 파고듭니다.',
+    pattern: '발도 돌파 · 연속 베기 · 섬멸'
+  },
+  {
+    id: 'death',
+    floorCycle: 0,
+    name: '죽음인도자 Death',
+    title: '죽음인도자',
+    weaponId: 'dagger',
+    personalityId: 'assassin',
+    weaponGrade: 'legendary',
+    weaponEvolution: 'bloodWolfFang',
+    weaponEnhancement: 4,
+    skills: ['daggerVitalStrike', 'daggerDecoyDoll', 'daggerHighSpeed', 'daggerAssassinate', 'daggerCloneTechnique', 'assassinInstantKill'],
+    statBonus: { str: 4, vit: 2, def: 0, agi: 5, luck: 4 },
+    tuning: { hpScale: 1.04, postureScale: 0.98, attackScale: 1.18, defenseBonus: -0.005, evasionBonus: 0.04, critBonus: 0.035 },
+    description: '측후면을 노리는 암살형 보스입니다. 낮은 방어 대신 높은 기동성과 치명타를 가집니다.',
+    pattern: '암살 · 분신술 · 치명타'
+  }
+];
+
 
 export const ENEMY_NAMES = [
   'RAVEN',

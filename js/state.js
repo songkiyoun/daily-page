@@ -4,6 +4,7 @@
 
 import {
   BASE_STATS,
+  BOSS_PROFILES,
   ENEMY_NAMES,
   PERSONALITIES,
   PLAYER_START_STATS,
@@ -1404,6 +1405,11 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
   return {
     id: 'enemy',
     name: enemyConfig.name,
+    bossId: enemyConfig.bossId || null,
+    bossTitle: enemyConfig.bossTitle || '',
+    bossDescription: enemyConfig.bossDescription || '',
+    bossPattern: enemyConfig.bossPattern || '',
+    bossTuning: { ...(enemyConfig.bossTuning || {}) },
     side: 'enemy',
     weaponId: enemyConfig.weaponId,
     personalityId: enemyConfig.personalityId,
@@ -1413,6 +1419,7 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     skillLevels: { ...(enemyConfig.skillLevels || createInitialSkillLevels(enemyConfig.skills)) },
     weaponGrade: enemyConfig.weaponGrade || 'common',
     weaponEvolution: enemyConfig.weaponEvolution || null,
+    weaponEnhancement: Math.max(0, Math.floor(enemyConfig.weaponEnhancement || 0)),
     weaponEvolutionOptions: getWeaponEvolutionOptions(enemyConfig.weaponId),
     skillCooldowns: createOpeningSkillCooldowns(enemyConfig.skills),
     weaponSkillChainLockTimer: 0,
@@ -1483,25 +1490,65 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
 }
 
 function createRandomEnemyConfig(floor) {
+  const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
+  if (isBossFloor) return createBossEnemyConfig(floor);
+
   const weaponIds = Object.keys(WEAPONS);
   const personalityIds = Object.keys(PERSONALITIES);
   const nameIndex = (floor + randomInt(0, ENEMY_NAMES.length - 1)) % ENEMY_NAMES.length;
-  const isBossFloor = floor > 0 && floor % TOWER_RULES.bossInterval === 0;
   const weaponId = sample(weaponIds);
   const personalityId = sample(personalityIds);
-  const skills = createEnemySkills(floor, isBossFloor, weaponId, personalityId);
+  const skills = createEnemySkills(floor, false, weaponId, personalityId);
 
   return {
-    name: isBossFloor ? `BOSS ${ENEMY_NAMES[nameIndex]}` : ENEMY_NAMES[nameIndex],
+    name: ENEMY_NAMES[nameIndex],
     weaponId,
     personalityId,
     level: Math.max(1, floor),
-    stats: createEnemyStats(floor, isBossFloor),
+    stats: createEnemyStats(floor, false),
     skills,
-    skillLevels: createEnemySkillLevels(skills, floor, isBossFloor),
+    skillLevels: createEnemySkillLevels(skills, floor, false),
     weaponGrade: 'common',
     weaponEvolution: null,
-    mastery: createEnemyMastery(floor, isBossFloor)
+    mastery: createEnemyMastery(floor, false)
+  };
+}
+
+function getBossProfileForFloor(floor) {
+  const cycle = Math.floor(Math.max(1, floor) / Math.max(1, TOWER_RULES.bossInterval)) % Math.max(1, BOSS_PROFILES.length);
+  return BOSS_PROFILES.find((boss) => boss.floorCycle === cycle) || BOSS_PROFILES[cycle] || BOSS_PROFILES[0];
+}
+
+function createBossEnemyConfig(floor) {
+  const boss = getBossProfileForFloor(floor);
+  const baseStats = createEnemyStats(floor, true);
+  const statBonus = boss.statBonus || {};
+  const skills = [...new Set([...(boss.skills || createEnemySkills(floor, true, boss.weaponId, boss.personalityId))])];
+  const levelBonus = Math.max(0, Math.floor(floor / TOWER_RULES.bossInterval) - 1);
+
+  return {
+    name: boss.name,
+    bossId: boss.id,
+    bossTitle: boss.title,
+    bossDescription: boss.description,
+    bossPattern: boss.pattern,
+    bossTuning: { ...(boss.tuning || {}) },
+    weaponId: boss.weaponId,
+    personalityId: boss.personalityId,
+    level: Math.max(1, floor + levelBonus),
+    stats: {
+      str: baseStats.str + (statBonus.str || 0) + Math.floor(levelBonus * 0.6),
+      vit: baseStats.vit + (statBonus.vit || 0) + Math.floor(levelBonus * 0.7),
+      def: baseStats.def + (statBonus.def || 0) + Math.floor(levelBonus * 0.5),
+      agi: baseStats.agi + (statBonus.agi || 0) + Math.floor(levelBonus * 0.55),
+      luck: baseStats.luck + (statBonus.luck || 0) + Math.floor(levelBonus * 0.45)
+    },
+    skills,
+    skillLevels: createEnemySkillLevels(skills, floor + levelBonus * 2, true),
+    weaponGrade: boss.weaponGrade || 'rare',
+    weaponEvolution: boss.weaponEvolution || null,
+    weaponEnhancement: Math.max(0, Math.floor((boss.weaponEnhancement || 0) + Math.floor(levelBonus / 2))),
+    mastery: createEnemyMastery(floor, true) + 1 + levelBonus
   };
 }
 
@@ -1557,6 +1604,7 @@ function deriveEnemyProfile(enemy, floor) {
   const gradeEffects = getWeaponGradeEffects(enemy);
   const stageEffects = getWeaponStageEffects(enemy);
   const enhancementEffects = getWeaponEnhancementEffects(enemy);
+  const bossTuning = enemy.bossTuning || {};
   const stats = enemy.stats;
   const rawFloorIndex = Math.max(0, floor - 1);
   const bossBlock = Math.floor(rawFloorIndex / TOWER_RULES.bossInterval);
@@ -1567,7 +1615,7 @@ function deriveEnemyProfile(enemy, floor) {
   const maxHp = Math.round(
     (BASE_STATS.maxHp + stats.vit * 10 + stats.def * 3 + floorIndex * 3) *
     (1 + floorIndex * TOWER_RULES.hpGrowthPerFloor * 0.2) *
-    bossMult
+    bossMult * (bossTuning.hpScale || 1)
   );
 
   const maxPosture = Math.round(
@@ -1577,7 +1625,8 @@ function deriveEnemyProfile(enemy, floor) {
     floorIndex * POSTURE_RULES.enemyFloorToMax) *
     bossMult *
     (personality.postureMaxScale || 1) *
-    (1 + (gradeEffects.postureBonus || 0))
+    (1 + (gradeEffects.postureBonus || 0)) *
+    (bossTuning.postureScale || 1)
   );
 
   const attackScale =
@@ -1589,7 +1638,7 @@ function deriveEnemyProfile(enemy, floor) {
     (personality.attackBonus || 0) +
     (skillEffects.attackBonus || 0) +
     (gradeEffects.attackBonus || 0) +
-    (stageEffects.attackBonus || 0)) * bossMult;
+    (stageEffects.attackBonus || 0)) * bossMult * (bossTuning.attackScale || 1);
 
   const defense = clamp(
     0.025 +
@@ -1597,7 +1646,8 @@ function deriveEnemyProfile(enemy, floor) {
     stats.vit * 0.0015 +
     floorIndex * TOWER_RULES.defenseGrowthPerFloor * 0.25 +
     (personality.defenseBonus || 0) +
-    (skillEffects.defenseBonus || 0),
+    (skillEffects.defenseBonus || 0) +
+    (bossTuning.defenseBonus || 0),
     0,
     TOWER_RULES.maxEnemyDefense + (floor % TOWER_RULES.bossInterval === 0 ? 0.04 : 0)
   );
@@ -1607,7 +1657,8 @@ function deriveEnemyProfile(enemy, floor) {
     stats.agi * 0.006 +
     stats.luck * 0.0015 +
     (personality.evasionBonus || 0) +
-    (skillEffects.evasionBonus || 0),
+    (skillEffects.evasionBonus || 0) +
+    (bossTuning.evasionBonus || 0),
     0,
     0.32
   );

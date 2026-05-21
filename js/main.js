@@ -2080,6 +2080,8 @@ function renderTowerInfo(force = false) {
     state.enemy.maxHp,
     state.enemy.weaponGrade || 'common',
     state.enemy.weaponEvolution || 'none',
+    state.enemy.bossId || 'normal',
+    state.enemy.bossPattern || '',
     enemySkillText
   ].join('|');
   if (!force && panelKeys.tower === key) return;
@@ -2088,10 +2090,16 @@ function renderTowerInfo(force = false) {
   const nextBossFloor = Math.ceil(state.run.floor / TOWER_RULES.bossInterval) * TOWER_RULES.bossInterval;
   const floorsToBoss = isBossFloor ? 0 : Math.max(0, nextBossFloor - state.run.floor);
 
+  const bossRows = isBossFloor && state.enemy.bossId ? `
+    <div class="tower-row boss-row"><span>보스명</span><strong>${state.enemy.name}</strong></div>
+    <div class="tower-row"><span>보스 패턴</span><strong>${state.enemy.bossPattern || '-'}</strong></div>
+  ` : '';
+
   controls.towerBox.innerHTML = `
     <div class="tower-row boss-row"><span>현재 층</span><strong>${state.run.floor}층${isBossFloor ? ' · 보스' : ''}</strong></div>
     <div class="tower-row"><span>층 유형</span><strong>${isBossFloor ? '보스층' : '일반층'}</strong></div>
     <div class="tower-row"><span>다음 보스층</span><strong>${isBossFloor ? '현재 층' : `${nextBossFloor}층 · ${floorsToBoss}층 남음`}</strong></div>
+    ${bossRows}
     <div class="tower-row"><span>승리 횟수</span><strong>${state.run.victories}회</strong></div>
     <div class="tower-row"><span>상대 무기</span><strong>${enemyWeapon.name}</strong></div>
     <div class="tower-row"><span>상대 성격</span><strong>${enemyPersonality.name}</strong></div>
@@ -2101,8 +2109,8 @@ function renderTowerInfo(force = false) {
     <div class="tower-row"><span>상대 최대 체력</span><strong>${state.enemy.maxHp}</strong></div>
   `;
 
-  controls.enemyPreview.textContent = isBossFloor
-    ? '보스층입니다. 일반층보다 체력, 자세, 공격 성능이 높고 처치 시 보스의 영혼을 얻습니다.'
+  controls.enemyPreview.textContent = isBossFloor && state.enemy.bossId
+    ? `${state.enemy.bossTitle || '보스'}입니다. ${state.enemy.bossDescription || '일반층보다 강한 전투 성능을 가집니다.'}`
     : `상대는 매 층 랜덤으로 정해지며 ${nextBossFloor}층마다 보스가 등장합니다.`;
 }
 
