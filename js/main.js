@@ -15,6 +15,7 @@ import {
   getNextLevelExp,
   getPermanentProgressSummary,
   getPermanentResetRules,
+  getHeirloomUpgradeOffers,
   getPlayerCombatSummary,
   getPlayerInventory,
   getShopOffers,
@@ -25,6 +26,7 @@ import {
   lockPreTowerShop,
   purchasePreTowerShopItem,
   purchaseSoulEngraving,
+  purchaseHeirloomUpgrade,
   refreshPlayerUnit,
   spendPlayerStat,
   startState,
@@ -372,6 +374,12 @@ function handleShopClick(event) {
     return;
   }
 
+  const heirloomButton = event.target.closest('.heirloom-upgrade-button');
+  if (heirloomButton && activePrepTab === 'heirloom') {
+    handleHeirloomUpgrade(heirloomButton.dataset.heirloomUpgrade);
+    return;
+  }
+
   const shopButton = event.target.closest('.shop-button');
   if (shopButton && run && state && activePrepTab === 'shop') {
     const result = purchasePreTowerShopItem(run, shopButton.dataset.shopItem);
@@ -417,6 +425,38 @@ function handleSoulEngravingPurchase(itemId) {
   saveTemporarySnapshot('soulEngravingPurchase');
   if (result.ok) autoSaveSafePoint('영혼의 각인 구매');
 }
+
+function handleHeirloomUpgrade(upgradeType) {
+  const currentResources = getCurrentPersistentResources();
+  const result = purchaseHeirloomUpgrade(permanentProgress, currentResources, activeHeirloomWeapon, upgradeType);
+  permanentProgress = clonePermanentProgress(result.progress);
+  bankInventory = { ...bankInventory, ...result.resources };
+  bankGold = bankInventory.gold;
+
+  if (run?.player) {
+    run.player.gold = bankInventory.gold;
+    run.player.enhancementStone = bankInventory.enhancementStone;
+    run.player.bossSoul = bankInventory.bossSoul;
+    run.permanentProgress = clonePermanentProgress(permanentProgress);
+    applyPermanentProgressToPlayer(run.player, permanentProgress);
+
+    const heirloom = permanentProgress.heirloom?.[run.player.weaponId];
+    if (heirloom) {
+      run.player.weaponGrade = heirloom.weaponGrade || run.player.weaponGrade;
+      run.player.weaponEvolution = heirloom.weaponEvolution || run.player.weaponEvolution;
+      run.player.weaponEnhancement = Math.max(0, Math.floor(heirloom.enhancementLevel || 0));
+    }
+    refreshPlayerUnit(state);
+  }
+
+  clearPanelKeys();
+  if (state) render(ctx, state);
+  renderAllPanels(true);
+  renderPrepGrowthContent(true, result.message);
+  saveTemporarySnapshot('heirloomUpgrade');
+  if (result.ok) autoSaveSafePoint('가보 강화');
+}
+
 
 function handlePrepGrowthTabClick(event) {
   const button = event.target.closest('.prep-tab-button');
@@ -1644,7 +1684,7 @@ function renderPrepGrowthContent(force = false, message = '') {
     return;
   }
   if (activePrepTab === 'heirloom') {
-    renderHeirloomBox(force);
+    renderHeirloomBox(force, message);
     return;
   }
   renderShopBox(force, message);
@@ -1740,16 +1780,21 @@ function renderSoulEngravingBox(force = false, message = '') {
   `;
 }
 
-function renderHeirloomBox(force = false) {
+function renderHeirloomBox(force = false, message = '') {
   const summary = getPermanentProgressSummary(permanentProgress);
   const selected = summary.heirloomItems.find((item) => item.weaponId === activeHeirloomWeapon) || summary.heirloomItems[0];
   if (!selected) return;
   activeHeirloomWeapon = selected.weaponId;
 
+  const resources = getCurrentPersistentResources();
+  const offers = getHeirloomUpgradeOffers(permanentProgress, resources, activeHeirloomWeapon);
   const key = [
-    'heirloom-base',
+    'heirloom-upgrade',
     activeHeirloomWeapon,
-    summary.heirloomItems.map((item) => `${item.weaponId}:${item.gradeName}:${item.stageText}:${item.enhancementLevel}`).join('|')
+    resources.enhancementStone,
+    message,
+    summary.heirloomItems.map((item) => `${item.weaponId}:${item.gradeName}:${item.stageText}:${item.enhancementLevel}`).join('|'),
+    `${offers.gradeOffer.disabled}:${offers.enhanceOffer.disabled}`
   ].join('|');
   if (!force && panelKeys.prepGrowth === key) return;
   panelKeys.prepGrowth = key;
@@ -1769,18 +1814,47 @@ function renderHeirloomBox(force = false) {
           </button>
         `).join('')}
       </div>
+      ${message ? `<div class="shop-message">${message}</div>` : ''}
       <div class="heirloom-detail-card">
         <div class="weapon-icon">${getWeaponIcon(selected.weaponId)}</div>
         <div class="heirloom-detail-main">
           <strong>${selected.weaponName}</strong>
           <span>${selected.gradeName} · ${selected.stageText} · +${selected.enhancementLevel}</span>
-          <em>현재는 상태 저장/반영 단계입니다. 강화·진화 실행은 다음 가보 업데이트에서 연결됩니다.</em>
+          <em>무기 진화는 다음 가보 업데이트에서 연결됩니다. 이번 버전에서는 등급 강화와 +강화만 사용할 수 있습니다.</em>
         </div>
       </div>
       <div class="heirloom-stat-grid">
         <div><span>영구 등급</span><strong>${selected.gradeName}</strong></div>
         <div><span>영구 단계</span><strong>${selected.stageText}</strong></div>
         <div><span>영구 강화</span><strong>+${selected.enhancementLevel}</strong></div>
+        <div><span>강화 효과</span><strong>${selected.enhancementEffectText}</strong></div>
+        <div><span>보유 강화석</span><strong>${resources.enhancementStone}</strong></div>
+        <div><span>보스의 영혼</span><strong>${resources.bossSoul}</strong></div>
+      </div>
+      <div class="heirloom-action-list">
+        <div class="heirloom-action-card">
+          <div>
+            <strong>${offers.gradeOffer.title}</strong>
+            <span>${offers.gradeOffer.description}</span>
+            <em>${offers.gradeOffer.chanceText}</em>
+          </div>
+          <small>${offers.gradeOffer.costText}</small>
+          <button class="button mini heirloom-upgrade-button" type="button" data-heirloom-upgrade="grade" ${offers.gradeOffer.disabled ? 'disabled' : ''}>
+            ${offers.gradeOffer.disabledReason || '강화'}
+          </button>
+        </div>
+        <div class="heirloom-action-card">
+          <div>
+            <strong>${offers.enhanceOffer.title}</strong>
+            <span>${offers.enhanceOffer.description}</span>
+            <em>${offers.enhanceOffer.chanceText}</em>
+            <em>${offers.enhanceOffer.effectText} · ${offers.enhanceOffer.nextEffectText}</em>
+          </div>
+          <small>${offers.enhanceOffer.costText}</small>
+          <button class="button mini heirloom-upgrade-button" type="button" data-heirloom-upgrade="enhance" ${offers.enhanceOffer.disabled ? 'disabled' : ''}>
+            ${offers.enhanceOffer.disabledReason || '강화'}
+          </button>
+        </div>
       </div>
     </div>
   `;

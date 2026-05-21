@@ -33,6 +33,42 @@ const SOUL_ENGRAVING_RULES = {
   evasion: { baseCost: 700, costStep: 380, maxLevel: 10 }
 };
 
+
+const HEIRLOOM_GRADE_RULES = [
+  { from: 'common', to: 'advanced', stoneCost: 2, successRate: 0.9, failRate: 0.1, greatFailRate: 0 },
+  { from: 'advanced', to: 'rare', stoneCost: 4, successRate: 0.75, failRate: 0.2, greatFailRate: 0.05 },
+  { from: 'rare', to: 'hero', stoneCost: 7, successRate: 0.6, failRate: 0.3, greatFailRate: 0.1 },
+  { from: 'hero', to: 'legendary', stoneCost: 11, successRate: 0.45, failRate: 0.4, greatFailRate: 0.15 },
+  { from: 'legendary', to: 'mythic', stoneCost: 16, successRate: 0.3, failRate: 0.45, greatFailRate: 0.25 },
+  { from: 'mythic', to: 'awakened', stoneCost: 24, successRate: 0.15, failRate: 0.55, greatFailRate: 0.3 }
+];
+
+const HEIRLOOM_ENHANCEMENT_RULES = [
+  { from: 0, to: 1, stoneCost: 1, successRate: 1 },
+  { from: 1, to: 2, stoneCost: 2, successRate: 1 },
+  { from: 2, to: 3, stoneCost: 3, successRate: 1 },
+  { from: 3, to: 4, stoneCost: 5, successRate: 0.8 },
+  { from: 4, to: 5, stoneCost: 7, successRate: 0.8 },
+  { from: 5, to: 6, stoneCost: 10, successRate: 0.6 },
+  { from: 6, to: 7, stoneCost: 14, successRate: 0.45 },
+  { from: 7, to: 8, stoneCost: 19, successRate: 0.3 },
+  { from: 8, to: 9, stoneCost: 25, successRate: 0.2 },
+  { from: 9, to: 10, stoneCost: 32, successRate: 0.1 }
+];
+
+function getGradeById(gradeId) {
+  return WEAPON_GRADES.find((item) => item.id === gradeId) || WEAPON_GRADES[0];
+}
+
+function getGradeByOrder(order) {
+  const safeOrder = clamp(Math.floor(order || 0), 0, WEAPON_GRADES.length - 1);
+  return WEAPON_GRADES.find((item) => item.order === safeOrder) || WEAPON_GRADES[0];
+}
+
+function formatChancePercent(rate) {
+  return `${Math.round((rate || 0) * 100)}%`;
+}
+
 function getSoulEngravingPrice(itemId, level) {
   const rule = SOUL_ENGRAVING_RULES[itemId];
   if (!rule) return 0;
@@ -62,10 +98,12 @@ export function createPermanentProgress(source = {}) {
   weaponIds.forEach((weaponId) => {
     const current = heirloomSource[weaponId] || {};
     const evolutionOptions = getWeaponEvolutionOptions(weaponId);
+    const grade = getGradeById(current.weaponGrade || 'common');
+    const evolution = evolutionOptions.find((item) => item.id === current.weaponEvolution) || evolutionOptions[0] || null;
     heirloom[weaponId] = {
-      weaponGrade: current.weaponGrade || 'common',
-      weaponEvolution: current.weaponEvolution || evolutionOptions[0]?.id || null,
-      enhancementLevel: Math.max(0, Math.floor(current.enhancementLevel || 0))
+      weaponGrade: grade.id,
+      weaponEvolution: evolution?.id || null,
+      enhancementLevel: clamp(Math.floor(current.enhancementLevel || 0), 0, 10)
     };
   });
 
@@ -95,7 +133,7 @@ export function getHeirloomStateForWeapon(progress = {}, weaponId) {
     enhancementLevel: 0
   };
   const item = normalized.heirloom?.[weaponId] || fallback;
-  const grade = WEAPON_GRADES.find((gradeItem) => gradeItem.id === (item.weaponGrade || 'common')) || WEAPON_GRADES[0];
+  const grade = getGradeById(item.weaponGrade || 'common');
   const evolution = options.find((stage) => stage.id === item.weaponEvolution) || options[0] || null;
   return {
     weaponId,
@@ -138,6 +176,7 @@ export function getPermanentProgressSummary(progress = {}) {
     const options = getWeaponEvolutionOptions(weapon.id);
     const evolution = options.find((stage) => stage.id === item.weaponEvolution) || options[0];
     const stageIndex = Math.max(0, options.findIndex((stage) => stage.id === evolution?.id));
+    const enhancementLevel = clamp(Math.floor(item.enhancementLevel || 0), 0, 10);
     return {
       weaponId: weapon.id,
       weaponName: weapon.name,
@@ -147,7 +186,8 @@ export function getPermanentProgressSummary(progress = {}) {
       stageNumber: evolution ? stageIndex + 1 : 0,
       gradeId: grade.id,
       stageId: evolution?.id || null,
-      enhancementLevel: Math.max(0, Math.floor(item.enhancementLevel || 0))
+      enhancementLevel,
+      enhancementEffectText: `공격력 +${enhancementLevel * 2}% / 자세 피해 +${enhancementLevel}%`
     };
   });
 
@@ -192,6 +232,131 @@ export function purchaseSoulEngraving(progress = {}, resources = {}, itemId) {
     currentLevel: updated.level
   };
 }
+
+export function getHeirloomUpgradeOffers(progress = {}, resources = {}, weaponId) {
+  const normalized = createPermanentProgress(progress);
+  const weapon = WEAPONS[weaponId] || Object.values(WEAPONS)[0];
+  const item = normalized.heirloom[weapon.id];
+  const grade = getGradeById(item.weaponGrade || 'common');
+  const nextGrade = WEAPON_GRADES.find((gradeItem) => gradeItem.order === grade.order + 1) || null;
+  const gradeRule = HEIRLOOM_GRADE_RULES.find((rule) => rule.from === grade.id) || null;
+  const enhancementLevel = clamp(Math.floor(item.enhancementLevel || 0), 0, 10);
+  const enhanceRule = HEIRLOOM_ENHANCEMENT_RULES.find((rule) => rule.from === enhancementLevel) || null;
+  const stones = Math.max(0, Math.floor(resources.enhancementStone || 0));
+
+  const gradeOffer = {
+    id: 'grade',
+    title: '무기 등급 강화',
+    description: nextGrade
+      ? `${grade.name} → ${nextGrade.name}`
+      : '이미 최고 등급입니다.',
+    costText: gradeRule ? `강화석 ${gradeRule.stoneCost}` : '완료',
+    stoneCost: gradeRule?.stoneCost || 0,
+    successRate: gradeRule?.successRate || 0,
+    failRate: gradeRule?.failRate || 0,
+    greatFailRate: gradeRule?.greatFailRate || 0,
+    chanceText: gradeRule
+      ? `성공 ${formatChancePercent(gradeRule.successRate)} / 실패 ${formatChancePercent(gradeRule.failRate)} / 대실패 ${formatChancePercent(gradeRule.greatFailRate)}`
+      : '최대 등급',
+    disabled: !gradeRule || !nextGrade || stones < (gradeRule?.stoneCost || 0),
+    disabledReason: !gradeRule || !nextGrade ? '최대 등급' : (stones < gradeRule.stoneCost ? '강화석 부족' : '')
+  };
+
+  const enhanceOffer = {
+    id: 'enhance',
+    title: '무기 강화',
+    description: enhanceRule
+      ? `+${enhancementLevel} → +${enhanceRule.to}`
+      : '이미 최고 강화입니다.',
+    costText: enhanceRule ? `강화석 ${enhanceRule.stoneCost}` : '완료',
+    stoneCost: enhanceRule?.stoneCost || 0,
+    successRate: enhanceRule?.successRate || 0,
+    chanceText: enhanceRule ? `성공 ${formatChancePercent(enhanceRule.successRate)} / 실패 ${formatChancePercent(1 - enhanceRule.successRate)}` : '최대 강화',
+    effectText: `현재 효과: 공격력 +${enhancementLevel * 2}% / 자세 피해 +${enhancementLevel}%`,
+    nextEffectText: enhanceRule ? `다음 효과: 공격력 +${enhanceRule.to * 2}% / 자세 피해 +${enhanceRule.to}%` : '최대 효과',
+    disabled: !enhanceRule || stones < (enhanceRule?.stoneCost || 0),
+    disabledReason: !enhanceRule ? '최대 강화' : (stones < enhanceRule.stoneCost ? '강화석 부족' : '')
+  };
+
+  return { weaponId: weapon.id, weaponName: weapon.name, gradeOffer, enhanceOffer };
+}
+
+export function purchaseHeirloomUpgrade(progress = {}, resources = {}, weaponId, upgradeType) {
+  const normalized = createPermanentProgress(progress);
+  const weapon = WEAPONS[weaponId] || Object.values(WEAPONS)[0];
+  const offers = getHeirloomUpgradeOffers(normalized, resources, weapon.id);
+  const offer = upgradeType === 'grade' ? offers.gradeOffer : offers.enhanceOffer;
+  if (!offer) return { ok: false, message: '알 수 없는 가보 강화입니다.', progress: normalized, resources };
+  if (offer.disabled) return { ok: false, message: offer.disabledReason || '강화할 수 없습니다.', progress: normalized, resources };
+
+  const nextResources = {
+    gold: Math.max(0, Math.floor(resources.gold || 0)),
+    enhancementStone: Math.max(0, Math.floor((resources.enhancementStone || 0) - offer.stoneCost)),
+    bossSoul: Math.max(0, Math.floor(resources.bossSoul || 0))
+  };
+  const item = normalized.heirloom[weapon.id];
+  const roll = Math.random();
+  let resultType = 'fail';
+  let message = '';
+
+  if (upgradeType === 'grade') {
+    const currentGrade = getGradeById(item.weaponGrade || 'common');
+    const rule = HEIRLOOM_GRADE_RULES.find((gradeRule) => gradeRule.from === currentGrade.id);
+    if (!rule) return { ok: false, message: '이미 최고 등급입니다.', progress: normalized, resources };
+
+    if (roll < rule.successRate) {
+      const nextGrade = getGradeById(rule.to);
+      item.weaponGrade = nextGrade.id;
+      resultType = 'success';
+      message = `가보 등급 강화 성공: ${weapon.name} ${currentGrade.name} → ${nextGrade.name}`;
+    } else if (roll < rule.successRate + rule.failRate) {
+      resultType = 'fail';
+      message = `가보 등급 강화 실패: ${weapon.name} ${currentGrade.name} 유지`;
+    } else {
+      const downGrade = getGradeByOrder(Math.max(0, currentGrade.order - 1));
+      item.weaponGrade = downGrade.id;
+      resultType = 'greatFail';
+      message = downGrade.id === currentGrade.id
+        ? `가보 등급 강화 대실패: ${weapon.name} ${currentGrade.name} 유지`
+        : `가보 등급 강화 대실패: ${weapon.name} ${currentGrade.name} → ${downGrade.name}`;
+    }
+  }
+
+  if (upgradeType === 'enhance') {
+    const currentLevel = clamp(Math.floor(item.enhancementLevel || 0), 0, 10);
+    const rule = HEIRLOOM_ENHANCEMENT_RULES.find((enhanceRule) => enhanceRule.from === currentLevel);
+    if (!rule) return { ok: false, message: '이미 최고 강화입니다.', progress: normalized, resources };
+
+    if (roll < rule.successRate) {
+      item.enhancementLevel = rule.to;
+      resultType = 'success';
+      message = `가보 무기 강화 성공: ${weapon.name} +${currentLevel} → +${rule.to}`;
+    } else {
+      item.enhancementLevel = currentLevel;
+      resultType = 'fail';
+      message = `가보 무기 강화 실패: ${weapon.name} +${currentLevel} 유지`;
+    }
+  }
+
+  return {
+    ok: true,
+    message,
+    resultType,
+    upgradeType,
+    weaponId: weapon.id,
+    progress: normalized,
+    resources: nextResources
+  };
+}
+
+function getWeaponEnhancementEffects(unit) {
+  const level = clamp(Math.floor(unit?.weaponEnhancement || 0), 0, 10);
+  return {
+    attackBonus: level * 0.02,
+    postureDamageBonus: level * 0.01
+  };
+}
+
 
 export function applyPermanentProgressToPlayer(player, progress = {}) {
   if (!player) return player;
@@ -879,6 +1044,7 @@ export function derivePlayerProfile(player) {
   const rewardEffects = collectRewardEffects(player.rewardTraits);
   const gradeEffects = getWeaponGradeEffects(player);
   const stageEffects = getWeaponStageEffects(player);
+  const enhancementEffects = getWeaponEnhancementEffects(player);
   const personalityBoostEffects = getPersonalityBoostEffects(player);
   const permanentEffects = getSoulEngravingEffects(player.permanentProgress);
   const stats = player.stats;
@@ -909,7 +1075,8 @@ export function derivePlayerProfile(player) {
     (personalityBoostEffects.attackBonus || 0) +
     (permanentEffects.attackBonus || 0) +
     (gradeEffects.attackBonus || 0) +
-    (stageEffects.attackBonus || 0);
+    (stageEffects.attackBonus || 0) +
+    (enhancementEffects.attackBonus || 0);
 
   const defense = clamp(
     0.035 +
@@ -968,7 +1135,7 @@ export function derivePlayerProfile(player) {
     critDamage,
     lowHpAttackBonus: skillEffects.lowHpAttackBonus || 0,
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0,
-    stagePostureDamageBonus: stageEffects.postureDamageBonus || 0,
+    stagePostureDamageBonus: (stageEffects.postureDamageBonus || 0) + (enhancementEffects.postureDamageBonus || 0),
     stageReachBonus: stageEffects.reachBonus || 0,
     easternFlowBonus: stageEffects.easternFlowBonus || 0,
     stageFlankDamageBonus: stageEffects.flankDamageBonus || 0,
@@ -1299,7 +1466,7 @@ function deriveEnemyProfile(enemy, floor) {
     critDamage: 1.5 + stats.luck * 0.004 + (skillEffects.critDamageBonus || 0),
     lowHpAttackBonus: skillEffects.lowHpAttackBonus || 0,
     lowHpDefenseBonus: skillEffects.lowHpDefenseBonus || 0,
-    stagePostureDamageBonus: stageEffects.postureDamageBonus || 0,
+    stagePostureDamageBonus: (stageEffects.postureDamageBonus || 0) + (enhancementEffects.postureDamageBonus || 0),
     stageReachBonus: stageEffects.reachBonus || 0,
     easternFlowBonus: stageEffects.easternFlowBonus || 0,
     stageFlankDamageBonus: stageEffects.flankDamageBonus || 0

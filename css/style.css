@@ -1337,3 +1337,44 @@ input[type="url"] {
     grid-template-columns: minmax(0, 1fr) 48px 66px 70px;
   }
 }
+
+/* v0.7.40 heirloom upgrade actions */
+.heirloom-action-list {
+  display: grid;
+  gap: 8px;
+}
+
+.heirloom-action-card {
+  display: grid;
+  grid-template-columns: 1fr max-content max-content;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 9px;
+}
+
+.heirloom-action-card div {
+  display: grid;
+  gap: 3px;
+}
+
+.heirloom-action-card span,
+.heirloom-action-card em {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.heirloom-action-card small {
+  color: var(--gold);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .heirloom-action-card {
+    grid-template-columns: 1fr;
+  }
+}
