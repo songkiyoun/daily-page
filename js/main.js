@@ -95,6 +95,10 @@ const controls = {
   farmContentBtn: document.getElementById('farmContentBtn'),
   backToContentBtn: document.getElementById('backToContentBtn'),
   farmBackToContentBtn: document.getElementById('farmBackToContentBtn'),
+  farmResourceBox: document.getElementById('farmResourceBox'),
+  farmSlotGrid: document.getElementById('farmSlotGrid'),
+  farmSeedBox: document.getElementById('farmSeedBox'),
+  farmGuideBox: document.getElementById('farmGuideBox'),
   createAccountBtn: document.getElementById('createAccountBtn'),
   loginBtn: document.getElementById('loginBtn'),
   tempLoadBtn: document.getElementById('tempLoadBtn'),
@@ -104,6 +108,17 @@ const controls = {
 const SAVE_SCHEMA_VERSION = 1;
 const LOCAL_TEMP_SAVE_KEY = 'circleBattleTowerRebuild.tempSave.v1';
 const CLOUD_SAVE_API_URL = 'https://script.google.com/macros/s/AKfycbyWV1AKwISvdbzBC8-mP4ze-GAy_z5YIZoxpoi__YXCFsKQULafCs7E4M-urFR1P5Ym8g/exec';
+
+const FARM_SLOT_COUNT = 6;
+const FARM_SEED_DEFS = {
+  aSeed: {
+    id: 'aSeed',
+    name: 'A씨앗',
+    growthDays: 7,
+    waterIntervalDays: 2,
+    rewardHint: '수확 보상은 추후 연결'
+  }
+};
 
 let account = {
   loggedIn: false,
@@ -117,6 +132,7 @@ let account = {
 let accountProfile = {
   imageUrl: ''
 };
+let accountFarm = createDefaultFarmData();
 
 let state = null;
 let run = null;
@@ -135,7 +151,8 @@ let panelKeys = {
   inventory: '',
   combatSummary: '',
   prepGrowth: '',
-  profileImage: ''
+  profileImage: '',
+  farm: ''
 };
 
 init();
@@ -531,6 +548,140 @@ function handleAdminResourceAdd() {
   saveTemporarySnapshot('adminResourceAdd');
   autoSaveSafePoint('관리자 재화 추가');
   showAccountMessage('관리자 재화 추가: 골드 +100,000 / 강화석 +100 / 보스의 영혼 +100', 'good');
+}
+
+
+function createDefaultFarmSlot(index) {
+  return {
+    id: `slot${index + 1}`,
+    index,
+    state: 'empty',
+    seedId: null,
+    plantedAt: null,
+    lastWateredAt: null,
+    wateredAt: [],
+    harvestable: false,
+    note: '빈 슬롯'
+  };
+}
+
+function createDefaultFarmData() {
+  return {
+    schemaVersion: 1,
+    updatedAt: new Date().toISOString(),
+    slots: Array.from({ length: FARM_SLOT_COUNT }, (_, index) => createDefaultFarmSlot(index)),
+    inventory: {
+      seeds: { aSeed: 0 }
+    }
+  };
+}
+
+function normalizeFarmSlot(slot = {}, index = 0) {
+  const base = createDefaultFarmSlot(index);
+  const seedId = slot.seedId && FARM_SEED_DEFS[slot.seedId] ? slot.seedId : null;
+  const state = seedId ? (slot.state || 'growing') : 'empty';
+  return {
+    ...base,
+    ...slot,
+    id: slot.id || base.id,
+    index,
+    state,
+    seedId,
+    plantedAt: seedId ? (slot.plantedAt || null) : null,
+    lastWateredAt: seedId ? (slot.lastWateredAt || null) : null,
+    wateredAt: Array.isArray(slot.wateredAt) ? slot.wateredAt.filter(Boolean) : [],
+    harvestable: !!slot.harvestable,
+    note: slot.note || base.note
+  };
+}
+
+function normalizeFarmData(data = {}) {
+  const defaults = createDefaultFarmData();
+  const slots = Array.from({ length: FARM_SLOT_COUNT }, (_, index) => normalizeFarmSlot(data.slots?.[index], index));
+  const seeds = { ...defaults.inventory.seeds, ...(data.inventory?.seeds || data.seeds || {}) };
+  Object.keys(seeds).forEach((key) => {
+    seeds[key] = Math.max(0, Math.floor(Number(seeds[key]) || 0));
+  });
+  return {
+    schemaVersion: 1,
+    updatedAt: data.updatedAt || defaults.updatedAt,
+    slots,
+    inventory: { seeds }
+  };
+}
+
+function getFarmSlotView(slot, now = Date.now()) {
+  if (!slot.seedId) {
+    return {
+      title: `슬롯 ${slot.index + 1}`,
+      status: '빈 슬롯',
+      progress: 0,
+      detail: '추후 씨앗을 심을 수 있습니다.',
+      water: '대기 중'
+    };
+  }
+  const seed = FARM_SEED_DEFS[slot.seedId] || { name: slot.seedId, growthDays: 0, waterIntervalDays: 0 };
+  const plantedAt = Date.parse(slot.plantedAt || '');
+  const elapsedMs = Number.isFinite(plantedAt) ? Math.max(0, now - plantedAt) : 0;
+  const growthMs = Math.max(1, seed.growthDays * 24 * 60 * 60 * 1000);
+  const progress = Math.min(100, Math.floor((elapsedMs / growthMs) * 100));
+  const lastWaterMs = Date.parse(slot.lastWateredAt || slot.plantedAt || '');
+  const waterDueMs = Math.max(1, seed.waterIntervalDays * 24 * 60 * 60 * 1000);
+  const needsWater = Number.isFinite(lastWaterMs) && now - lastWaterMs >= waterDueMs;
+  const ready = progress >= 100 && !needsWater;
+  return {
+    title: `슬롯 ${slot.index + 1}`,
+    status: ready ? '수확 가능' : needsWater ? '물 필요' : '성장 중',
+    progress,
+    detail: `${seed.name} · 성장 ${seed.growthDays}일 · ${seed.waterIntervalDays}일마다 물 주기`,
+    water: needsWater ? '물 주기 필요' : '물 상태 정상'
+  };
+}
+
+function renderFarmPanel(force = false) {
+  if (!controls.farmSlotGrid || !controls.farmSeedBox || !controls.farmResourceBox || !controls.farmGuideBox) return;
+  accountFarm = normalizeFarmData(accountFarm);
+  const resources = getCurrentPersistentResources();
+  const key = JSON.stringify({ farm: accountFarm, resources });
+  if (!force && panelKeys.farm === key) return;
+  panelKeys.farm = key;
+
+  controls.farmResourceBox.innerHTML = `
+    <span>골드 <strong>${resources.gold}G</strong></span>
+    <span>강화석 <strong>${resources.enhancementStone}</strong></span>
+    <span>보스의 영혼 <strong>${resources.bossSoul}</strong></span>
+  `;
+
+  controls.farmSlotGrid.innerHTML = accountFarm.slots.map((slot) => {
+    const view = getFarmSlotView(slot);
+    return `
+      <div class="farm-slot-card ${slot.seedId ? 'is-planted' : 'is-empty'}">
+        <div class="farm-slot-top">
+          <strong>${view.title}</strong>
+          <span>${view.status}</span>
+        </div>
+        <div class="farm-progress"><i style="width:${view.progress}%"></i></div>
+        <p>${view.detail}</p>
+        <em>${view.water}</em>
+      </div>
+    `;
+  }).join('');
+
+  const seedEntries = Object.entries(accountFarm.inventory.seeds || {});
+  controls.farmSeedBox.innerHTML = seedEntries.length
+    ? seedEntries.map(([seedId, count]) => `
+      <div class="farm-seed-row">
+        <span>${FARM_SEED_DEFS[seedId]?.name || seedId}</span>
+        <strong>${count}개</strong>
+      </div>
+    `).join('')
+    : '<p class="hint-text">보유한 씨앗이 없습니다.</p>';
+
+  controls.farmGuideBox.innerHTML = `
+    <strong>마이 농장 저장 기준</strong>
+    <span>작물 슬롯, 씨앗, 심은 시간, 마지막 물 준 시간, 수확 가능 여부가 계정 저장 데이터에 포함됩니다.</span>
+    <span>다음 단계에서 씨앗 심기, 물 주기, 수확 기능을 연결합니다.</span>
+  `;
 }
 
 
@@ -1447,6 +1598,7 @@ function createEmptySavePayload(reason = 'empty') {
     reason,
     resources: getCurrentPersistentResources(),
     permanentProgress: clonePermanentProgress(permanentProgress),
+    farmData: normalizeFarmData(accountFarm),
     stats: { bestFloor: TOWER_RULES.startFloor, totalVictories: 0, bossClears: 0 },
     session: null
   };
@@ -1456,6 +1608,7 @@ function buildSavePayload({ includeSession = false, reason = 'save' } = {}) {
   const payload = createEmptySavePayload(reason);
   payload.resources = getCurrentPersistentResources();
   payload.permanentProgress = clonePermanentProgress(permanentProgress);
+  payload.farmData = normalizeFarmData(accountFarm);
   payload.stats = {
     bestFloor: Math.max(TOWER_RULES.startFloor, run?.bestFloor || TOWER_RULES.startFloor),
     totalVictories: run?.victories || 0,
@@ -1506,6 +1659,7 @@ function applySavePayload(payload = {}, { restoreSession = false, showDefaultScr
   bankGold = bankInventory.gold;
   permanentProgress = clonePermanentProgress(payload.permanentProgress || {});
   accountProfile = normalizeAccountProfile(payload.profile || payload.accountProfile || {});
+  accountFarm = normalizeFarmData(payload.farmData || payload.farm || {});
   if (controls.profileImageUrl) controls.profileImageUrl.value = accountProfile.imageUrl || '';
   activePrepTab = payload.session?.activePrepTab || 'shop';
   activeHeirloomWeapon = payload.session?.activeHeirloomWeapon || activeHeirloomWeapon;
@@ -1579,6 +1733,7 @@ function renderAllPanels(force = false) {
   renderInventory(force);
   renderShopStatus(force);
   renderProfileImagePanel(force);
+  renderFarmPanel(force);
   renderRewardBox(force);
   renderPrepGrowthContent(force);
   renderControlState(force);
@@ -2252,6 +2407,7 @@ function showFarmScreen() {
   hideAllMainScreens();
   controls.farmScreen?.classList.remove('hidden');
   hideOverlay();
+  renderFarmPanel(true);
   saveTemporarySnapshot('farmOpen');
 }
 

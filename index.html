@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.43-profile-image-custom" />
-  <title>Circle Battle Tower Rebuild v0.7.43</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.43" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.44-farm-foundation" />
+  <title>Circle Battle Tower Rebuild v0.7.44</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.44" />
 </head>
 <body>
   <main class="app">
@@ -13,13 +13,13 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">admin/player 계정 권한과 콘텐츠 선택 화면을 추가한 v0.7.43 캐릭터 이미지 커스텀 업데이트입니다.</p>
+        <p class="subtext">admin/player 계정 권한과 콘텐츠 선택 화면을 추가한 v0.7.44 마이 농장 기초 구조 업데이트입니다.</p>
       </div>
       <div class="topbar-actions">
         <button id="adminResourceBtn" class="button mini admin-only hidden">재화 추가</button>
         <button id="simToggleBtn" class="button mini">시뮬레이터</button>
         <div id="accountBadge" class="version account-badge">로그인 전</div>
-        <div id="versionBadge" class="version">v0.7.43</div>
+        <div id="versionBadge" class="version">v0.7.44</div>
       </div>
     </header>
 
@@ -176,20 +176,24 @@
       <section class="card farm-card">
         <p class="eyebrow">MY FARM</p>
         <h2>마이 농장</h2>
-        <p class="hint-text">실시간 작물 성장, 물 주기, 수확 기능은 추후 업데이트에서 추가됩니다.</p>
-        <div class="farm-placeholder-grid">
-          <div>
-            <strong>농장 슬롯</strong>
-            <span>작물을 심을 공간이 표시될 예정입니다.</span>
-          </div>
-          <div>
-            <strong>작물 성장</strong>
-            <span>심은 시간과 물 주기 기록을 기준으로 성장 상태를 계산할 예정입니다.</span>
-          </div>
-          <div>
-            <strong>수확 보상</strong>
-            <span>골드, 강화석, 보조 재료와 연결될 예정입니다.</span>
-          </div>
+        <p class="hint-text">실시간 작물 성장, 물 주기, 수확 기능을 넣기 위한 농장 저장 구조입니다. 아직 심기와 수확은 잠금 상태입니다.</p>
+        <div class="farm-resource-strip" id="farmResourceBox"></div>
+        <div class="farm-layout">
+          <section class="farm-slots-card">
+            <div class="farm-section-head">
+              <strong>농장 슬롯</strong>
+              <span>저장 데이터 기준으로 작물 상태가 표시됩니다.</span>
+            </div>
+            <div id="farmSlotGrid" class="farm-slot-grid"></div>
+          </section>
+          <section class="farm-side-card">
+            <div class="farm-section-head">
+              <strong>씨앗 보관함</strong>
+              <span>추후 획득한 씨앗이 이곳에 표시됩니다.</span>
+            </div>
+            <div id="farmSeedBox" class="farm-seed-box"></div>
+            <div class="farm-guide-box" id="farmGuideBox"></div>
+          </section>
         </div>
         <button id="farmBackToContentBtn" class="button">콘텐츠 선택으로 돌아가기</button>
       </section>
@@ -236,6 +240,6 @@
     </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.43"></script>
+  <script type="module" src="./js/main.js?v=0.7.44"></script>
 </body>
 </html>

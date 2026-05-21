@@ -1508,3 +1508,162 @@ input[type="url"] {
     grid-column: 1;
   }
 }
+
+/* v0.7.44 farm foundation */
+.farm-resource-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.farm-resource-strip span {
+  border: 1px solid rgba(168, 136, 255, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px 11px;
+  color: var(--muted);
+}
+
+.farm-resource-strip strong {
+  color: var(--gold);
+  margin-left: 5px;
+}
+
+.farm-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: 14px;
+  margin: 14px 0 18px;
+}
+
+.farm-slots-card,
+.farm-side-card {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 14px;
+}
+
+.farm-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.farm-section-head strong {
+  color: var(--gold);
+}
+
+.farm-section-head span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.farm-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.farm-slot-card {
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+}
+
+.farm-slot-card.is-planted {
+  border-color: rgba(103, 229, 157, 0.34);
+  background: rgba(103, 229, 157, 0.065);
+}
+
+.farm-slot-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.farm-slot-top strong {
+  color: var(--text);
+}
+
+.farm-slot-top span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.farm-slot-card p,
+.farm-slot-card em,
+.farm-guide-box span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.42;
+  font-style: normal;
+}
+
+.farm-progress {
+  height: 7px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.farm-progress i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, rgba(103, 229, 157, 0.65), rgba(255, 212, 90, 0.8));
+}
+
+.farm-seed-box {
+  display: grid;
+  gap: 8px;
+}
+
+.farm-seed-row {
+  display: flex;
+  justify-content: space-between;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 9px 10px;
+}
+
+.farm-seed-row span {
+  color: var(--muted);
+}
+
+.farm-seed-row strong {
+  color: var(--text);
+}
+
+.farm-guide-box {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 12px;
+}
+
+.farm-guide-box strong {
+  color: var(--gold);
+}
+
+@media (max-width: 980px) {
+  .farm-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .farm-slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .farm-slot-grid {
+    grid-template-columns: 1fr;
+  }
+}

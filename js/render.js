@@ -264,13 +264,19 @@ function drawUnitBody(ctx, unit, weapon) {
 }
 
 function drawDefaultUnitFill(ctx, unit, weapon) {
+  if (unit.side !== 'player') {
+    ctx.fillStyle = '#c83e51';
+    ctx.fill();
+    return;
+  }
+
   const gradient = ctx.createRadialGradient(-6, -7, 2, 0, 0, unit.radius);
-  gradient.addColorStop(0, unit.side === 'player' ? '#a8ffd1' : '#ffb1bb');
-  gradient.addColorStop(1, unit.side === 'player' ? '#42b874' : '#c83e51');
+  gradient.addColorStop(0, '#a8ffd1');
+  gradient.addColorStop(1, '#42b874');
   ctx.fillStyle = gradient;
   ctx.fill();
 
-  if (unit.side === 'player' && unit.profileImageUrl) {
+  if (unit.profileImageUrl) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
     ctx.fill();
   }
