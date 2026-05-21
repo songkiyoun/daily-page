@@ -106,6 +106,7 @@ let bankGold = null;
 let bankInventory = { gold: null, enhancementStone: 0, bossSoul: 0 };
 let permanentProgress = createPermanentProgress();
 let activePrepTab = 'shop';
+let activeHeirloomWeapon = 'western';
 let lastSimulationText = '아직 복사할 시뮬레이션 결과가 없습니다.';
 let panelKeys = {
   player: '',
@@ -230,6 +231,7 @@ function handleMainButton() {
 
 function handleConfigChange() {
   if (!canEditCharacterSetup()) return;
+  activeHeirloomWeapon = controls.playerWeapon.value || activeHeirloomWeapon;
   clearPanelKeys();
   renderAllPanels(true);
 }
@@ -362,6 +364,14 @@ function handleRewardClick(event) {
 }
 
 function handleShopClick(event) {
+  const heirloomTab = event.target.closest('.heirloom-weapon-tab');
+  if (heirloomTab && activePrepTab === 'heirloom') {
+    activeHeirloomWeapon = heirloomTab.dataset.heirloomWeapon || activeHeirloomWeapon;
+    panelKeys.prepGrowth = '';
+    renderPrepGrowthContent(true);
+    return;
+  }
+
   const shopButton = event.target.closest('.shop-button');
   if (shopButton && run && state && activePrepTab === 'shop') {
     const result = purchasePreTowerShopItem(run, shopButton.dataset.shopItem);
@@ -1261,6 +1271,7 @@ function buildSavePayload({ includeSession = false, reason = 'save' } = {}) {
     payload.session = {
       screen: getCurrentScreenName(),
       activePrepTab,
+      activeHeirloomWeapon,
       run: run ? JSON.parse(JSON.stringify(run)) : null,
       stateStatus: state ? {
         running: !!state.running,
@@ -1299,6 +1310,7 @@ function applySavePayload(payload = {}, { restoreSession = false } = {}) {
   bankGold = bankInventory.gold;
   permanentProgress = clonePermanentProgress(payload.permanentProgress || {});
   activePrepTab = payload.session?.activePrepTab || 'shop';
+  activeHeirloomWeapon = payload.session?.activeHeirloomWeapon || activeHeirloomWeapon;
 
   if (restoreSession && payload.session?.run) {
     run = payload.session.run;
@@ -1570,6 +1582,7 @@ function renderInventory(force = false) {
     inventory.weaponName,
     inventory.weaponGrade,
     inventory.weaponStage,
+    inventory.weaponEnhancement,
     inventory.mastery,
     inventory.gold,
     inventory.enhancementStone,
@@ -1582,7 +1595,7 @@ function renderInventory(force = false) {
     <div class="weapon-slot">
       <div class="weapon-icon">${getWeaponIcon(inventory.weaponId)}</div>
       <div class="weapon-info">
-        <strong>${inventory.weaponName}</strong>
+        <strong>${inventory.weaponName} +${inventory.weaponEnhancement}</strong>
         <span>${inventory.weaponStage}</span>
         <em>${inventory.weaponGrade} · 숙련도 ${inventory.mastery}</em>
       </div>
@@ -1729,25 +1742,45 @@ function renderSoulEngravingBox(force = false, message = '') {
 
 function renderHeirloomBox(force = false) {
   const summary = getPermanentProgressSummary(permanentProgress);
-  const key = ['heirloom', summary.heirloomItems.map((item) => `${item.weaponId}:${item.gradeName}:${item.stageText}:${item.enhancementLevel}`).join('|')].join('|');
+  const selected = summary.heirloomItems.find((item) => item.weaponId === activeHeirloomWeapon) || summary.heirloomItems[0];
+  if (!selected) return;
+  activeHeirloomWeapon = selected.weaponId;
+
+  const key = [
+    'heirloom-base',
+    activeHeirloomWeapon,
+    summary.heirloomItems.map((item) => `${item.weaponId}:${item.gradeName}:${item.stageText}:${item.enhancementLevel}`).join('|')
+  ].join('|');
   if (!force && panelKeys.prepGrowth === key) return;
   panelKeys.prepGrowth = key;
+
   controls.overlayShopBox.classList.remove('hidden');
   controls.overlayShopBox.innerHTML = `
-    <div class="permanent-panel">
-      <div class="permanent-head">
+    <div class="permanent-panel heirloom-panel">
+      <div class="permanent-head compact">
         <strong>가보</strong>
-        <span>무기 등급·진화·강화가 영구 저장될 자리입니다. 실제 강화는 다음 가보 업데이트에서 연결됩니다.</span>
+        <span>무기별 영구 상태입니다. 새 캐릭터 생성 시 선택한 무기의 가보 등급·단계·강화 수치가 기본값으로 반영됩니다.</span>
       </div>
-      <div class="heirloom-grid">
+      <div class="heirloom-tabs">
         ${summary.heirloomItems.map((item) => `
-          <div class="heirloom-card">
-            <div class="weapon-icon small">${getWeaponIcon(item.weaponId)}</div>
+          <button class="heirloom-weapon-tab ${item.weaponId === activeHeirloomWeapon ? 'active' : ''}" type="button" data-heirloom-weapon="${item.weaponId}">
+            <span>${getWeaponIcon(item.weaponId)}</span>
             <strong>${item.weaponName}</strong>
-            <span>${item.gradeName} · ${item.stageText}</span>
-            <em>강화 +${item.enhancementLevel}</em>
-          </div>
+          </button>
         `).join('')}
+      </div>
+      <div class="heirloom-detail-card">
+        <div class="weapon-icon">${getWeaponIcon(selected.weaponId)}</div>
+        <div class="heirloom-detail-main">
+          <strong>${selected.weaponName}</strong>
+          <span>${selected.gradeName} · ${selected.stageText} · +${selected.enhancementLevel}</span>
+          <em>현재는 상태 저장/반영 단계입니다. 강화·진화 실행은 다음 가보 업데이트에서 연결됩니다.</em>
+        </div>
+      </div>
+      <div class="heirloom-stat-grid">
+        <div><span>영구 등급</span><strong>${selected.gradeName}</strong></div>
+        <div><span>영구 단계</span><strong>${selected.stageText}</strong></div>
+        <div><span>영구 강화</span><strong>+${selected.enhancementLevel}</strong></div>
       </div>
     </div>
   `;
@@ -1910,7 +1943,7 @@ function buildChallengeEndDetails() {
     </div>
     <div class="challenge-weapon-summary">
       <span>${getWeaponIcon(inventory.weaponId)}</span>
-      <strong>${inventory.weaponName}</strong>
+      <strong>${inventory.weaponName} +${inventory.weaponEnhancement}</strong>
       <em>${inventory.weaponGrade} · ${inventory.weaponStage}</em>
     </div>
     <p class="challenge-reset-note">골드, 강화석, 보스의 영혼은 유지됩니다. 도전 중 성장 효과는 초기화되며, 영혼의 각인과 가보는 영구적으로 유지됩니다.</p>

@@ -1149,6 +1149,86 @@ input[type="number"] {
   font-size: 1rem;
 }
 
+.heirloom-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.heirloom-weapon-tab {
+  display: grid;
+  gap: 3px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  padding: 8px 5px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.heirloom-weapon-tab span {
+  font-size: 1.05rem;
+}
+
+.heirloom-weapon-tab.active {
+  border-color: rgba(255, 212, 90, 0.58);
+  background: rgba(255, 212, 90, 0.12);
+  color: var(--gold);
+}
+
+.heirloom-detail-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 212, 90, 0.18);
+  background: rgba(255, 212, 90, 0.055);
+  padding: 10px;
+}
+
+.heirloom-detail-main {
+  display: grid;
+  gap: 3px;
+}
+
+.heirloom-detail-main span {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.heirloom-detail-main em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.heirloom-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.heirloom-stat-grid div {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 8px;
+  display: grid;
+  gap: 3px;
+}
+
+.heirloom-stat-grid span {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.heirloom-stat-grid strong {
+  color: var(--gold);
+  font-size: 0.84rem;
+}
+
 .challenge-reset-note {
   margin: 10px 0 0;
   border: 1px solid rgba(255, 212, 90, 0.22);

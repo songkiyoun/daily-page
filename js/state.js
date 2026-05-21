@@ -86,6 +86,28 @@ export function clonePermanentProgress(progress) {
   return createPermanentProgress(progress || {});
 }
 
+export function getHeirloomStateForWeapon(progress = {}, weaponId) {
+  const normalized = createPermanentProgress(progress);
+  const options = getWeaponEvolutionOptions(weaponId);
+  const fallback = {
+    weaponGrade: 'common',
+    weaponEvolution: options[0]?.id || null,
+    enhancementLevel: 0
+  };
+  const item = normalized.heirloom?.[weaponId] || fallback;
+  const grade = WEAPON_GRADES.find((gradeItem) => gradeItem.id === (item.weaponGrade || 'common')) || WEAPON_GRADES[0];
+  const evolution = options.find((stage) => stage.id === item.weaponEvolution) || options[0] || null;
+  return {
+    weaponId,
+    weaponGrade: grade.id,
+    weaponEvolution: evolution?.id || null,
+    enhancementLevel: Math.max(0, Math.floor(item.enhancementLevel || 0)),
+    gradeName: grade.name,
+    evolutionName: evolution?.name || '-',
+    stageNumber: evolution ? Math.max(1, options.findIndex((stage) => stage.id === evolution.id) + 1) : 0
+  };
+}
+
 export function getPermanentResetRules() {
   return {
     kept: ['골드', '강화석', '보스의 영혼', '영혼의 각인', '가보'],
@@ -121,6 +143,10 @@ export function getPermanentProgressSummary(progress = {}) {
       weaponName: weapon.name,
       gradeName: grade.name,
       stageText: evolution ? `${stageIndex + 1}단계 : ${evolution.name}` : '단계 없음',
+      stageName: evolution?.name || '-',
+      stageNumber: evolution ? stageIndex + 1 : 0,
+      gradeId: grade.id,
+      stageId: evolution?.id || null,
       enhancementLevel: Math.max(0, Math.floor(item.enhancementLevel || 0))
     };
   });
@@ -228,6 +254,7 @@ export function getPlayerInventory(player) {
     weaponGrade: growth?.grade?.name || '-',
     weaponStage: growth?.currentStageText || '-',
     weaponStageName: growth?.currentStage?.name || '-',
+    weaponEnhancement: Math.max(0, Math.floor(player?.weaponEnhancement || 0)),
     mastery: player?.mastery || 0
   };
 }
@@ -656,6 +683,7 @@ export function lockPreTowerShop(run) {
 export function createRun(config) {
   const permanentProgress = clonePermanentProgress(config.permanentProgress);
   const permanentEffects = getSoulEngravingEffects(permanentProgress);
+  const heirloomState = getHeirloomStateForWeapon(permanentProgress, config.playerWeapon);
   return {
     active: true,
     floor: TOWER_RULES.startFloor,
@@ -706,9 +734,10 @@ export function createRun(config) {
         expBonus: 0,
         personalityBoostLevel: 0
       },
-      weaponGrade: 'common',
-      weaponEvolution: null,
+      weaponGrade: heirloomState.weaponGrade,
+      weaponEvolution: heirloomState.weaponEvolution,
       weaponEvolutionOptions: getWeaponEvolutionOptions(config.playerWeapon),
+      weaponEnhancement: heirloomState.enhancementLevel,
       skills: getDefaultSkillIds(config.playerWeapon, config.playerPersonality),
       skillLevels: createInitialSkillLevels(getDefaultSkillIds(config.playerWeapon, config.playerPersonality)),
       externalSkillCount: 0,
