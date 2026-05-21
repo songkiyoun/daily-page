@@ -52,13 +52,35 @@ export function updateBattle(state) {
   checkResult(state);
 }
 
+function getActiveBattleTarget(unit, defaultEnemy, state) {
+  if (!unit || !defaultEnemy || defaultEnemy.isDead) return defaultEnemy;
+  const enemySummons = (state.summons || []).filter((summon) => (
+    summon && summon.isSummonUnit && summon.ownerSide !== unit.side && summon.hp > 0 && summon.life > 0
+  ));
+  if (!enemySummons.length) return defaultEnemy;
+
+  const attackableSummons = enemySummons
+    .map((summon) => ({ summon, dist: distance(unit, summon) }))
+    .filter(({ summon, dist }) => dist <= Math.max(170, (WEAPONS[unit.weaponId]?.range || 52) + unit.radius + summon.radius + 92))
+    .sort((a, b) => a.dist - b.dist);
+
+  if (!attackableSummons.length) return defaultEnemy;
+
+  const nearest = attackableSummons[0].summon;
+  const defaultDist = distance(unit, defaultEnemy);
+  const summonDist = distance(unit, nearest);
+  const summonThreat = (nearest.threatTimer || 0) > 0 || summonDist < defaultDist + 34;
+  return summonThreat ? nearest : defaultEnemy;
+}
+
 function updateUnit(unit, enemy, state) {
   if (unit.isDead) return;
 
+  const activeTarget = getActiveBattleTarget(unit, enemy, state) || enemy;
   const weapon = WEAPONS[unit.weaponId];
   tickTimers(unit);
 
-  if (processActiveSkillSequence(unit, enemy, state)) return;
+  if (processActiveSkillSequence(unit, activeTarget, state)) return;
 
   if (unit.impactStopTimer > 0) {
     applyImpactStopDrift(unit);
@@ -74,26 +96,26 @@ function updateUnit(unit, enemy, state) {
   }
 
   recoverPosture(unit);
-  triggerPostureSkill(unit, enemy, state);
+  triggerPostureSkill(unit, activeTarget, state);
 
-  const movement = decideMovement(unit, enemy, state);
+  const movement = decideMovement(unit, activeTarget, state);
   updateRetreatState(unit, movement);
   unit.lastAction = movement.label;
   unit.facing = moveToward(unit.facing, movement.faceAngle, getTurnSpeed(unit));
 
-  updateOrbitDirection(unit, enemy);
+  updateOrbitDirection(unit, activeTarget);
 
   if (unit.attackState === 'idle') {
-    applyMovement(unit, movement, weapon, enemy);
-    if (tryStartPendingSkillAttack(unit, enemy, state)) return;
-    if (tryCloseRangeReset(unit, enemy, movement)) return;
-    if (unit.cooldownTimer <= 0 && canStartAttack(unit, enemy)) {
-      beginAttack(unit, enemy);
+    applyMovement(unit, movement, weapon, activeTarget);
+    if (tryStartPendingSkillAttack(unit, activeTarget, state)) return;
+    if (tryCloseRangeReset(unit, activeTarget, movement)) return;
+    if (unit.cooldownTimer <= 0 && canStartAttack(unit, activeTarget)) {
+      beginAttack(unit, activeTarget);
     }
     return;
   }
 
-  updateAttackState(unit, enemy, state);
+  updateAttackState(unit, activeTarget, state);
 }
 
 function tickTimers(unit) {
@@ -379,34 +401,77 @@ function updateSummonedClones(state) {
   if (!state.summons?.length) return;
   const player = state.player;
   const enemy = state.enemy;
+  const arena = state.arena || { width: 720, height: 420 };
 
   state.summons = state.summons
     .map((clone) => {
       const owner = clone.ownerSide === 'player' ? player : enemy;
       const target = clone.targetSide === 'player' ? player : enemy;
-      if (!owner || !target || owner.isDead || target.isDead || clone.hp <= 0) {
+      if (!owner || !target || owner.isDead || target.isDead || clone.hp <= 0 || clone.life <= 0) {
         return { ...clone, life: 0 };
       }
 
-      const angle = angleTo(clone, target);
-      const orbit = angle + Math.PI / 2 * (clone.orbitDir || 1);
-      const desiredRadius = target.radius + clone.radius + 24;
-      const desiredX = target.x - Math.cos(angle) * desiredRadius + Math.cos(orbit) * 18;
-      const desiredY = target.y - Math.sin(angle) * desiredRadius + Math.sin(orbit) * 18;
-      const dx = desiredX - clone.x;
-      const dy = desiredY - clone.y;
-      const distToPoint = Math.hypot(dx, dy) || 1;
-      const speed = clone.moveSpeed || 3.2;
-      clone.x += dx / distToPoint * Math.min(speed, distToPoint);
-      clone.y += dy / distToPoint * Math.min(speed, distToPoint);
-      clone.facing = angleTo(clone, target);
       clone.life -= 1;
       clone.attackTimer -= 1;
       if (clone.hitFlashTimer > 0) clone.hitFlashTimer -= 1;
+      if (clone.threatTimer > 0) clone.threatTimer -= 1;
+      if (clone.pathChangeTimer > 0) clone.pathChangeTimer -= 1;
+      if (clone.pathChangeTimer <= 0) {
+        clone.pathChangeTimer = 38 + Math.floor(Math.random() * 34);
+        clone.strafeDir = Math.random() < 0.5 ? -1 : 1;
+      }
 
       const distToTarget = distance(clone, target);
-      if (clone.attackTimer <= 0 && distToTarget < target.radius + clone.radius + 58) {
+      const targetAngle = angleTo(clone, target);
+      const attackRange = clone.attackRange || 54;
+      const preferredRange = target.radius + clone.radius + 34;
+      const tooFar = distToTarget > attackRange + target.radius + 18;
+      const tooClose = distToTarget < target.radius + clone.radius + 16;
+      const strafeAngle = targetAngle + Math.PI / 2 * (clone.strafeDir || 1);
+      const accel = clone.acceleration || 0.34;
+      let ax = 0;
+      let ay = 0;
+
+      if (tooFar) {
+        ax += Math.cos(targetAngle) * accel;
+        ay += Math.sin(targetAngle) * accel;
+      } else if (tooClose) {
+        ax -= Math.cos(targetAngle) * accel * 0.85;
+        ay -= Math.sin(targetAngle) * accel * 0.85;
+      } else {
+        ax += Math.cos(strafeAngle) * accel * 0.62;
+        ay += Math.sin(strafeAngle) * accel * 0.62;
+        const rangeCorrection = (distToTarget - preferredRange) * 0.012;
+        ax += Math.cos(targetAngle) * rangeCorrection;
+        ay += Math.sin(targetAngle) * rangeCorrection;
+      }
+
+      clone.vx = (clone.vx || 0) + ax;
+      clone.vy = (clone.vy || 0) + ay;
+      clone.vx *= clone.friction || 0.88;
+      clone.vy *= clone.friction || 0.88;
+      const speed = Math.hypot(clone.vx, clone.vy);
+      const maxSpeed = clone.moveSpeed || 4.15;
+      if (speed > maxSpeed) {
+        clone.vx = clone.vx / speed * maxSpeed;
+        clone.vy = clone.vy / speed * maxSpeed;
+      }
+      clone.x += clone.vx;
+      clone.y += clone.vy;
+      clone.facing = moveToward(clone.facing || targetAngle, targetAngle, 0.2);
+      clampToArena(clone, arena);
+
+      const bodyDist = distance(clone, target);
+      if (bodyDist < clone.radius + target.radius + 2) {
+        const pushAngle = angleTo(target, clone);
+        const overlap = clone.radius + target.radius + 2 - bodyDist;
+        clone.x += Math.cos(pushAngle) * overlap * 0.42;
+        clone.y += Math.sin(pushAngle) * overlap * 0.42;
+      }
+
+      if (clone.attackTimer <= 0 && bodyDist < target.radius + clone.radius + attackRange) {
         clone.attackTimer = clone.attackInterval || 38;
+        clone.threatTimer = 72;
         const weapon = WEAPONS[owner.weaponId] || WEAPONS.dagger;
         const damage = Math.max(1, weapon.damage * (owner.attackScale || 1) * 0.1 * (1 - getEffectiveDefense(target)));
         target.hp = clamp(target.hp - damage, 0, target.maxHp);
@@ -713,9 +778,9 @@ function tryCloseRangeReset(unit, enemy, movement) {
   if ((spearPinned || westernCloseGuard) && enemy.weaponId === 'dagger' && (
     unit.closeResetGraceTimer > 0 ||
     enemy.attackState !== 'idle' ||
-    enemy.lastAction === '명중' ||
-    enemy.lastAction === '치명타' ||
-    enemy.lastAction.includes('급소')
+    (enemy.lastAction || '') === '명중' ||
+    (enemy.lastAction || '') === '치명타' ||
+    (enemy.lastAction || '').includes('급소')
   )) {
     return false;
   }
@@ -1858,10 +1923,69 @@ function resolveSummonHitByAttack(attacker, state, weapon) {
 }
 
 
+function resolveDirectSummonAttack(attacker, clone, state, weapon) {
+  if (!clone || clone.hp <= 0 || clone.life <= 0) return true;
+
+  const dist = distance(attacker, clone);
+  const targetAngle = angleTo(attacker, clone);
+  const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
+  const hitArc = getHitArc(attacker, weapon) + getSkillArcBonus(attacker);
+  const reachBonus = getReachBonus(attacker, weapon);
+  if (dist > getHitReach(attacker, clone, weapon) + reachBonus) return false;
+  if (dist < (weapon.minRange || 0)) return false;
+  if (angleGap > hitArc) return false;
+
+  const skillAttack = attacker.activeSkillAttack || '';
+  const forcedCrit = FORCED_CRIT_SKILLS.has(skillAttack);
+  const crit = forcedCrit || Math.random() < (attacker.crit || 0);
+  const skillDamageBonus = getSkillDamageBonus(attacker, clone, skillAttack);
+  const rawDamage = weapon.damage * (attacker.attackScale || 1) * skillDamageBonus * (crit ? (attacker.critDamage || 1.5) : 1);
+  const cloneDefense = clamp(clone.defense || 0.08, 0, 0.6);
+  const damage = Math.max(1, rawDamage * (1 - cloneDefense));
+  clone.hp = clamp((clone.hp || 0) - damage, 0, clone.maxHp || clone.hp || 1);
+  clone.hitFlashTimer = 10;
+
+  attacker.attackOutcome = 'hit';
+  attacker.hits += 1;
+  attacker.damageDealt += damage;
+  attacker.lastAction = crit ? '분신 치명타' : '분신 적중';
+  emitHitSpark(state, attacker, clone, weapon, crit, skillAttack || 'summonHit');
+  emitCombatEvent(state, crit ? '분신 치명타' : '분신 피격', clone.x, clone.y - 34, crit ? '#ffd45a' : '#d7b9ff');
+  emitVisualEffect(state, {
+    type: 'ring',
+    x: clone.x,
+    y: clone.y,
+    color: '#d7b9ff',
+    life: 12,
+    maxLife: 12,
+    size: clone.radius + 7,
+    power: 0.9
+  });
+
+  if (clone.hp <= 0) {
+    clone.life = 0;
+    emitCombatEvent(state, '분신 파괴', clone.x, clone.y - 42, '#d7b9ff');
+    emitVisualEffect(state, {
+      type: 'burst',
+      x: clone.x,
+      y: clone.y,
+      color: '#d7b9ff',
+      life: 22,
+      maxLife: 22,
+      size: clone.radius + 18
+    });
+  }
+  return true;
+}
+
+
 function resolveAttack(attacker, defender, state) {
   if (defender.isDead) return true;
 
   const weapon = WEAPONS[attacker.weaponId];
+  if (defender.isSummonUnit) {
+    return resolveDirectSummonAttack(attacker, defender, state, weapon);
+  }
   const summonHit = resolveSummonHitByAttack(attacker, state, weapon);
   const dist = distance(attacker, defender);
   const targetAngle = angleTo(attacker, defender);
@@ -2447,6 +2571,7 @@ function summonDaggerClone(attacker, defender, state) {
   const angle = angleTo(defender, attacker) + side * 0.45;
   const clone = {
     id: `clone-${attacker.side}-${state.frame || 0}`,
+    isSummonUnit: true,
     ownerSide: attacker.side,
     targetSide: defender.side,
     x: attacker.x - Math.cos(angle) * 24,
@@ -2464,8 +2589,25 @@ function summonDaggerClone(attacker, defender, state) {
     maxLife: 520,
     attackTimer: 18,
     attackInterval: 36,
+    attackRange: 54,
     moveSpeed: 4.15,
+    acceleration: 0.34,
+    friction: 0.88,
     orbitDir: -side,
+    strafeDir: -side,
+    pathChangeTimer: 36,
+    threatTimer: 90,
+    attackState: 'idle',
+    posture: 0,
+    maxPosture: 1,
+    staggerTimer: 0,
+    evasion: 0.02,
+    skills: [],
+    skillLevels: {},
+    skillCooldowns: {},
+    skillRuntime: {},
+    lowHpDefenseBonus: 0,
+    lastAction: '분신 대기',
     color: '#d7b9ff'
   };
   state.summons.push(clone);

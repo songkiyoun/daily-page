@@ -2187,7 +2187,7 @@ function renderPlayerInfo(force = false) {
 function createIconMarkup(src, alt, fallback, extraClass = '') {
   return `
     <span class="game-icon ${extraClass}" title="${alt}">
-      <img src="${src}" alt="${alt}" loading="lazy" onerror="this.remove()">
+      <img src="${src}" alt="${alt}" loading="lazy" onload="this.parentElement.classList.add('icon-loaded')" onerror="this.remove()">
       <span class="icon-fallback">${fallback}</span>
     </span>
   `;
