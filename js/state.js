@@ -525,6 +525,7 @@ export function getPlayerInventory(player) {
     weaponGrade: growth?.grade?.name || '-',
     weaponStage: growth?.currentStageText || '-',
     weaponStageName: growth?.currentStage?.name || '-',
+    weaponStageNumber: growth?.currentStageNumber || 1,
     weaponEnhancement: Math.max(0, Math.floor(player?.weaponEnhancement || 0)),
     mastery: player?.mastery || 0
   };

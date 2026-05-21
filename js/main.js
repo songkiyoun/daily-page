@@ -743,9 +743,9 @@ function renderFarmPanel(force = false) {
   panelKeys.farm = key;
 
   controls.farmResourceBox.innerHTML = `
-    <span>골드 <strong>${resources.gold}G</strong></span>
-    <span>강화석 <strong>${resources.enhancementStone}</strong></span>
-    <span>보스의 영혼 <strong>${resources.bossSoul}</strong></span>
+    <span>${getItemIcon('gold')} 골드 <strong>${resources.gold}G</strong></span>
+    <span>${getItemIcon('enhancementStone')} 강화석 <strong>${resources.enhancementStone}</strong></span>
+    <span>${getItemIcon('bossSoul')} 보스의 영혼 <strong>${resources.bossSoul}</strong></span>
   `;
 
   controls.farmSlotGrid.innerHTML = accountFarm.slots.map((slot) => {
@@ -2184,12 +2184,50 @@ function renderPlayerInfo(force = false) {
   controls.towerPlayerBox.innerHTML = playerInfoHtml;
 }
 
-function getWeaponIcon(weaponId) {
-  if (weaponId === 'western') return '⚔';
-  if (weaponId === 'eastern') return '◈';
-  if (weaponId === 'spear') return '♆';
-  if (weaponId === 'dagger') return '🗡';
-  return '□';
+function createIconMarkup(src, alt, fallback, extraClass = '') {
+  return `
+    <span class="game-icon ${extraClass}" title="${alt}">
+      <img src="${src}" alt="${alt}" loading="lazy" onerror="this.remove()">
+      <span class="icon-fallback">${fallback}</span>
+    </span>
+  `;
+}
+
+function getWeaponIcon(weaponId, stageNumber = 1, extraClass = '') {
+  const filePrefix = {
+    dagger: 'dagger',
+    eastern: 'eastern_sword',
+    western: 'western_sword',
+    spear: 'spear'
+  };
+  const fallbackIcon = {
+    western: '⚔',
+    eastern: '◈',
+    spear: '♆',
+    dagger: '🗡'
+  };
+  const prefix = filePrefix[weaponId];
+  const safeStage = Math.min(5, Math.max(1, Math.floor(stageNumber || 1)));
+  const fallback = fallbackIcon[weaponId] || '□';
+  if (!prefix) return `<span class="game-icon ${extraClass}"><span class="icon-fallback">${fallback}</span></span>`;
+  return createIconMarkup(`icon/${prefix}_${safeStage}.png`, `${WEAPONS[weaponId]?.name || weaponId} ${safeStage}단계`, fallback, `weapon-stage-icon ${extraClass}`);
+}
+
+function getItemIcon(itemId, extraClass = '') {
+  const itemFile = {
+    gold: 'item_gold.png',
+    enhancementStone: 'item_enhancement_stone.png',
+    bossSoul: 'item_boss_soul.png'
+  };
+  const fallbackIcon = {
+    gold: 'G',
+    enhancementStone: '◆',
+    bossSoul: '魂'
+  };
+  const fileName = itemFile[itemId];
+  const fallback = fallbackIcon[itemId] || '•';
+  if (!fileName) return `<span class="game-icon ${extraClass}"><span class="icon-fallback">${fallback}</span></span>`;
+  return createIconMarkup(`icon/${fileName}`, itemId, fallback, `item-icon ${extraClass}`);
 }
 
 function renderCombatSummary(force = false) {
@@ -2240,6 +2278,7 @@ function renderInventory(force = false) {
     inventory.weaponName,
     inventory.weaponGrade,
     inventory.weaponStage,
+    inventory.weaponStageNumber,
     inventory.weaponEnhancement,
     inventory.mastery,
     inventory.gold,
@@ -2251,7 +2290,7 @@ function renderInventory(force = false) {
 
   controls.inventoryBox.innerHTML = `
     <div class="weapon-slot">
-      <div class="weapon-icon">${getWeaponIcon(inventory.weaponId)}</div>
+      <div class="weapon-icon">${getWeaponIcon(inventory.weaponId, inventory.weaponStageNumber)}</div>
       <div class="weapon-info">
         <strong>${inventory.weaponName} +${inventory.weaponEnhancement}</strong>
         <span>${inventory.weaponStage}</span>
@@ -2259,9 +2298,9 @@ function renderInventory(force = false) {
       </div>
     </div>
     <div class="resource-grid">
-      <div><span>골드</span><strong>${inventory.gold}G</strong></div>
-      <div><span>강화석</span><strong>${inventory.enhancementStone}</strong></div>
-      <div><span>보스의 영혼</span><strong>${inventory.bossSoul}</strong></div>
+      <div><span>${getItemIcon('gold', 'small')} 골드</span><strong>${inventory.gold}G</strong></div>
+      <div><span>${getItemIcon('enhancementStone', 'small')} 강화석</span><strong>${inventory.enhancementStone}</strong></div>
+      <div><span>${getItemIcon('bossSoul', 'small')} 보스의 영혼</span><strong>${inventory.bossSoul}</strong></div>
     </div>
   `;
 }
@@ -2279,9 +2318,9 @@ function renderShopStatus(force = false) {
   if (!force && controls.shopStatusBox.dataset.key === key) return;
   controls.shopStatusBox.dataset.key = key;
   controls.shopStatusBox.innerHTML = `
-    <span><small>골드</small><strong>${resources.gold}G</strong></span>
-    <span><small>강화석</small><strong>${resources.enhancementStone}</strong></span>
-    <span><small>보스의 영혼</small><strong>${resources.bossSoul}</strong></span>
+    <span><small>${getItemIcon('gold', 'small')} 골드</small><strong>${resources.gold}G</strong></span>
+    <span><small>${getItemIcon('enhancementStone', 'small')} 강화석</small><strong>${resources.enhancementStone}</strong></span>
+    <span><small>${getItemIcon('bossSoul', 'small')} 보스의 영혼</small><strong>${resources.bossSoul}</strong></span>
   `;
 }
 
@@ -2428,14 +2467,14 @@ function renderHeirloomBox(force = false, message = '') {
       <div class="heirloom-tabs">
         ${summary.heirloomItems.map((item) => `
           <button class="heirloom-weapon-tab ${item.weaponId === activeHeirloomWeapon ? 'active' : ''}" type="button" data-heirloom-weapon="${item.weaponId}">
-            <span>${getWeaponIcon(item.weaponId)}</span>
+            <span>${getWeaponIcon(item.weaponId, item.stageNumber, 'small')}</span>
             <strong>${item.weaponName}</strong>
           </button>
         `).join('')}
       </div>
       ${message ? `<div class="shop-message">${message}</div>` : ''}
       <div class="heirloom-detail-card">
-        <div class="weapon-icon">${getWeaponIcon(selected.weaponId)}</div>
+        <div class="weapon-icon">${getWeaponIcon(selected.weaponId, selected.stageNumber)}</div>
         <div class="heirloom-detail-main">
           <strong>${selected.weaponName}</strong>
           <span>${selected.gradeName} · ${selected.stageText} · +${selected.enhancementLevel}</span>
@@ -2449,8 +2488,8 @@ function renderHeirloomBox(force = false, message = '') {
         <div><span>등급 효과</span><strong>${selected.gradeEffectText}</strong></div>
         <div><span>단계 효과</span><strong>${selected.stageEffectText}</strong></div>
         <div><span>강화 효과</span><strong>${selected.enhancementEffectText}</strong></div>
-        <div><span>보유 강화석</span><strong>${resources.enhancementStone}</strong></div>
-        <div><span>보스의 영혼</span><strong>${resources.bossSoul}</strong></div>
+        <div><span>${getItemIcon('enhancementStone', 'small')} 보유 강화석</span><strong>${resources.enhancementStone}</strong></div>
+        <div><span>${getItemIcon('bossSoul', 'small')} 보스의 영혼</span><strong>${resources.bossSoul}</strong></div>
       </div>
       <div class="heirloom-action-list">
         <div class="heirloom-action-card">
@@ -2650,7 +2689,7 @@ function buildChallengeEndDetails() {
       <div><span>획득 보스의 영혼</span><strong>${run.challenge?.earnedBossSoul || 0}</strong></div>
     </div>
     <div class="challenge-weapon-summary">
-      <span>${getWeaponIcon(inventory.weaponId)}</span>
+      <span>${getWeaponIcon(inventory.weaponId, inventory.weaponStageNumber, 'small')}</span>
       <strong>${inventory.weaponName} +${inventory.weaponEnhancement}</strong>
       <em>${inventory.weaponGrade} · ${inventory.weaponStage}</em>
     </div>

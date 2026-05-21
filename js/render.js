@@ -293,11 +293,13 @@ function drawSummons(ctx, summons) {
   summons.forEach((clone) => {
     const lifeRatio = clamp(clone.life / (clone.maxLife || clone.life || 1), 0, 1);
     ctx.save();
+    const hpRatio = clamp((clone.hp || 0) / (clone.maxHp || clone.hp || 1), 0, 1);
+    const hitFlash = (clone.hitFlashTimer || 0) > 0;
     ctx.globalAlpha = 0.38 + lifeRatio * 0.34;
     ctx.translate(clone.x, clone.y);
     ctx.beginPath();
-    ctx.arc(0, 0, clone.radius + 4, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(215,185,255,0.12)';
+    ctx.arc(0, 0, clone.radius + (hitFlash ? 7 : 4), 0, Math.PI * 2);
+    ctx.fillStyle = hitFlash ? 'rgba(255,212,90,0.18)' : 'rgba(215,185,255,0.12)';
     ctx.fill();
     ctx.beginPath();
     ctx.arc(0, 0, clone.radius, 0, Math.PI * 2);
@@ -314,6 +316,12 @@ function drawSummons(ctx, summons) {
     ctx.lineWidth = 2.2;
     ctx.lineCap = 'round';
     ctx.stroke();
+    ctx.rotate(-(clone.facing || 0));
+    ctx.globalAlpha = 0.86;
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    ctx.fillRect(-clone.radius - 4, clone.radius + 8, (clone.radius + 4) * 2, 3);
+    ctx.fillStyle = '#d7b9ff';
+    ctx.fillRect(-clone.radius - 4, clone.radius + 8, (clone.radius + 4) * 2 * hpRatio, 3);
     ctx.restore();
   });
   ctx.restore();

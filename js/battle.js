@@ -402,6 +402,7 @@ function updateSummonedClones(state) {
       clone.facing = angleTo(clone, target);
       clone.life -= 1;
       clone.attackTimer -= 1;
+      if (clone.hitFlashTimer > 0) clone.hitFlashTimer -= 1;
 
       const distToTarget = distance(clone, target);
       if (clone.attackTimer <= 0 && distToTarget < target.radius + clone.radius + 58) {
@@ -1784,10 +1785,84 @@ function teleportNearRear(unit, enemy, radius = 38) {
   unit.vy = 0;
 }
 
+function resolveSummonHitByAttack(attacker, state, weapon) {
+  if (!state?.summons?.length || !weapon) return false;
+
+  const skillAttack = attacker.activeSkillAttack || '';
+  const hitArc = getHitArc(attacker, weapon) + getSkillArcBonus(attacker);
+  const reachBonus = getReachBonus(attacker, weapon);
+  let hitAny = false;
+
+  state.summons = state.summons
+    .map((clone) => {
+      if (!clone || clone.ownerSide === attacker.side || clone.hp <= 0 || clone.life <= 0) return clone;
+
+      const dist = distance(attacker, clone);
+      const targetAngle = angleTo(attacker, clone);
+      const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
+      if (dist > getHitReach(attacker, clone, weapon) + reachBonus) return clone;
+      if (dist < (weapon.minRange || 0)) return clone;
+      if (angleGap > hitArc) return clone;
+
+      const forcedCrit = FORCED_CRIT_SKILLS.has(skillAttack);
+      const crit = forcedCrit || Math.random() < (attacker.crit || 0);
+      const skillDamageBonus = getSkillDamageBonus(attacker, clone, skillAttack);
+      const rawDamage = weapon.damage * (attacker.attackScale || 1) * skillDamageBonus * (crit ? (attacker.critDamage || 1.5) : 1);
+      const cloneDefense = clamp(clone.defense || 0.08, 0, 0.6);
+      const damage = Math.max(1, rawDamage * (1 - cloneDefense));
+      const nextHp = clamp((clone.hp || 0) - damage, 0, clone.maxHp || clone.hp || 1);
+
+      hitAny = true;
+      attacker.attackOutcome = 'hit';
+      attacker.hits += 1;
+      attacker.damageDealt += damage;
+      attacker.lastAction = crit ? '분신 치명타' : '분신 적중';
+      emitHitSpark(state, attacker, clone, weapon, crit, skillAttack || 'summonHit');
+      emitCombatEvent(state, crit ? '분신 치명타' : '분신 피격', clone.x, clone.y - 34, crit ? '#ffd45a' : '#d7b9ff');
+      emitVisualEffect(state, {
+        type: 'ring',
+        x: clone.x,
+        y: clone.y,
+        color: '#d7b9ff',
+        life: 12,
+        maxLife: 12,
+        size: clone.radius + 7,
+        power: 0.9
+      });
+
+      const nextClone = {
+        ...clone,
+        hp: nextHp,
+        hitFlashTimer: 10
+      };
+
+      if (nextHp <= 0) {
+        nextClone.life = 0;
+        emitCombatEvent(state, '분신 파괴', clone.x, clone.y - 42, '#d7b9ff');
+        emitVisualEffect(state, {
+          type: 'burst',
+          x: clone.x,
+          y: clone.y,
+          color: '#d7b9ff',
+          life: 22,
+          maxLife: 22,
+          size: clone.radius + 18
+        });
+      }
+
+      return nextClone;
+    })
+    .filter((clone) => clone.life > 0);
+
+  return hitAny;
+}
+
+
 function resolveAttack(attacker, defender, state) {
   if (defender.isDead) return true;
 
   const weapon = WEAPONS[attacker.weaponId];
+  const summonHit = resolveSummonHitByAttack(attacker, state, weapon);
   const dist = distance(attacker, defender);
   const targetAngle = angleTo(attacker, defender);
   const angleGap = Math.abs(angleDiff(attacker.facing, targetAngle));
@@ -1796,9 +1871,9 @@ function resolveAttack(attacker, defender, state) {
   const reachBonus = getReachBonus(attacker, weapon);
   const hitQuality = getHitQuality(attacker, defender, weapon, dist, angleGap, hitArc);
 
-  if (dist > getHitReach(attacker, defender, weapon) + reachBonus) return false;
-  if (dist < weapon.minRange) return false;
-  if (angleGap > hitArc + getSkillArcBonus(attacker)) return false;
+  if (dist > getHitReach(attacker, defender, weapon) + reachBonus) return summonHit;
+  if (dist < weapon.minRange) return summonHit;
+  if (angleGap > hitArc + getSkillArcBonus(attacker)) return summonHit;
 
   resolveReactiveGuard(defender, attacker, state);
 
@@ -2380,7 +2455,11 @@ function summonDaggerClone(attacker, defender, state) {
     vy: 0,
     facing: angleTo(attacker, defender),
     radius: Math.max(10, Math.round(attacker.radius * 0.82)),
-    hp: Math.max(1, attacker.maxHp * 0.1),
+    maxHp: Math.max(1, Math.round(attacker.maxHp * 0.12)),
+    hp: Math.max(1, Math.round(attacker.maxHp * 0.12)),
+    defense: 0.08,
+    weaponId: 'dagger',
+    personalityId: attacker.personalityId,
     life: 520,
     maxLife: 520,
     attackTimer: 18,
