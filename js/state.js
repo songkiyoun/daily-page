@@ -24,6 +24,78 @@ import {
 } from './data.js';
 import { clamp, randomInt, randomSign, sample } from './utils.js';
 
+
+export function createPermanentProgress(source = {}) {
+  const soulSource = source.soulEngraving || {};
+  const heirloomSource = source.heirloom || {};
+  const weaponIds = Object.keys(WEAPONS);
+  const heirloom = {};
+
+  weaponIds.forEach((weaponId) => {
+    const current = heirloomSource[weaponId] || {};
+    const evolutionOptions = getWeaponEvolutionOptions(weaponId);
+    heirloom[weaponId] = {
+      weaponGrade: current.weaponGrade || 'common',
+      weaponEvolution: current.weaponEvolution || evolutionOptions[0]?.id || null,
+      enhancementLevel: Math.max(0, Math.floor(current.enhancementLevel || 0))
+    };
+  });
+
+  return {
+    soulEngraving: {
+      goldGain: Math.max(0, Math.floor(soulSource.goldGain || 0)),
+      startStatPoint: Math.max(0, Math.floor(soulSource.startStatPoint || 0)),
+      attack: Math.max(0, Math.floor(soulSource.attack || 0)),
+      defense: Math.max(0, Math.floor(soulSource.defense || 0)),
+      critDamage: Math.max(0, Math.floor(soulSource.critDamage || 0)),
+      evasion: Math.max(0, Math.floor(soulSource.evasion || 0))
+    },
+    heirloom
+  };
+}
+
+export function clonePermanentProgress(progress) {
+  return createPermanentProgress(progress || {});
+}
+
+export function getPermanentResetRules() {
+  return {
+    kept: ['골드', '강화석', '보스의 영혼', '영혼의 각인', '가보'],
+    reset: ['현재 레벨', '현재 스탯', '현재 스탯포인트', '도전 중 획득한 보상 효과', '도전 중 상점 구매 효과', '도전 중 무기 등급/진화/숙련도 변화']
+  };
+}
+
+export function getPermanentProgressSummary(progress = {}) {
+  const normalized = createPermanentProgress(progress);
+  const soul = normalized.soulEngraving;
+  const heirloom = normalized.heirloom;
+  const soulItems = [
+    { id: 'goldGain', name: '골드 획득량 증가', level: soul.goldGain, maxLevel: 10, effect: `골드 획득량 +${soul.goldGain * 5}%`, next: soul.goldGain < 10 ? `다음 +${(soul.goldGain + 1) * 5}%` : '최대 단계' },
+    { id: 'startStatPoint', name: '시작 스탯포인트 증가', level: soul.startStatPoint, maxLevel: 10, effect: `시작 스탯포인트 +${soul.startStatPoint}`, next: soul.startStatPoint < 10 ? `다음 +${soul.startStatPoint + 1}` : '최대 단계' },
+    { id: 'attack', name: '공격력 증가', level: soul.attack, maxLevel: 10, effect: `공격력 +${soul.attack * 2}%`, next: soul.attack < 10 ? `다음 +${(soul.attack + 1) * 2}%` : '최대 단계' },
+    { id: 'defense', name: '방어력 증가', level: soul.defense, maxLevel: 10, effect: `방어력 +${soul.defense * 2}%`, next: soul.defense < 10 ? `다음 +${(soul.defense + 1) * 2}%` : '최대 단계' },
+    { id: 'critDamage', name: '치명타 피해 증가', level: soul.critDamage, maxLevel: 10, effect: `치명타 피해 +${soul.critDamage * 5}%`, next: soul.critDamage < 10 ? `다음 +${(soul.critDamage + 1) * 5}%` : '최대 단계' },
+    { id: 'evasion', name: '회피율 증가', level: soul.evasion, maxLevel: 10, effect: `회피율 +${soul.evasion}%`, next: soul.evasion < 10 ? `다음 +${soul.evasion + 1}%` : '최대 단계' }
+  ];
+
+  const heirloomItems = Object.values(WEAPONS).map((weapon) => {
+    const item = heirloom[weapon.id] || {};
+    const grade = WEAPON_GRADES.find((gradeItem) => gradeItem.id === (item.weaponGrade || 'common')) || WEAPON_GRADES[0];
+    const options = getWeaponEvolutionOptions(weapon.id);
+    const evolution = options.find((stage) => stage.id === item.weaponEvolution) || options[0];
+    const stageIndex = Math.max(0, options.findIndex((stage) => stage.id === evolution?.id));
+    return {
+      weaponId: weapon.id,
+      weaponName: weapon.name,
+      gradeName: grade.name,
+      stageText: evolution ? `${stageIndex + 1}단계 : ${evolution.name}` : '단계 없음',
+      enhancementLevel: Math.max(0, Math.floor(item.enhancementLevel || 0))
+    };
+  });
+
+  return { soulItems, heirloomItems };
+}
+
 export function getWeaponGrowthInfo(player) {
   const grade = WEAPON_GRADES.find((item) => item.id === (player.weaponGrade || 'common')) || WEAPON_GRADES[0];
   const nextGrade = WEAPON_GRADES.find((item) => item.order === grade.order + 1) || null;
@@ -500,6 +572,7 @@ export function lockPreTowerShop(run) {
 
 
 export function createRun(config) {
+  const permanentProgress = clonePermanentProgress(config.permanentProgress);
   return {
     active: true,
     floor: TOWER_RULES.startFloor,
@@ -512,6 +585,7 @@ export function createRun(config) {
     lastVictoryBaseGold: 0,
     victoryGoldMessage: '',
     lastBossRewardMessage: '',
+    permanentProgress,
     challenge: {
       startGold: Number.isFinite(config.startingGold) ? Math.max(0, Math.floor(config.startingGold)) : SHOP_RULES.initialGold,
       startEnhancementStone: Number.isFinite(config.startingEnhancementStone) ? Math.max(0, Math.floor(config.startingEnhancementStone)) : 0,
@@ -579,8 +653,8 @@ export function createBattleState(run, options = {}) {
     camera: { x: 0, y: 0 },
     eventLocks: {},
     engagement: {
-      defensiveMirrorStallFrames: 0,
-      defensiveMirrorForceFrames: 0,
+      combatStallFrames: 0,
+      combatForceFrames: 0,
       lastPlayerHits: 0,
       lastEnemyHits: 0
     },

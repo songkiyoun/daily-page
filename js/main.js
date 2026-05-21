@@ -5,11 +5,15 @@
 import { PERSONALITIES, PLAYER_START_STATS, REWARD_RARITIES, REWARD_TRAITS, SHOP_RULES, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS } from './data.js';
 import {
   applyRewardAndAdvance,
+  clonePermanentProgress,
   completeFloorVictory,
   createBattleState,
   createFixedEnemyConfig,
+  createPermanentProgress,
   createRun,
   getNextLevelExp,
+  getPermanentProgressSummary,
+  getPermanentResetRules,
   getPlayerCombatSummary,
   getPlayerInventory,
   getShopOffers,
@@ -30,6 +34,7 @@ const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
 
 const controls = {
+  loginScreen: document.getElementById('loginScreen'),
   prepScreen: document.getElementById('prepScreen'),
   towerScreen: document.getElementById('towerScreen'),
   characterSetupCard: document.getElementById('characterSetupCard'),
@@ -48,6 +53,7 @@ const controls = {
   overlayRewardBox: document.getElementById('overlayRewardBox'),
   resultDetailBox: document.getElementById('resultDetailBox'),
   overlayShopBox: document.getElementById('overlayShopBox'),
+  prepGrowthTabs: document.getElementById('prepGrowthTabs'),
   statusBox: document.getElementById('statusBox'),
   towerBox: document.getElementById('towerBox'),
   prepPlayerBox: document.getElementById('prepPlayerBox'),
@@ -69,13 +75,36 @@ const controls = {
   simGrowthBtn: document.getElementById('simGrowthBtn'),
   simCopyBtn: document.getElementById('simCopyBtn'),
   simResultBox: document.getElementById('simResultBox'),
-  version: document.getElementById('versionBadge')
+  version: document.getElementById('versionBadge'),
+  accountBadge: document.getElementById('accountBadge'),
+  accountId: document.getElementById('accountId'),
+  accountPw: document.getElementById('accountPw'),
+  accountEndpoint: document.getElementById('accountEndpoint'),
+  createAccountBtn: document.getElementById('createAccountBtn'),
+  loginBtn: document.getElementById('loginBtn'),
+  tempLoadBtn: document.getElementById('tempLoadBtn'),
+  guestStartBtn: document.getElementById('guestStartBtn'),
+  accountMessage: document.getElementById('accountMessage')
+};
+
+const SAVE_SCHEMA_VERSION = 1;
+const LOCAL_TEMP_SAVE_KEY = 'circleBattleTowerRebuild.tempSave.v1';
+const LOCAL_ENDPOINT_KEY = 'circleBattleTowerRebuild.appsScriptUrl';
+
+let account = {
+  loggedIn: false,
+  id: '',
+  endpoint: window.localStorage?.getItem(LOCAL_ENDPOINT_KEY) || '',
+  mode: 'none',
+  pw: ''
 };
 
 let state = null;
 let run = null;
 let bankGold = null;
 let bankInventory = { gold: null, enhancementStone: 0, bossSoul: 0 };
+let permanentProgress = createPermanentProgress();
+let activePrepTab = 'shop';
 let lastSimulationText = '아직 복사할 시뮬레이션 결과가 없습니다.';
 let panelKeys = {
   player: '',
@@ -84,7 +113,8 @@ let panelKeys = {
   shop: '',
   controls: '',
   inventory: '',
-  combatSummary: ''
+  combatSummary: '',
+  prepGrowth: ''
 };
 
 init();
@@ -98,7 +128,14 @@ function init() {
   populateSelect(controls.simEnemyWeapon, WEAPONS, 'dagger');
   populateSelect(controls.simEnemyPersonality, PERSONALITIES, 'assassin');
   controls.version.textContent = `v${VERSION}`;
+  if (controls.accountEndpoint) controls.accountEndpoint.value = account.endpoint || '';
+  updateAccountBadge();
 
+  controls.createAccountBtn?.addEventListener('click', handleCreateAccount);
+  controls.loginBtn?.addEventListener('click', handleAccountLogin);
+  controls.tempLoadBtn?.addEventListener('click', handleTempLoad);
+  controls.guestStartBtn?.addEventListener('click', handleGuestStart);
+  controls.accountEndpoint?.addEventListener('change', handleEndpointChange);
   controls.startBtn.addEventListener('click', handleMainButton);
   controls.climbBtn.addEventListener('click', startCurrentFloor);
   controls.playerWeapon.addEventListener('change', handleConfigChange);
@@ -114,6 +151,7 @@ function init() {
   controls.towerPlayerBox.addEventListener('click', handleStatClick);
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
   controls.overlayShopBox.addEventListener('click', handleShopClick);
+  controls.prepGrowthTabs?.addEventListener('click', handlePrepGrowthTabClick);
   controls.simToggleBtn.addEventListener('click', handleSimulatorToggle);
   controls.simRunBtn.addEventListener('click', handleSimulationRun);
   controls.simMatrixBtn.addEventListener('click', handleSimulationMatrix);
@@ -125,7 +163,7 @@ function init() {
   state = null;
   bankGold = null;
   clearPanelKeys();
-  showPrepScreen();
+  showLoginScreen();
   renderAllPanels(true);
   console.info(`Circle Battle Tower Rebuild v${VERSION}`);
 }
@@ -156,15 +194,18 @@ function startNewRun() {
     ...readConfig(),
     startingGold,
     startingEnhancementStone: bankInventory.enhancementStone || 0,
-    startingBossSoul: bankInventory.bossSoul || 0
+    startingBossSoul: bankInventory.bossSoul || 0,
+    permanentProgress
   });
   state = createBattleState(run);
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
   showPrepScreen();
-  renderShopBox(true);
+  activePrepTab = 'shop';
+  renderPrepGrowthContent(true);
   updatePauseButton();
+  saveTemporarySnapshot('newRun');
 }
 
 function handleMainButton() {
@@ -203,6 +244,7 @@ function startCurrentFloor() {
   hideOverlay();
   updatePauseButton();
   renderAllPanels(true);
+  saveTemporarySnapshot('startFloor');
 }
 
 function canStartCurrentFloor() {
@@ -245,15 +287,19 @@ function syncBankFromRun() {
     bossSoul: inventory.bossSoul
   };
   bankGold = inventory.gold;
+  if (run.permanentProgress) permanentProgress = clonePermanentProgress(run.permanentProgress);
 }
 
 function resetToPrepScreen() {
   syncBankFromRun();
   state = null;
   run = null;
+  activePrepTab = 'shop';
   clearPanelKeys();
   showPrepScreen();
   renderAllPanels(true);
+  saveTemporarySnapshot('returnPrep');
+  autoSaveSafePoint('캐릭터 생성 화면 복귀');
 }
 
 function handleGiveUp() {
@@ -268,6 +314,7 @@ function handleGiveUp() {
   render(ctx, state);
   renderAllPanels(true);
   showChallengeEndOverlay('도전 포기', `${state.run.floor}층에서 런을 포기했습니다.`);
+  saveTemporarySnapshot('giveUp');
 }
 
 function handleStatClick(event) {
@@ -279,6 +326,7 @@ function handleStatClick(event) {
   panelKeys.player = '';
   renderAllPanels(true);
   render(ctx, state);
+  saveTemporarySnapshot('statSpend');
 }
 
 function handleRewardClick(event) {
@@ -293,6 +341,7 @@ function handleRewardClick(event) {
   updatePauseButton();
   render(ctx, state);
   renderAllPanels(true);
+  saveTemporarySnapshot('reward');
 
   if (state.result === 'victory') {
     showOverlay(
@@ -316,14 +365,23 @@ function handleRewardClick(event) {
 
 function handleShopClick(event) {
   const button = event.target.closest('.shop-button');
-  if (!button || !run || !state) return;
+  if (!button || !run || !state || activePrepTab !== 'shop') return;
   const result = purchasePreTowerShopItem(run, button.dataset.shopItem);
   syncBankFromRun();
   refreshPlayerUnit(state);
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
-  renderShopBox(true, result.message);
+  renderPrepGrowthContent(true, result.message);
+  saveTemporarySnapshot('shopPurchase');
+}
+
+function handlePrepGrowthTabClick(event) {
+  const button = event.target.closest('.prep-tab-button');
+  if (!button) return;
+  activePrepTab = button.dataset.prepTab || 'shop';
+  panelKeys.prepGrowth = '';
+  renderPrepGrowthContent(true);
 }
 
 function handleSimulatorToggle() {
@@ -1015,6 +1073,267 @@ function escapeTextarea(text) {
 
 
 
+function handleEndpointChange() {
+  account.endpoint = (controls.accountEndpoint?.value || '').trim();
+  if (account.endpoint) window.localStorage?.setItem(LOCAL_ENDPOINT_KEY, account.endpoint);
+  else window.localStorage?.removeItem(LOCAL_ENDPOINT_KEY);
+  showAccountMessage(account.endpoint ? 'Apps Script URL이 저장되었습니다.' : 'Apps Script URL이 비어 있습니다.', account.endpoint ? 'good' : 'warn');
+}
+
+async function handleCreateAccount() {
+  const credentials = readAccountCredentials();
+  if (!credentials.ok) {
+    showAccountMessage(credentials.message, 'danger');
+    return;
+  }
+
+  setAccountButtonsDisabled(true);
+  try {
+    const saveData = buildSavePayload({ includeSession: false, reason: 'createAccount' });
+    const result = await requestCloudSave('createAccount', { id: credentials.id, pw: credentials.pw, saveData });
+    if (!result.ok) throw new Error(result.message || '아이디 생성에 실패했습니다.');
+    setLoggedInAccount(credentials.id, credentials.endpoint, 'cloud', credentials.pw);
+    applySavePayload(result.saveData || saveData, { restoreSession: false });
+    showPrepScreen();
+    renderAllPanels(true);
+    saveTemporarySnapshot('accountCreated');
+    showAccountMessage(`${credentials.id} 계정을 생성하고 불러왔습니다.`, 'good');
+  } catch (error) {
+    showAccountMessage(error.message || '아이디 생성 중 오류가 발생했습니다.', 'danger');
+  } finally {
+    setAccountButtonsDisabled(false);
+  }
+}
+
+async function handleAccountLogin() {
+  const credentials = readAccountCredentials();
+  if (!credentials.ok) {
+    showAccountMessage(credentials.message, 'danger');
+    return;
+  }
+
+  setAccountButtonsDisabled(true);
+  try {
+    const result = await requestCloudSave('login', { id: credentials.id, pw: credentials.pw });
+    if (!result.ok) throw new Error(result.message || '로그인에 실패했습니다.');
+    setLoggedInAccount(credentials.id, credentials.endpoint, 'cloud', credentials.pw);
+    applySavePayload(result.saveData || createEmptySavePayload('loginEmpty'), { restoreSession: false });
+    showPrepScreen();
+    renderAllPanels(true);
+    saveTemporarySnapshot('login');
+    showAccountMessage(`${credentials.id} 계정 데이터를 불러왔습니다.`, 'good');
+  } catch (error) {
+    showAccountMessage(error.message || '로그인 중 오류가 발생했습니다.', 'danger');
+  } finally {
+    setAccountButtonsDisabled(false);
+  }
+}
+
+function handleTempLoad() {
+  const raw = window.localStorage?.getItem(LOCAL_TEMP_SAVE_KEY);
+  if (!raw) {
+    showAccountMessage('이 브라우저에 임시저장 데이터가 없습니다.', 'warn');
+    return;
+  }
+
+  try {
+    const payload = JSON.parse(raw);
+    applySavePayload(payload, { restoreSession: true });
+    if (payload.account?.id && !account.loggedIn) {
+      setLoggedInAccount(payload.account.id, account.endpoint, 'temp');
+    }
+    renderAllPanels(true);
+    showAccountMessage('임시저장 데이터를 불러왔습니다.', 'good');
+  } catch (error) {
+    showAccountMessage('임시저장 데이터가 손상되어 불러올 수 없습니다.', 'danger');
+  }
+}
+
+function handleGuestStart() {
+  account = { ...account, loggedIn: true, id: 'guest', mode: 'guest', pw: '' };
+  updateAccountBadge();
+  showPrepScreen();
+  renderAllPanels(true);
+  saveTemporarySnapshot('guestStart');
+  showAccountMessage('게스트 모드로 시작합니다. 스프레드시트 저장은 사용하지 않습니다.', 'warn');
+}
+
+function readAccountCredentials() {
+  const id = (controls.accountId?.value || '').trim();
+  const pw = controls.accountPw?.value || '';
+  const endpoint = (controls.accountEndpoint?.value || account.endpoint || '').trim();
+  if (!id) return { ok: false, message: '아이디를 입력하세요.' };
+  if (!pw) return { ok: false, message: '비밀번호를 입력하세요.' };
+  if (!endpoint) return { ok: false, message: 'Apps Script 웹 앱 URL을 입력하세요.' };
+  account.endpoint = endpoint;
+  window.localStorage?.setItem(LOCAL_ENDPOINT_KEY, endpoint);
+  return { ok: true, id, pw, endpoint };
+}
+
+function setLoggedInAccount(id, endpoint, mode = 'cloud', pw = '') {
+  account = {
+    loggedIn: true,
+    id,
+    endpoint: endpoint || account.endpoint || '',
+    mode,
+    pw
+  };
+  if (account.endpoint) window.localStorage?.setItem(LOCAL_ENDPOINT_KEY, account.endpoint);
+  updateAccountBadge();
+}
+
+function updateAccountBadge() {
+  if (!controls.accountBadge) return;
+  if (!account.loggedIn) {
+    controls.accountBadge.textContent = '로그인 전';
+    return;
+  }
+  if (account.mode === 'guest') controls.accountBadge.textContent = '게스트';
+  else if (account.mode === 'temp') controls.accountBadge.textContent = `${account.id} · 임시`;
+  else controls.accountBadge.textContent = `${account.id} · 로그인`;
+}
+
+function setAccountButtonsDisabled(disabled) {
+  [controls.createAccountBtn, controls.loginBtn, controls.tempLoadBtn, controls.guestStartBtn].forEach((button) => {
+    if (button) button.disabled = disabled;
+  });
+}
+
+function showAccountMessage(message, type = '') {
+  if (!controls.accountMessage) return;
+  controls.accountMessage.textContent = message;
+  controls.accountMessage.classList.remove('good', 'warn', 'danger');
+  if (type) controls.accountMessage.classList.add(type);
+}
+
+async function requestCloudSave(action, payload = {}) {
+  const endpoint = payload.endpoint || account.endpoint || (controls.accountEndpoint?.value || '').trim();
+  if (!endpoint) throw new Error('Apps Script 웹 앱 URL이 없습니다.');
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action,
+      app: 'circle-battle-tower-rebuild',
+      version: VERSION,
+      ...payload
+    })
+  });
+  if (!response.ok) throw new Error(`스프레드시트 요청 실패: ${response.status}`);
+  return response.json();
+}
+
+function createEmptySavePayload(reason = 'empty') {
+  return {
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    version: VERSION,
+    savedAt: new Date().toISOString(),
+    reason,
+    resources: getCurrentPersistentResources(),
+    permanentProgress: clonePermanentProgress(permanentProgress),
+    stats: { bestFloor: TOWER_RULES.startFloor, totalVictories: 0, bossClears: 0 },
+    session: null
+  };
+}
+
+function buildSavePayload({ includeSession = false, reason = 'save' } = {}) {
+  const payload = createEmptySavePayload(reason);
+  payload.resources = getCurrentPersistentResources();
+  payload.permanentProgress = clonePermanentProgress(permanentProgress);
+  payload.stats = {
+    bestFloor: Math.max(TOWER_RULES.startFloor, run?.bestFloor || TOWER_RULES.startFloor),
+    totalVictories: run?.victories || 0,
+    bossClears: Math.floor((run?.victories || 0) / TOWER_RULES.bossInterval)
+  };
+  payload.account = account.loggedIn ? { id: account.id, mode: account.mode } : null;
+  if (includeSession) {
+    payload.session = {
+      screen: getCurrentScreenName(),
+      activePrepTab,
+      run: run ? JSON.parse(JSON.stringify(run)) : null,
+      stateStatus: state ? {
+        running: !!state.running,
+        paused: !!state.paused,
+        result: state.result || null,
+        floor: state.run?.floor || null
+      } : null
+    };
+  }
+  return payload;
+}
+
+function getCurrentPersistentResources() {
+  if (run?.player) {
+    const inventory = getPlayerInventory(run.player);
+    return {
+      gold: inventory.gold,
+      enhancementStone: inventory.enhancementStone,
+      bossSoul: inventory.bossSoul
+    };
+  }
+  return {
+    gold: Number.isFinite(bankInventory.gold) ? Math.max(0, Math.floor(bankInventory.gold)) : SHOP_RULES.initialGold,
+    enhancementStone: Math.max(0, Math.floor(bankInventory.enhancementStone || 0)),
+    bossSoul: Math.max(0, Math.floor(bankInventory.bossSoul || 0))
+  };
+}
+
+function applySavePayload(payload = {}, { restoreSession = false } = {}) {
+  const resources = payload.resources || {};
+  bankInventory = {
+    gold: Number.isFinite(resources.gold) ? Math.max(0, Math.floor(resources.gold)) : SHOP_RULES.initialGold,
+    enhancementStone: Math.max(0, Math.floor(resources.enhancementStone || 0)),
+    bossSoul: Math.max(0, Math.floor(resources.bossSoul || 0))
+  };
+  bankGold = bankInventory.gold;
+  permanentProgress = clonePermanentProgress(payload.permanentProgress || {});
+  activePrepTab = payload.session?.activePrepTab || 'shop';
+
+  if (restoreSession && payload.session?.run) {
+    run = payload.session.run;
+    run.permanentProgress = clonePermanentProgress(run.permanentProgress || permanentProgress);
+    permanentProgress = clonePermanentProgress(run.permanentProgress);
+    state = createBattleState(run);
+    clearPanelKeys();
+    if (payload.session.screen === 'tower') showTowerScreen();
+    else showPrepScreen();
+    return;
+  }
+
+  run = null;
+  state = null;
+  clearPanelKeys();
+  showPrepScreen();
+}
+
+function saveTemporarySnapshot(reason = 'temp') {
+  try {
+    const payload = buildSavePayload({ includeSession: true, reason });
+    window.localStorage?.setItem(LOCAL_TEMP_SAVE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn('임시저장 실패', error);
+  }
+}
+
+async function autoSaveSafePoint(reason = 'safePoint') {
+  if (!account.loggedIn || account.mode !== 'cloud' || !account.endpoint || !account.id) return;
+  try {
+    const saveData = buildSavePayload({ includeSession: false, reason });
+    const result = await requestCloudSave('save', { id: account.id, pw: account.pw, saveData });
+    if (!result.ok) throw new Error(result.message || '저장 실패');
+    showAccountMessage(`${reason} 기준으로 스프레드시트 자동 저장 완료`, 'good');
+  } catch (error) {
+    showAccountMessage(`스프레드시트 자동 저장 실패: ${error.message}`, 'danger');
+  }
+}
+
+function getCurrentScreenName() {
+  if (!controls.loginScreen?.classList.contains('hidden')) return 'login';
+  if (!controls.towerScreen.classList.contains('hidden')) return 'tower';
+  return 'prep';
+}
+
+
 function loop() {
   if (state) {
     updateBattle(state);
@@ -1033,7 +1352,7 @@ function renderAllPanels(force = false) {
   renderInventory(force);
   renderShopStatus(force);
   renderRewardBox(force);
-  renderShopBox(force);
+  renderPrepGrowthContent(force);
   renderControlState(force);
 }
 
@@ -1283,9 +1602,32 @@ function renderShopStatus(force = false) {
   `;
 }
 
+function updatePrepTabButtons() {
+  controls.prepGrowthTabs?.querySelectorAll('.prep-tab-button').forEach((button) => {
+    button.classList.toggle('active', button.dataset.prepTab === activePrepTab);
+  });
+}
+
+function renderPrepGrowthContent(force = false, message = '') {
+  updatePrepTabButtons();
+  if (activePrepTab === 'shop') {
+    renderShopBox(force, message);
+    return;
+  }
+  if (activePrepTab === 'soul') {
+    renderSoulEngravingBox(force);
+    return;
+  }
+  if (activePrepTab === 'heirloom') {
+    renderHeirloomBox(force);
+    return;
+  }
+  renderShopBox(force, message);
+}
+
 function renderShopBox(force = false, message = '') {
   if (!run || !state) {
-    panelKeys.shop = 'empty';
+    panelKeys.prepGrowth = 'shop-empty';
     controls.overlayShopBox.classList.remove('hidden');
     controls.overlayShopBox.innerHTML = `
       <div class="empty-panel">
@@ -1303,6 +1645,7 @@ function renderShopBox(force = false, message = '') {
 
   const offers = getShopOffers(run);
   const key = [
+    'shop',
     run.player.gold || 0,
     message,
     run.player.statPoints,
@@ -1310,8 +1653,8 @@ function renderShopBox(force = false, message = '') {
     run.player.weaponEvolution,
     offers.map((item) => `${item.id}:${item.price}:${item.disabled}:${item.disabledReason}:${item.description}`).join('|')
   ].join('|');
-  if (!force && panelKeys.shop === key) return;
-  panelKeys.shop = key;
+  if (!force && panelKeys.prepGrowth === key) return;
+  panelKeys.prepGrowth = key;
 
   controls.overlayShopBox.classList.remove('hidden');
   controls.overlayShopBox.innerHTML = `
@@ -1333,8 +1676,69 @@ function renderShopBox(force = false, message = '') {
   `;
 }
 
+function renderSoulEngravingBox(force = false) {
+  const summary = getPermanentProgressSummary(permanentProgress);
+  const resources = run?.player
+    ? getPlayerInventory(run.player)
+    : {
+      gold: Number.isFinite(bankInventory.gold) ? bankInventory.gold : SHOP_RULES.initialGold,
+      enhancementStone: bankInventory.enhancementStone || 0,
+      bossSoul: bankInventory.bossSoul || 0
+    };
+  const key = ['soul', resources.gold, summary.soulItems.map((item) => `${item.id}:${item.level}`).join('|')].join('|');
+  if (!force && panelKeys.prepGrowth === key) return;
+  panelKeys.prepGrowth = key;
+  controls.overlayShopBox.classList.remove('hidden');
+  controls.overlayShopBox.innerHTML = `
+    <div class="permanent-panel">
+      <div class="permanent-head">
+        <strong>영혼의 각인</strong>
+        <span>골드로 구매하는 캐릭터 기반 영구 성장입니다. 실제 구매는 v0.7.37에서 연결됩니다.</span>
+      </div>
+      <div class="permanent-line-list">
+        ${summary.soulItems.map((item) => `
+          <div class="permanent-line">
+            <div>
+              <strong>${item.name}</strong>
+              <span>${item.effect} · ${item.next}</span>
+            </div>
+            <em>${item.level}/${item.maxLevel}</em>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderHeirloomBox(force = false) {
+  const summary = getPermanentProgressSummary(permanentProgress);
+  const key = ['heirloom', summary.heirloomItems.map((item) => `${item.weaponId}:${item.gradeName}:${item.stageText}:${item.enhancementLevel}`).join('|')].join('|');
+  if (!force && panelKeys.prepGrowth === key) return;
+  panelKeys.prepGrowth = key;
+  controls.overlayShopBox.classList.remove('hidden');
+  controls.overlayShopBox.innerHTML = `
+    <div class="permanent-panel">
+      <div class="permanent-head">
+        <strong>가보</strong>
+        <span>무기 등급·진화·강화가 영구 저장될 자리입니다. 실제 강화는 v0.7.38 이후 연결됩니다.</span>
+      </div>
+      <div class="heirloom-grid">
+        ${summary.heirloomItems.map((item) => `
+          <div class="heirloom-card">
+            <div class="weapon-icon small">${getWeaponIcon(item.weaponId)}</div>
+            <strong>${item.weaponName}</strong>
+            <span>${item.gradeName} · ${item.stageText}</span>
+            <em>강화 +${item.enhancementLevel}</em>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function hideShopBox() {
   panelKeys.shop = '';
+  panelKeys.prepGrowth = '';
   controls.overlayShopBox.classList.add('hidden');
   controls.overlayShopBox.innerHTML = '';
 }
@@ -1412,7 +1816,7 @@ function renderControlState(force = false) {
 
   controls.characterSetupCard?.classList.toggle('is-disabled', prepared);
   controls.prepStatCard?.classList.toggle('is-disabled', !prepared);
-  controls.prepShopCard?.classList.toggle('is-disabled', !prepared);
+  controls.prepShopCard?.classList.toggle('is-disabled', !prepared && activePrepTab === 'shop');
 
   if (!state) {
     controls.startBtn.textContent = '새 캐릭터 생성';
@@ -1447,23 +1851,27 @@ function renderResultIfNeeded() {
   if (state.result === 'victory') {
     completeFloorVictory(state);
     const nextFloor = state.run.floor + 1;
+    const isBossClear = !!state.run.lastBossRewardMessage;
     const levelText = state.run.levelMessage ? `${state.run.levelMessage}\n` : '';
     const goldText = state.run.victoryGoldMessage ? `${state.run.victoryGoldMessage}\n` : '';
-    const bossText = state.run.lastBossRewardMessage ? `${state.run.lastBossRewardMessage}\n` : '';
+    const normalClearMessage = `${levelText}${goldText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`;
+    const bossClearMessage = '기본보상 : 레벨 및 숙련도 +1, 스텟포인트+5, 보스영혼, 강화석을 얻었습니다.\n일반 보상과 보스 전용 보상을 각각 선택 후, 다음층으로 이동합니다.';
     panelKeys.player = '';
     panelKeys.tower = '';
     showOverlay(
-      state.run.lastBossRewardMessage ? 'BOSS CLEAR' : 'VICTORY',
-      `${levelText}${goldText}${bossText}${state.run.floor}층을 클리어했습니다. ${state.run.pendingBossRewards?.length ? '일반 보상과 보스 전용 보상을 각각 하나씩 선택하면' : '보상을 하나 선택하면'} ${nextFloor}층으로 이동합니다.`,
+      isBossClear ? 'BOSS CLEAR' : 'VICTORY',
+      isBossClear ? bossClearMessage : normalClearMessage,
       '',
       'waitReward',
       { hideButton: true }
     );
     renderAllPanels(true);
+    saveTemporarySnapshot('victoryRewardPending');
   } else if (state.result === 'defeat') {
     syncBankFromRun();
     showChallengeEndOverlay('도전 종료', `${state.run.floor}층에서 쓰러졌습니다.`);
     renderAllPanels(true);
+    saveTemporarySnapshot('defeat');
   } else {
     showOverlay('DRAW', '두 유닛이 동시에 쓰러졌습니다. 현재 층을 다시 진행합니다.', '현재 층 재도전', 'start');
     renderAllPanels(true);
@@ -1488,6 +1896,7 @@ function buildChallengeEndDetails() {
       <strong>${inventory.weaponName}</strong>
       <em>${inventory.weaponGrade} · ${inventory.weaponStage}</em>
     </div>
+    <p class="challenge-reset-note">골드, 강화석, 보스의 영혼은 유지됩니다. 도전 중 성장 효과는 초기화되며, 영혼의 각인과 가보는 영구적으로 유지됩니다.</p>
   `;
 }
 
@@ -1499,16 +1908,26 @@ function showChallengeEndOverlay(title, text) {
 function showShopOverlay(message = '') {
   if (!run || !state) return;
   showPrepScreen();
-  renderShopBox(true, message);
+  activePrepTab = 'shop';
+  renderPrepGrowthContent(true, message);
+}
+
+function showLoginScreen() {
+  controls.loginScreen?.classList.remove('hidden');
+  controls.prepScreen.classList.add('hidden');
+  controls.towerScreen.classList.add('hidden');
+  hideOverlay();
 }
 
 function showPrepScreen() {
+  controls.loginScreen?.classList.add('hidden');
   controls.prepScreen.classList.remove('hidden');
   controls.towerScreen.classList.add('hidden');
   hideOverlay();
 }
 
 function showTowerScreen() {
+  controls.loginScreen?.classList.add('hidden');
   controls.prepScreen.classList.add('hidden');
   controls.towerScreen.classList.remove('hidden');
 }
@@ -1554,6 +1973,7 @@ function clearPanelKeys() {
     shop: '',
     controls: '',
     inventory: '',
-    combatSummary: ''
+    combatSummary: '',
+    prepGrowth: ''
   };
 }

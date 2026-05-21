@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.34-boss-reward-combat-summary" />
-  <title>Circle Battle Tower Rebuild v0.7.34</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.34" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.37-login-save-foundation" />
+  <title>Circle Battle Tower Rebuild v0.7.37</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.37" />
 </head>
 <body>
   <main class="app">
@@ -13,15 +13,43 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">10층마다 보스층을 추가하고 경험치 성장과 등반 성장 시뮬레이션을 확장한 v0.7.34 통합 업데이트입니다.</p>
+        <p class="subtext">10층마다 보스층을 추가하고 경험치 성장과 등반 성장 시뮬레이션을 확장한 v0.7.37 로그인·임시저장·스프레드시트 저장 기반 업데이트입니다.</p>
       </div>
       <div class="topbar-actions">
         <button id="simToggleBtn" class="button mini">시뮬레이터</button>
-        <div id="versionBadge" class="version">v0.7.34</div>
+        <div id="accountBadge" class="version account-badge">로그인 전</div>
+        <div id="versionBadge" class="version">v0.7.37</div>
       </div>
     </header>
 
-    <section id="prepScreen" class="screen prep-screen">
+    <section id="loginScreen" class="screen login-screen">
+      <section class="card login-card">
+        <p class="eyebrow">ACCOUNT</p>
+        <h2>로그인 / 아이디 생성</h2>
+        <p class="hint-text">주변 플레이용 간단 계정 저장 구조입니다. 새로고침 대비 임시저장은 브라우저에 남고, 캐릭터 생성 화면으로 돌아오면 로그인 계정에 자동 저장됩니다.</p>
+        <label class="field">
+          <span>아이디</span>
+          <input id="accountId" type="text" autocomplete="username" placeholder="예: player01" />
+        </label>
+        <label class="field">
+          <span>비밀번호</span>
+          <input id="accountPw" type="password" autocomplete="current-password" placeholder="비밀번호" />
+        </label>
+        <label class="field">
+          <span>Apps Script 웹 앱 URL</span>
+          <input id="accountEndpoint" type="url" placeholder="배포된 Apps Script 웹 앱 URL" />
+        </label>
+        <div class="button-row account-buttons">
+          <button id="createAccountBtn" class="button">아이디 생성</button>
+          <button id="loginBtn" class="button primary">로그인 / 불러오기</button>
+          <button id="tempLoadBtn" class="button">임시저장 불러오기</button>
+          <button id="guestStartBtn" class="button">게스트 시작</button>
+        </div>
+        <div id="accountMessage" class="account-message">구글 스프레드시트 연동은 ZIP 안의 Apps Script 코드를 배포한 뒤 웹 앱 URL을 입력하면 사용할 수 있습니다.</div>
+      </section>
+    </section>
+
+    <section id="prepScreen" class="screen prep-screen hidden">
       <section id="characterSetupCard" class="card prep-card setup-card">
         <p class="eyebrow">STEP 1</p>
         <h2>캐릭터 생성</h2>
@@ -53,8 +81,13 @@
           </div>
           <div id="shopStatusBox" class="shop-gold-pill"></div>
         </div>
+        <div class="prep-growth-tabs" id="prepGrowthTabs">
+          <button class="prep-tab-button active" type="button" data-prep-tab="shop">준비 상점</button>
+          <button class="prep-tab-button" type="button" data-prep-tab="soul">영혼의 각인</button>
+          <button class="prep-tab-button" type="button" data-prep-tab="heirloom">가보</button>
+        </div>
         <div id="overlayShopBox" class="prep-shop-list"></div>
-        <p class="shop-reset-note">상점 구매 효과는 현재 캐릭터에게만 적용되며, 사망 시 초기화됩니다.</p>
+        <p class="shop-reset-note">준비 상점은 이번 도전 전용입니다. 골드·강화석·보스의 영혼과 영구 성장은 사망 후에도 유지됩니다.</p>
         <button id="climbBtn" class="button primary climb-button">탑 오르기</button>
       </section>
     </section>
@@ -154,6 +187,6 @@
     </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.34"></script>
+  <script type="module" src="./js/main.js?v=0.7.37"></script>
 </body>
 </html>

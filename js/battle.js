@@ -6,8 +6,8 @@ import { PERSONALITIES, POSTURE_RULES, SKILLS, WEAPONS } from './data.js';
 import { decideMovement } from './ai.js';
 import { angleDiff, angleTo, clamp, distance, moveToward } from './utils.js';
 
-const DEFENSIVE_MIRROR_STALL_FRAMES = 120;
-const DEFENSIVE_MIRROR_FORCE_FRAMES = 42;
+const COMBAT_STALL_FRAMES = 180;
+const COMBAT_FORCE_FRAMES = 54;
 
 export function updateBattle(state) {
   if (!state.running || state.paused || state.result) return;
@@ -15,7 +15,7 @@ export function updateBattle(state) {
   state.frame += 1;
   state.elapsed += 1 / 60;
   updateCombatEffects(state);
-  updateDefensiveMirrorEngagement(state);
+  updateCombatStallEngagement(state);
 
   updateUnit(state.player, state.enemy, state);
   updateUnit(state.enemy, state.player, state);
@@ -347,28 +347,25 @@ function updateCombatEffects(state) {
   if (state.screenShake > 0) state.screenShake = Math.max(0, state.screenShake - 1);
 }
 
-function updateDefensiveMirrorEngagement(state) {
+function updateCombatStallEngagement(state) {
   const player = state.player;
   const enemy = state.enemy;
   if (!player || !enemy) return;
 
   if (!state.engagement) {
     state.engagement = {
-      defensiveMirrorStallFrames: 0,
-      defensiveMirrorForceFrames: 0,
+      combatStallFrames: 0,
+      combatForceFrames: 0,
       lastPlayerHits: player.hits || 0,
       lastEnemyHits: enemy.hits || 0
     };
   }
 
   const tracker = state.engagement;
-  const isDefensiveMirror = player.weaponId === enemy.weaponId &&
-    player.personalityId === 'defensive' &&
-    enemy.personalityId === 'defensive';
 
-  if (!isDefensiveMirror || player.isDead || enemy.isDead) {
-    tracker.defensiveMirrorStallFrames = 0;
-    tracker.defensiveMirrorForceFrames = 0;
+  if (player.isDead || enemy.isDead) {
+    tracker.combatStallFrames = 0;
+    tracker.combatForceFrames = 0;
     tracker.lastPlayerHits = player.hits || 0;
     tracker.lastEnemyHits = enemy.hits || 0;
     return;
@@ -384,33 +381,33 @@ function updateDefensiveMirrorEngagement(state) {
   tracker.lastEnemyHits = enemy.hits || 0;
 
   if (hitChanged) {
-    tracker.defensiveMirrorStallFrames = 0;
-    tracker.defensiveMirrorForceFrames = 0;
+    tracker.combatStallFrames = 0;
+    tracker.combatForceFrames = 0;
     return;
   }
 
   if (combatMotion) {
-    tracker.defensiveMirrorStallFrames = 0;
+    tracker.combatStallFrames = 0;
     return;
   }
 
-  tracker.defensiveMirrorStallFrames += 1;
-  if (tracker.defensiveMirrorStallFrames >= DEFENSIVE_MIRROR_STALL_FRAMES) {
-    tracker.defensiveMirrorStallFrames = 0;
-    tracker.defensiveMirrorForceFrames = DEFENSIVE_MIRROR_FORCE_FRAMES;
-    emitCombatEvent(state, '교전 압축', (player.x + enemy.x) / 2, (player.y + enemy.y) / 2 - 24, '#ffdf8a');
+  tracker.combatStallFrames += 1;
+  if (tracker.combatStallFrames >= COMBAT_STALL_FRAMES) {
+    tracker.combatStallFrames = 0;
+    tracker.combatForceFrames = COMBAT_FORCE_FRAMES;
+    emitCombatEvent(state, '교전 지연 해소', (player.x + enemy.x) / 2, (player.y + enemy.y) / 2 - 24, '#ffdf8a');
   }
 
-  if (tracker.defensiveMirrorForceFrames > 0) {
-    applyDefensiveMirrorEngagementForce(state, player, enemy);
-    tracker.defensiveMirrorForceFrames -= 1;
+  if (tracker.combatForceFrames > 0) {
+    applyCombatStallEngagementForce(state, player, enemy);
+    tracker.combatForceFrames -= 1;
   }
 }
 
-function applyDefensiveMirrorEngagementForce(state, player, enemy) {
+function applyCombatStallEngagementForce(state, player, enemy) {
   const weapon = WEAPONS[player.weaponId];
   const dist = distance(player, enemy) || 1;
-  const targetDist = getDefensiveMirrorEngageDistance(player, enemy, weapon);
+  const targetDist = getCombatStallEngageDistance(player, enemy, weapon);
   const toEnemy = angleTo(player, enemy);
 
   player.facing = moveToward(player.facing, toEnemy, 0.24);
@@ -437,7 +434,7 @@ function applyDefensiveMirrorEngagementForce(state, player, enemy) {
   enemy.vy = enemy.vy * 0.46 - ny * pull * 0.38;
 }
 
-function getDefensiveMirrorEngageDistance(player, enemy, weapon) {
+function getCombatStallEngageDistance(player, enemy, weapon) {
   const bodySafeDistance = player.radius + enemy.radius + 8;
   const weaponDistance = weapon.id === 'dagger'
     ? WEAPONS.dagger.range + enemy.radius + 2

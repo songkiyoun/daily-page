@@ -20,8 +20,8 @@ export function decideMovement(self, enemy, state = null) {
     return { ax: 0, ay: 0, faceAngle: toEnemy, label: '공격 동작' };
   }
 
-  if (isDefensiveMirrorEngagementForced(self, enemy, state)) {
-    return defensiveMirrorForceMovement(self, enemy, weapon, toEnemy, dist);
+  if (isCombatStallEngagementForced(state)) {
+    return combatStallForceMovement(self, enemy, weapon, toEnemy, dist);
   }
 
   if (weapon.id === 'dagger' && enemy.weaponId !== 'western') {
@@ -82,25 +82,20 @@ export function decideMovement(self, enemy, state = null) {
 
 
 
-function isDefensiveMirrorEngagementForced(self, enemy, state) {
-  return (
-    (state?.engagement?.defensiveMirrorForceFrames || 0) > 0 &&
-    self.weaponId === enemy.weaponId &&
-    self.personalityId === 'defensive' &&
-    enemy.personalityId === 'defensive'
-  );
+function isCombatStallEngagementForced(state) {
+  return (state?.engagement?.combatForceFrames || 0) > 0;
 }
 
-function defensiveMirrorForceMovement(self, enemy, weapon, toEnemy, dist) {
-  const forceDistance = getDefensiveMirrorForceDistance(self, enemy, weapon);
+function combatStallForceMovement(self, enemy, weapon, toEnemy, dist) {
+  const forceDistance = getCombatStallForceDistance(self, enemy, weapon);
   const closeEnough = dist <= forceDistance + 4;
   const power = closeEnough
     ? (weapon.id === 'dagger' ? 0.56 : 0.44)
     : (weapon.id === 'dagger' ? 1.78 : weapon.id === 'eastern' ? 1.54 : 1.36);
-  return vectorFromAngle(toEnemy, power, toEnemy, closeEnough ? '방어형 미러 교전 시작' : '방어형 미러 강제 접근');
+  return vectorFromAngle(toEnemy, power, toEnemy, closeEnough ? '교전 시작' : '교전 지연 강제 접근');
 }
 
-function getDefensiveMirrorForceDistance(self, enemy, weapon) {
+function getCombatStallForceDistance(self, enemy, weapon) {
   const bodySafeDistance = self.radius + enemy.radius + 8;
   const attackDistance = weapon.id === 'dagger'
     ? WEAPONS.dagger.range + enemy.radius + 2
