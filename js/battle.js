@@ -36,6 +36,7 @@ export function updateBattle(state) {
   state.frame += 1;
   state.elapsed += 1 / 60;
   updateCombatEffects(state);
+  updateSummonedClones(state);
   updateCombatStallEngagement(state);
 
   updateUnit(state.player, state.enemy, state);
@@ -132,8 +133,8 @@ function emitVisualEffect(state, effect) {
   if (!state) return;
   if (!state.visualEffects) state.visualEffects = [];
   state.visualEffects.push(effect);
-  if (state.visualEffects.length > 28) {
-    state.visualEffects.splice(0, state.visualEffects.length - 28);
+  if (state.visualEffects.length > 46) {
+    state.visualEffects.splice(0, state.visualEffects.length - 46);
   }
 }
 
@@ -367,6 +368,68 @@ function updateCombatEffects(state) {
     .filter((effect) => effect.life > 0);
 
   if (state.screenShake > 0) state.screenShake = Math.max(0, state.screenShake - 1);
+}
+
+function updateSummonedClones(state) {
+  if (!state.summons?.length) return;
+  const player = state.player;
+  const enemy = state.enemy;
+
+  state.summons = state.summons
+    .map((clone) => {
+      const owner = clone.ownerSide === 'player' ? player : enemy;
+      const target = clone.targetSide === 'player' ? player : enemy;
+      if (!owner || !target || owner.isDead || target.isDead || clone.hp <= 0) {
+        return { ...clone, life: 0 };
+      }
+
+      const angle = angleTo(clone, target);
+      const orbit = angle + Math.PI / 2 * (clone.orbitDir || 1);
+      const desiredRadius = target.radius + clone.radius + 24;
+      const desiredX = target.x - Math.cos(angle) * desiredRadius + Math.cos(orbit) * 18;
+      const desiredY = target.y - Math.sin(angle) * desiredRadius + Math.sin(orbit) * 18;
+      const dx = desiredX - clone.x;
+      const dy = desiredY - clone.y;
+      const distToPoint = Math.hypot(dx, dy) || 1;
+      const speed = clone.moveSpeed || 3.2;
+      clone.x += dx / distToPoint * Math.min(speed, distToPoint);
+      clone.y += dy / distToPoint * Math.min(speed, distToPoint);
+      clone.facing = angleTo(clone, target);
+      clone.life -= 1;
+      clone.attackTimer -= 1;
+
+      const distToTarget = distance(clone, target);
+      if (clone.attackTimer <= 0 && distToTarget < target.radius + clone.radius + 58) {
+        clone.attackTimer = clone.attackInterval || 38;
+        const weapon = WEAPONS[owner.weaponId] || WEAPONS.dagger;
+        const damage = Math.max(1, weapon.damage * (owner.attackScale || 1) * 0.1 * (1 - getEffectiveDefense(target)));
+        target.hp = clamp(target.hp - damage, 0, target.maxHp);
+        owner.damageDealt += damage;
+        owner.hits += 1;
+        emitCombatEvent(state, '분신 공격', target.x, target.y - 42, '#d7b9ff');
+        emitVisualEffect(state, {
+          type: 'trail',
+          x1: clone.x,
+          y1: clone.y,
+          x2: target.x,
+          y2: target.y,
+          color: '#d7b9ff',
+          source: '분신술',
+          life: 14,
+          maxLife: 14,
+          width: 2.6,
+          weaponId: 'dagger',
+          skillId: 'cloneStrike'
+        });
+        emitHitSpark(state, owner, target, weapon, false, 'cloneStrike');
+        if (target.hp <= 0) {
+          target.isDead = true;
+          target.lastAction = '전투 불능';
+        }
+      }
+      return clone;
+    })
+    .filter((clone) => clone.life > 0);
 }
 
 function updateCombatStallEngagement(state) {
@@ -769,6 +832,7 @@ function beginAttack(attacker, defender) {
   attacker.attackResolved = false;
   attacker.attackOutcome = '';
   attacker.attackVisualPhase = 0;
+  attacker.attackSequenceId = (attacker.attackSequenceId || 0) + 1;
   attacker.vx *= getAttackEntryBrake(attacker.weaponId);
   attacker.vy *= getAttackEntryBrake(attacker.weaponId);
   if (attacker.weaponId === 'dagger') {
@@ -785,6 +849,7 @@ function updateAttackState(attacker, defender, state) {
   if (attacker.attackState === 'windup') {
     attacker.attackVisualPhase = 1 - attacker.attackTimer / Math.max(1, attacker.attackWindupMax || weapon.windup);
     applyWindupDrift(attacker, weapon);
+    emitSkillWindupVisual(attacker, defender, state);
     if (attacker.attackTimer <= 0) {
       attacker.attackState = 'active';
       attacker.attackTimer = attacker.attackActiveMax || getActiveFrames(attacker);
@@ -793,6 +858,7 @@ function updateAttackState(attacker, defender, state) {
       if (attacker.activeSkillAttack) {
         emitCombatEvent(state, getSkillActiveLabel(attacker.activeSkillAttack) || SKILLS[attacker.activeSkillAttack]?.name || '스킬', attacker.x, attacker.y - 44, '#ffd45a');
       }
+      emitSkillActiveStartVisual(attacker, defender, state);
       applyAttackLunge(attacker, weapon);
       attacker.attackResolved = resolveAttack(attacker, defender, state);
     }
@@ -856,6 +922,173 @@ function getAttackEntryBrake(weaponId) {
   if (weaponId === 'eastern') return 0.46;
   if (weaponId === 'dagger') return 0.52;
   return 0.42;
+}
+
+function emitSkillWindupVisual(attacker, defender, state) {
+  if (!attacker.activeSkillAttack || !state) return;
+  if ((attacker.attackTimer || 0) % 10 !== 0) return;
+
+  if (attacker.activeSkillAttack === 'westernExcaliburBeam') {
+    const chargePhase = clamp(1 - (attacker.attackTimer || 0) / Math.max(1, attacker.attackWindupMax || 1), 0, 1);
+    emitVisualEffect(state, {
+      type: 'ring',
+      x: attacker.x,
+      y: attacker.y,
+      color: '#fff5bd',
+      life: 18,
+      maxLife: 18,
+      size: attacker.radius + 12 + chargePhase * 12,
+      power: 1.2 + chargePhase * 0.45
+    });
+    emitVisualEffect(state, {
+      type: 'burst',
+      x: attacker.x,
+      y: attacker.y,
+      color: '#fff5bd',
+      life: 12,
+      maxLife: 12,
+      size: 14 + chargePhase * 16
+    });
+    if (distance(attacker, defender) < attacker.radius + defender.radius + 78) {
+      pushDefender(attacker, defender, 5.8 + chargePhase * 3.2);
+      defender.cooldownTimer = Math.max(defender.cooldownTimer || 0, 12);
+      defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, 18);
+      emitCombatEvent(state, '충전 반발', defender.x, defender.y - 42, '#fff5bd');
+      emitKnockbackLine(state, attacker, defender, '#fff5bd', 1.35 + chargePhase);
+    }
+    attacker.vx *= 0.52;
+    attacker.vy *= 0.52;
+  }
+
+  if (attacker.activeSkillAttack === 'westernCaliburnCharge') {
+    emitVisualEffect(state, {
+      type: 'shockline',
+      x: attacker.x,
+      y: attacker.y,
+      angle: angleTo(attacker, defender),
+      color: '#fff0a6',
+      life: 12,
+      maxLife: 12,
+      length: 42,
+      width: 2.4
+    });
+  }
+
+  if (attacker.activeSkillAttack === 'daggerCloneTechnique') {
+    emitVisualEffect(state, {
+      type: 'afterimage',
+      x: attacker.x,
+      y: attacker.y,
+      color: '#d7b9ff',
+      life: 16,
+      maxLife: 16,
+      size: attacker.radius + 8
+    });
+  }
+}
+
+function emitSkillActiveStartVisual(attacker, defender, state) {
+  if (!attacker.activeSkillAttack || !state) return;
+  const angle = angleTo(attacker, defender);
+
+  if (attacker.activeSkillAttack === 'westernExcaliburBeam') {
+    emitExcaliburBeam(state, attacker, defender);
+    emitVisualEffect(state, {
+      type: 'projectile',
+      x: attacker.x + Math.cos(angle) * (attacker.radius + 24),
+      y: attacker.y + Math.sin(angle) * (attacker.radius + 24),
+      x2: defender.x,
+      y2: defender.y,
+      angle,
+      color: '#fff5bd',
+      life: 16,
+      maxLife: 16,
+      size: 15,
+      length: 46
+    });
+  }
+
+  if (attacker.activeSkillAttack === 'daggerCloneTechnique') {
+    summonDaggerCloneOnce(attacker, defender, state);
+  }
+
+  if (attacker.activeSkillAttack === 'westernCaliburnCharge') {
+    emitVisualEffect(state, {
+      type: 'shockline',
+      x: attacker.x,
+      y: attacker.y,
+      angle,
+      color: '#fff0a6',
+      life: 22,
+      maxLife: 22,
+      length: 132,
+      width: 5.2
+    });
+  }
+
+  if (attacker.activeSkillAttack === 'spearPierce') {
+    emitVisualEffect(state, {
+      type: 'shockline',
+      x: attacker.x,
+      y: attacker.y,
+      angle,
+      color: '#d7b9ff',
+      life: 20,
+      maxLife: 20,
+      length: 150,
+      width: 5.8
+    });
+  }
+
+  if (attacker.activeSkillAttack === 'spearLuBu') {
+    for (let i = 0; i < 7; i += 1) {
+      const sideOffset = (i - 3) * 4.2;
+      const jabAngle = angle + (i - 3) * 0.018;
+      const side = jabAngle + Math.PI / 2;
+      emitVisualEffect(state, {
+        type: 'shockline',
+        x: attacker.x + Math.cos(side) * sideOffset,
+        y: attacker.y + Math.sin(side) * sideOffset,
+        angle: jabAngle,
+        color: '#cda2ff',
+        life: 12 + i,
+        maxLife: 12 + i,
+        length: 150 + i * 7,
+        width: 3.1 + i * 0.18
+      });
+    }
+    emitCombatEvent(state, '초고속 연속 찌르기', attacker.x, attacker.y - 52, '#cda2ff');
+  }
+}
+
+function emitExcaliburBeam(state, attacker, defender) {
+  const angle = angleTo(attacker, defender);
+  const startX = attacker.x + Math.cos(angle) * attacker.radius;
+  const startY = attacker.y + Math.sin(angle) * attacker.radius;
+  const endX = startX + Math.cos(angle) * 240;
+  const endY = startY + Math.sin(angle) * 240;
+  emitVisualEffect(state, {
+    type: 'beam',
+    x1: startX,
+    y1: startY,
+    x2: endX,
+    y2: endY,
+    color: '#fff5bd',
+    life: 26,
+    maxLife: 26,
+    width: 12
+  });
+  emitVisualEffect(state, {
+    type: 'ring',
+    x: attacker.x,
+    y: attacker.y,
+    color: '#fff5bd',
+    life: 24,
+    maxLife: 24,
+    size: attacker.radius + 18,
+    power: 1.4
+  });
+  addScreenShake(state, 7);
 }
 
 
@@ -1015,14 +1248,14 @@ function applyAttackLunge(attacker, weapon, scale = 1) {
     baseForward *= 6.15;
     baseSide *= 0.08;
   } else if (attacker.activeSkillAttack === 'spearLuBu') {
-    baseForward *= 4.7;
-    baseSide *= 0.16;
+    baseForward *= 1.18;
+    baseSide *= 0.05;
   } else if (attacker.activeSkillAttack === 'daggerAssassinate') {
     baseForward *= 4.9;
     baseSide *= 1.22;
   } else if (attacker.activeSkillAttack === 'daggerCloneTechnique') {
-    baseForward *= 3.2;
-    baseSide *= 0.7;
+    baseForward *= 0.7;
+    baseSide *= 0.2;
   } else if (attacker.activeSkillAttack === 'spearDoubleThrust') {
     baseForward *= 5.4;
     baseSide *= 0.12;
@@ -1057,7 +1290,7 @@ function applyAttackLunge(attacker, weapon, scale = 1) {
   const maxBurst = ['easternAnnihilation', 'spearPierce', 'westernCaliburnCharge'].includes(attacker.activeSkillAttack)
     ? 9.2
     : attacker.activeSkillAttack === 'spearLuBu'
-      ? 8.8
+      ? 5.4
       : attacker.activeSkillAttack === 'daggerAssassinate'
         ? 8.6
         : attacker.activeSkillAttack === 'spearDoubleThrust'
@@ -1194,7 +1427,7 @@ function getSkillDamageBonus(attacker, defender, skillId) {
   if (skillId === 'spearPierce') return 1.34;
   if (skillId === 'spearLuBu') return 1.12;
   if (skillId === 'daggerAssassinate') return 1.05;
-  if (skillId === 'daggerCloneTechnique') return 0.72;
+  if (skillId === 'daggerCloneTechnique') return 0.12;
   if (skillId === 'westernBash') return 1.06 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'easternIaiSlash') return 1.04 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'daggerVitalStrike') return 1.0 + getUnitSkillLevel(attacker, skillId) * 0.025;
@@ -1210,7 +1443,7 @@ function getSkillPostureDamageScale(attacker, skillId) {
   if (skillId === 'spearPierce') return 1.48;
   if (skillId === 'spearLuBu') return 1.36;
   if (skillId === 'daggerAssassinate') return 1.0;
-  if (skillId === 'daggerCloneTechnique') return 0.78;
+  if (skillId === 'daggerCloneTechnique') return 0.18;
   if (skillId === 'westernBash') return 1.06 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'easternIaiSlash') return 1.1 + getUnitSkillLevel(attacker, skillId) * 0.025;
   if (skillId === 'daggerVitalStrike') return 0.94;
@@ -1619,66 +1852,266 @@ function applyEvolutionSkillOnHit(attacker, defender, weapon, skillId, state, hi
   if (!skillId || defender.isDead || defender.hp <= 0) return;
 
   if (skillId === 'westernCaliburnCharge') {
-    pushDefender(attacker, defender, 4.8 + hitQuality * 2.2);
-    applyPostureDamage(attacker, defender, weapon.postureDamage * 0.42, state);
-    emitCombatEvent(state, '돌파 치명타', defender.x, defender.y - 50, '#fff0a6');
+    pushDefender(attacker, defender, 5.2 + hitQuality * 2.4);
+    applyPostureDamage(attacker, defender, weapon.postureDamage * 0.5, state);
+    emitVisualEffect(state, {
+      type: 'shockline',
+      x: defender.x,
+      y: defender.y,
+      angle: angleTo(attacker, defender),
+      color: '#fff0a6',
+      life: 20,
+      maxLife: 20,
+      length: 126,
+      width: 5.4
+    });
+    emitCombatEvent(state, '돌격 찌르기', defender.x, defender.y - 50, '#fff0a6');
   }
 
   if (skillId === 'westernExcaliburBeam') {
-    dealExtraSkillDamage(attacker, defender, weapon, state, '빛의 일격', 0.34, false);
-    emitEvolutionLine(state, attacker, defender, '#fff5bd', 172, 7);
-    addScreenShake(state, 4);
+    dealExtraSkillDamage(attacker, defender, weapon, state, '빛의 일격', 0.54, false);
+    pushDefender(attacker, defender, 13.6 + hitQuality * 5.4);
+    applyPostureDamage(attacker, defender, weapon.postureDamage * 0.85, state);
+    emitExcaliburBeam(state, attacker, defender);
+    emitVisualEffect(state, {
+      type: 'burst',
+      x: defender.x,
+      y: defender.y,
+      color: '#fff5bd',
+      life: 20,
+      maxLife: 20,
+      size: 32
+    });
+    emitCombatEvent(state, '검기 적중', defender.x, defender.y - 58, '#fff5bd');
   }
 
   if (skillId === 'easternAnnihilation') {
-    applyEasternIaiPassThrough(attacker, defender, weapon, state, hitQuality + 0.25);
-    dealExtraSkillDamage(attacker, defender, weapon, state, '섬멸 2연참', 0.34, true);
-    dealExtraSkillDamage(attacker, defender, weapon, state, '섬멸 3연참', 0.28, true);
-    emitEvolutionLine(state, attacker, defender, '#ffe28a', 116, 5.6);
+    performRepeatedPassStrikes(attacker, defender, weapon, state, {
+      hits: 3,
+      label: '섬멸',
+      scale: 0.28,
+      forcedCrit: true,
+      color: '#ffe28a',
+      sideBias: 0.18,
+      distanceOffset: 22
+    });
   }
 
   if (skillId === 'spearPierce') {
-    pushDefender(attacker, defender, 7.4 + hitQuality * 2.8);
-    applyPostureDamage(attacker, defender, weapon.postureDamage * 0.5, state);
-    emitCombatEvent(state, '관통 넉백', defender.x, defender.y - 50, '#d7b9ff');
+    pushDefender(attacker, defender, 7.8 + hitQuality * 2.9);
+    applyPostureDamage(attacker, defender, weapon.postureDamage * 0.58, state);
+    emitVisualEffect(state, {
+      type: 'arc',
+      x: defender.x,
+      y: defender.y,
+      angle: angleTo(attacker, defender) + Math.PI / 2,
+      color: '#d7b9ff',
+      life: 18,
+      maxLife: 18,
+      radius: 42,
+      arc: 1.15,
+      width: 5
+    });
+    emitCombatEvent(state, '관통 후 휘두르기', defender.x, defender.y - 50, '#d7b9ff');
   }
 
   if (skillId === 'spearLuBu') {
-    for (let i = 0; i < 3; i += 1) {
-      dealExtraSkillDamage(attacker, defender, weapon, state, `여포강림 ${i + 2}타`, 0.18 + i * 0.035, i === 2);
-    }
-    pushDefender(attacker, defender, 8.6 + hitQuality * 3.2);
-    emitEvolutionLine(state, attacker, defender, '#cda2ff', 148, 6.4);
+    performSpearRapidThrusts(attacker, defender, weapon, state, hitQuality);
+    pushDefender(attacker, defender, 6.8 + hitQuality * 2.6);
+    emitEvolutionLine(state, attacker, defender, '#cda2ff', 156, 6.4);
     addScreenShake(state, 4);
   }
 
   if (skillId === 'daggerAssassinate') {
     moveToAssassinationAngle(attacker, defender, state);
-    for (let i = 0; i < 3; i += 1) {
-      dealExtraSkillDamage(attacker, defender, weapon, state, `암살 ${i + 2}타`, 0.18 + i * 0.025, true);
-    }
+    performRepeatedPassStrikes(attacker, defender, weapon, state, {
+      hits: 4,
+      label: '암살',
+      scale: 0.16,
+      forcedCrit: true,
+      color: '#b8ff8f',
+      sideBias: 0.72,
+      distanceOffset: 12
+    });
   }
 
   if (skillId === 'daggerCloneTechnique') {
-    for (let i = 0; i < 5; i += 1) {
-      dealExtraSkillDamage(attacker, defender, weapon, state, `분신 ${i + 1}타`, 0.08, false);
-    }
-    emitVisualEffect(state, {
-      type: 'afterimage',
-      x: attacker.x,
-      y: attacker.y,
-      color: '#d7b9ff',
-      life: 34,
-      maxLife: 34,
-      size: attacker.radius + 7
-    });
-    emitCombatEvent(state, '분신술', attacker.x, attacker.y - 52, '#d7b9ff');
+    summonDaggerCloneOnce(attacker, defender, state);
   }
 
   if (defender.hp <= 0) {
     defender.isDead = true;
     defender.lastAction = '전투 불능';
   }
+}
+
+function performSpearRapidThrusts(attacker, defender, weapon, state, hitQuality = 0) {
+  const angle = angleTo(attacker, defender);
+  const side = angle + Math.PI / 2;
+  for (let i = 0; i < 7; i += 1) {
+    if (defender.isDead || defender.hp <= 0) break;
+    const offset = (i - 3) * 4.2;
+    const reachJitter = i * 4;
+    emitVisualEffect(state, {
+      type: 'trail',
+      x1: attacker.x + Math.cos(side) * offset,
+      y1: attacker.y + Math.sin(side) * offset,
+      x2: defender.x + Math.cos(angle) * (20 + reachJitter) + Math.cos(side) * offset,
+      y2: defender.y + Math.sin(angle) * (20 + reachJitter) + Math.sin(side) * offset,
+      color: '#cda2ff',
+      life: 10 + i,
+      maxLife: 10 + i,
+      width: 2.8,
+      weaponId: 'spear',
+      skillId: 'spearLuBu'
+    });
+    emitVisualEffect(state, {
+      type: 'impact',
+      x: defender.x + Math.cos(side) * offset * 0.35,
+      y: defender.y + Math.sin(side) * offset * 0.35,
+      angle,
+      color: '#cda2ff',
+      life: 12,
+      maxLife: 12,
+      size: 16 + i,
+      shape: 'thrust'
+    });
+    dealExtraSkillDamage(attacker, defender, weapon, state, `여포강림 ${i + 2}타`, 0.09 + i * 0.018, i >= 4);
+  }
+}
+
+function performRepeatedPassStrikes(attacker, defender, weapon, state, options) {
+  if (defender.isDead || defender.hp <= 0) return;
+  const {
+    hits = 3,
+    label = '연속 관통',
+    scale = 0.18,
+    forcedCrit = true,
+    color = weapon.color,
+    sideBias = 0.3,
+    distanceOffset = 16
+  } = options || {};
+
+  const baseAngle = angleTo(attacker, defender);
+  const passDistance = defender.radius + attacker.radius + distanceOffset + (weapon.id === 'dagger' ? 14 : 22);
+  const sideSignBase = attacker.orbitDir || 1;
+
+  for (let i = 0; i < hits; i += 1) {
+    if (defender.isDead || defender.hp <= 0) break;
+    const direction = baseAngle + (i % 2 === 0 ? 0 : Math.PI);
+    const sideSign = sideSignBase * (i % 2 === 0 ? 1 : -1);
+    const side = direction + Math.PI / 2;
+    const sideOffset = sideSign * sideBias * (weapon.id === 'dagger' ? 18 : 10);
+    const fromX = defender.x - Math.cos(direction) * passDistance + Math.cos(side) * sideOffset;
+    const fromY = defender.y - Math.sin(direction) * passDistance + Math.sin(side) * sideOffset;
+    const toX = defender.x + Math.cos(direction) * passDistance + Math.cos(side) * sideOffset;
+    const toY = defender.y + Math.sin(direction) * passDistance + Math.sin(side) * sideOffset;
+
+    attacker.x = fromX;
+    attacker.y = fromY;
+    attacker.facing = direction;
+
+    emitVisualEffect(state, {
+      type: 'afterimage',
+      x: fromX,
+      y: fromY,
+      color,
+      life: 10 + i,
+      maxLife: 10 + i,
+      size: attacker.radius + 4
+    });
+
+    attacker.x = toX;
+    attacker.y = toY;
+    attacker.facing = direction;
+    attacker.vx += Math.cos(direction) * (2.2 + i * 0.22);
+    attacker.vy += Math.sin(direction) * (2.2 + i * 0.22);
+
+    emitVisualEffect(state, {
+      type: 'trail',
+      x1: fromX,
+      y1: fromY,
+      x2: toX,
+      y2: toY,
+      color,
+      life: 14 + i * 2,
+      maxLife: 14 + i * 2,
+      width: weapon.id === 'dagger' ? 3.2 : 5.0,
+      weaponId: weapon.id,
+      skillId: label
+    });
+    emitVisualEffect(state, {
+      type: weapon.id === 'dagger' ? 'impact' : 'shockline',
+      x: defender.x,
+      y: defender.y,
+      angle: direction,
+      color,
+      life: 12 + i * 2,
+      maxLife: 12 + i * 2,
+      length: 72 + i * 10,
+      width: weapon.id === 'dagger' ? 2.2 : 4.0,
+      size: 17 + i * 2,
+      shape: weapon.id === 'dagger' ? 'stab' : 'slice'
+    });
+    dealExtraSkillDamage(attacker, defender, weapon, state, `${label} ${i + 1}타`, scale + i * 0.025, forcedCrit);
+  }
+  attacker.lastAction = label;
+  addScreenShake(state, weapon.id === 'dagger' ? 4 : 5);
+}
+
+function summonDaggerCloneOnce(attacker, defender, state) {
+  attacker.skillRuntime ||= {};
+  const seq = attacker.attackSequenceId || 0;
+  if (attacker.skillRuntime.lastCloneAttackSeq === seq) return;
+  attacker.skillRuntime.lastCloneAttackSeq = seq;
+  summonDaggerClone(attacker, defender, state);
+}
+
+function summonDaggerClone(attacker, defender, state) {
+  if (!state.summons) state.summons = [];
+  state.summons = state.summons.filter((clone) => clone.ownerSide !== attacker.side);
+  const side = attacker.orbitDir || 1;
+  const angle = angleTo(defender, attacker) + side * 0.45;
+  const clone = {
+    id: `clone-${attacker.side}-${state.frame || 0}`,
+    ownerSide: attacker.side,
+    targetSide: defender.side,
+    x: attacker.x - Math.cos(angle) * 24,
+    y: attacker.y - Math.sin(angle) * 24,
+    vx: 0,
+    vy: 0,
+    facing: angleTo(attacker, defender),
+    radius: Math.max(10, Math.round(attacker.radius * 0.82)),
+    hp: Math.max(1, attacker.maxHp * 0.1),
+    life: 520,
+    maxLife: 520,
+    attackTimer: 18,
+    attackInterval: 36,
+    moveSpeed: 4.15,
+    orbitDir: -side,
+    color: '#d7b9ff'
+  };
+  state.summons.push(clone);
+  emitVisualEffect(state, {
+    type: 'ring',
+    x: clone.x,
+    y: clone.y,
+    color: '#d7b9ff',
+    life: 24,
+    maxLife: 24,
+    size: clone.radius + 12,
+    power: 1.15
+  });
+  emitVisualEffect(state, {
+    type: 'afterimage',
+    x: clone.x,
+    y: clone.y,
+    color: '#d7b9ff',
+    life: 30,
+    maxLife: 30,
+    size: clone.radius + 10
+  });
+  emitCombatEvent(state, '분신 소환', clone.x, clone.y - 42, '#d7b9ff');
 }
 
 function dealExtraSkillDamage(attacker, defender, weapon, state, label, scale, forcedCrit = false) {
@@ -1963,7 +2396,7 @@ function getAttackStartReach(attacker, defender, weapon) {
 }
 
 function getReadyEvolutionStartReach(attacker) {
-  if (attacker.weaponId === 'western' && hasReadySkill(attacker, 'westernExcaliburBeam')) return 132;
+  if (attacker.weaponId === 'western' && hasReadySkill(attacker, 'westernExcaliburBeam')) return 220;
   if (attacker.weaponId === 'western' && hasReadySkill(attacker, 'westernCaliburnCharge')) return 24;
   if (attacker.weaponId === 'spear' && hasReadySkill(attacker, 'spearPierce')) return 28;
   if (attacker.weaponId === 'spear' && hasReadySkill(attacker, 'spearLuBu')) return 24;
@@ -1975,7 +2408,7 @@ function getReadyEvolutionStartReach(attacker) {
 function getHitReach(attacker, defender, weapon) {
   const hitReachBonus = weapon.hitReachBonus || 0;
   const skillReach = attacker.activeSkillAttack === 'westernExcaliburBeam'
-    ? 132
+    ? 220
     : attacker.activeSkillAttack === 'westernCaliburnCharge'
       ? 24
       : attacker.activeSkillAttack === 'easternAnnihilation'

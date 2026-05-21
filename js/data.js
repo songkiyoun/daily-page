@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.8.0';
+export const VERSION = '0.8.2';
 
 export const WEAPONS = {
   spear: {
@@ -733,7 +733,7 @@ export const SKILLS = {
     type: 'evolutionAttack',
     maxLevel: 1,
     cooldown: 2400,
-    description: '혈랑아 전용. 짧은 시간 동안 낮은 능력치의 분신 공격을 발생시킵니다.'
+    description: '혈랑아 전용. 일정 시간 동안 낮은 능력치의 분신을 소환해 함께 공격하게 합니다.'
   },
 
   aggressiveBestDefense: {

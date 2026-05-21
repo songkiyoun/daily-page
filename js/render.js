@@ -21,6 +21,7 @@ export function render(ctx, state) {
   drawWeaponArc(ctx, state.enemy);
   drawAttackSpeedLines(ctx, state.player);
   drawAttackSpeedLines(ctx, state.enemy);
+  drawSummons(ctx, state.summons || []);
   drawUnit(ctx, state.player);
   drawUnit(ctx, state.enemy);
   drawVisualEffects(ctx, state.visualEffects || [], 'front');
@@ -87,6 +88,12 @@ function drawWeaponArc(ctx, unit) {
       : unit.attackState === 'recovery'
         ? 0.07
         : 0.045;
+
+  if (isLinearSkillVisual(unit.activeSkillAttack)) {
+    drawLinearAttackZone(ctx, unit, weapon, visual, alpha);
+    return;
+  }
+
   const arc = unit.activeSkillAttack === 'spearSweep' && unit.attackState === 'active'
     ? Math.max(weapon.arc * 3.0, 1.2)
     : unit.attackState === 'active'
@@ -119,6 +126,48 @@ function drawWeaponArc(ctx, unit) {
     ctx.stroke();
     ctx.setLineDash([]);
   }
+  ctx.restore();
+}
+
+function isLinearSkillVisual(skillId) {
+  return ['westernCaliburnCharge', 'westernExcaliburBeam', 'spearPierce', 'spearLuBu'].includes(skillId);
+}
+
+function drawLinearAttackZone(ctx, unit, weapon, visual, alpha) {
+  const phase = Math.max(0, Math.min(1, unit.attackVisualPhase || 0));
+  const length = unit.activeSkillAttack === 'westernExcaliburBeam'
+    ? 238
+    : unit.activeSkillAttack === 'spearLuBu'
+      ? 164
+      : unit.activeSkillAttack === 'spearPierce'
+        ? 154
+        : 126;
+  const width = unit.activeSkillAttack === 'westernExcaliburBeam'
+    ? 18
+    : unit.activeSkillAttack === 'spearLuBu'
+      ? 14
+      : 10;
+  const start = unit.radius + 4;
+  const x1 = unit.x + Math.cos(visual.angle) * start;
+  const y1 = unit.y + Math.sin(visual.angle) * start;
+  const x2 = unit.x + Math.cos(visual.angle) * (start + length * (unit.attackState === 'windup' ? 0.55 + phase * 0.25 : 1));
+  const y2 = unit.y + Math.sin(visual.angle) * (start + length * (unit.attackState === 'windup' ? 0.55 + phase * 0.25 : 1));
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.strokeStyle = hexToRgba(unit.activeSkillAttack === 'westernExcaliburBeam' ? '#fff5bd' : weapon.color, unit.attackState === 'active' ? 0.36 : alpha * 1.2);
+  ctx.lineWidth = width;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.strokeStyle = hexToRgba('#ffffff', unit.attackState === 'active' ? 0.55 : 0.22);
+  ctx.lineWidth = Math.max(2, width * 0.32);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -237,6 +286,39 @@ function drawUnit(ctx, unit) {
 }
 
 
+
+function drawSummons(ctx, summons) {
+  if (!summons.length) return;
+  ctx.save();
+  summons.forEach((clone) => {
+    const lifeRatio = clamp(clone.life / (clone.maxLife || clone.life || 1), 0, 1);
+    ctx.save();
+    ctx.globalAlpha = 0.38 + lifeRatio * 0.34;
+    ctx.translate(clone.x, clone.y);
+    ctx.beginPath();
+    ctx.arc(0, 0, clone.radius + 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(215,185,255,0.12)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, clone.radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#d7b9ff';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.rotate(clone.facing || 0);
+    ctx.beginPath();
+    ctx.moveTo(clone.radius + 3, 0);
+    ctx.lineTo(clone.radius + 26, 0);
+    ctx.strokeStyle = '#d7b9ff';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
 function drawUnitBody(ctx, unit, weapon) {
   const imageUrl = unit.side === 'player' ? String(unit.profileImageUrl || '').trim() : '';
   const imageRecord = imageUrl ? getCachedUnitImage(imageUrl) : null;
@@ -337,7 +419,16 @@ function getWeaponVisual(unit, weapon) {
   let reachScale = weapon.id === 'spear' ? 0.42 : weapon.id === 'dagger' ? 0.7 : 0.76;
 
   if (unit.attackState === 'windup') {
-    if (unit.activeSkillAttack === 'spearSweep') {
+    if (unit.activeSkillAttack === 'westernCaliburnCharge') {
+      angle = base;
+      reachScale = 1.05 + phase * 0.38;
+    } else if (unit.activeSkillAttack === 'westernExcaliburBeam') {
+      angle = base;
+      reachScale = 1.18 + phase * 0.3;
+    } else if (unit.activeSkillAttack === 'spearPierce' || unit.activeSkillAttack === 'spearLuBu') {
+      angle = base;
+      reachScale = 1.08 + phase * 0.36;
+    } else if (unit.activeSkillAttack === 'spearSweep') {
       angle = base - side * 0.92;
       reachScale = 0.72 + phase * 0.2;
     } else if (weapon.id === 'spear') {
@@ -357,7 +448,19 @@ function getWeaponVisual(unit, weapon) {
       reachScale = 0.74 + phase * 0.08;
     }
   } else if (unit.attackState === 'active') {
-    if (unit.activeSkillAttack === 'spearSweep') {
+    if (unit.activeSkillAttack === 'westernCaliburnCharge') {
+      angle = base;
+      reachScale = 1.45 + Math.sin(phase * Math.PI) * 0.32;
+    } else if (unit.activeSkillAttack === 'westernExcaliburBeam') {
+      angle = base;
+      reachScale = 2.4;
+    } else if (unit.activeSkillAttack === 'spearPierce') {
+      angle = base;
+      reachScale = 1.55 + Math.sin(phase * Math.PI) * 0.4;
+    } else if (unit.activeSkillAttack === 'spearLuBu') {
+      angle = base + side * Math.sin(phase * Math.PI * 3) * 0.06;
+      reachScale = 1.45 + Math.sin(phase * Math.PI) * 0.48;
+    } else if (unit.activeSkillAttack === 'spearSweep') {
       angle = base + side * ((phase - 0.5) * 1.95);
       reachScale = 0.96 + Math.sin(phase * Math.PI) * 0.36;
     } else if (weapon.id === 'spear') {
@@ -377,7 +480,10 @@ function getWeaponVisual(unit, weapon) {
       reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.15;
     }
   } else if (unit.attackState === 'recovery') {
-    if (unit.activeSkillAttack === 'spearSweep') {
+    if (unit.activeSkillAttack === 'westernCaliburnCharge' || unit.activeSkillAttack === 'westernExcaliburBeam' || unit.activeSkillAttack === 'spearPierce' || unit.activeSkillAttack === 'spearLuBu') {
+      angle = base;
+      reachScale = weapon.id === 'spear' ? 0.68 : 0.82;
+    } else if (unit.activeSkillAttack === 'spearSweep') {
       angle = base + side * 0.82;
       reachScale = 0.72;
     } else if (unit.activeSkillAttack === 'easternIaiSlash') {
@@ -392,7 +498,7 @@ function getWeaponVisual(unit, weapon) {
   return {
     angle,
     reachScale,
-    maxDrawLength: weapon.id === 'spear' ? 152 : weapon.id === 'western' ? 76 : unit.activeSkillAttack === 'easternIaiSlash' ? 82 : weapon.id === 'eastern' ? 68 : 52
+    maxDrawLength: unit.activeSkillAttack === 'westernExcaliburBeam' ? 240 : unit.activeSkillAttack === 'westernCaliburnCharge' ? 118 : unit.activeSkillAttack === 'spearPierce' || unit.activeSkillAttack === 'spearLuBu' ? 170 : weapon.id === 'spear' ? 152 : weapon.id === 'western' ? 76 : unit.activeSkillAttack === 'easternIaiSlash' ? 82 : weapon.id === 'eastern' ? 68 : 52
   };
 }
 
@@ -582,6 +688,46 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
         ctx.lineCap = 'round';
         ctx.stroke();
       }
+    }
+
+    if (effect.type === 'projectile') {
+      const a = effect.angle || Math.atan2((effect.y2 || effect.y) - effect.y, (effect.x2 || effect.x) - effect.x);
+      const travel = 1 - alpha;
+      const px = effect.x + ((effect.x2 || effect.x) - effect.x) * travel;
+      const py = effect.y + ((effect.y2 || effect.y) - effect.y) * travel;
+      ctx.translate(px, py);
+      ctx.rotate(a);
+      const size = (effect.size || 12) * (0.85 + travel * 0.25);
+      const length = (effect.length || 34) * (0.75 + travel * 0.3);
+      ctx.beginPath();
+      ctx.ellipse(-length * 0.12, 0, length, size * 0.42, 0, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(effect.color || '#fff5bd', 0.36 * alpha);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-length * 0.92, 0);
+      ctx.lineTo(length * 0.95, 0);
+      ctx.strokeStyle = hexToRgba('#ffffff', 0.82 * alpha);
+      ctx.lineWidth = Math.max(2, size * 0.3 * alpha);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    if (effect.type === 'beam') {
+      ctx.beginPath();
+      ctx.moveTo(effect.x1, effect.y1);
+      ctx.lineTo(effect.x2, effect.y2);
+      ctx.strokeStyle = hexToRgba(effect.color || '#fff5bd', 0.24 * alpha);
+      ctx.lineWidth = Math.max(3, (effect.width || 10) * 1.7 * alpha);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(effect.x1, effect.y1);
+      ctx.lineTo(effect.x2, effect.y2);
+      ctx.strokeStyle = hexToRgba('#ffffff', 0.72 * alpha);
+      ctx.lineWidth = Math.max(2, (effect.width || 10) * 0.52 * alpha);
+      ctx.lineCap = 'round';
+      ctx.stroke();
     }
 
     if (effect.type === 'ring') {
