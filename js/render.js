@@ -89,12 +89,12 @@ function drawWeaponArc(ctx, unit) {
         ? 0.07
         : 0.045;
 
-  if (isLinearSkillVisual(unit.activeSkillAttack)) {
+  if (isLinearSkillVisual((unit.attackVisualSkill || unit.activeSkillAttack))) {
     drawLinearAttackZone(ctx, unit, weapon, visual, alpha);
     return;
   }
 
-  const arc = unit.activeSkillAttack === 'spearSweep' && unit.attackState === 'active'
+  const arc = (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearSweep' && unit.attackState === 'active'
     ? Math.max(weapon.arc * 3.0, 1.2)
     : unit.attackState === 'active'
       ? Math.max(weapon.arc, (weapon.swingVisualArc || weapon.arc) * 0.52)
@@ -135,16 +135,16 @@ function isLinearSkillVisual(skillId) {
 
 function drawLinearAttackZone(ctx, unit, weapon, visual, alpha) {
   const phase = Math.max(0, Math.min(1, unit.attackVisualPhase || 0));
-  const length = unit.activeSkillAttack === 'westernExcaliburBeam'
+  const length = (unit.attackVisualSkill || unit.activeSkillAttack) === 'westernExcaliburBeam'
     ? 238
-    : unit.activeSkillAttack === 'spearLuBu'
+    : (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearLuBu'
       ? 164
-      : unit.activeSkillAttack === 'spearPierce'
+      : (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearPierce'
         ? 154
         : 126;
-  const width = unit.activeSkillAttack === 'westernExcaliburBeam'
+  const width = (unit.attackVisualSkill || unit.activeSkillAttack) === 'westernExcaliburBeam'
     ? 18
-    : unit.activeSkillAttack === 'spearLuBu'
+    : (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearLuBu'
       ? 14
       : 10;
   const start = unit.radius + 4;
@@ -158,7 +158,7 @@ function drawLinearAttackZone(ctx, unit, weapon, visual, alpha) {
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
-  ctx.strokeStyle = hexToRgba(unit.activeSkillAttack === 'westernExcaliburBeam' ? '#fff5bd' : weapon.color, unit.attackState === 'active' ? 0.36 : alpha * 1.2);
+  ctx.strokeStyle = hexToRgba((unit.attackVisualSkill || unit.activeSkillAttack) === 'westernExcaliburBeam' ? '#fff5bd' : weapon.color, unit.attackState === 'active' ? 0.36 : alpha * 1.2);
   ctx.lineWidth = width;
   ctx.stroke();
 
@@ -419,16 +419,16 @@ function getWeaponVisual(unit, weapon) {
   let reachScale = weapon.id === 'spear' ? 0.42 : weapon.id === 'dagger' ? 0.7 : 0.76;
 
   if (unit.attackState === 'windup') {
-    if (unit.activeSkillAttack === 'westernCaliburnCharge') {
+    if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'westernCaliburnCharge') {
       angle = base;
       reachScale = 1.05 + phase * 0.38;
-    } else if (unit.activeSkillAttack === 'westernExcaliburBeam') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'westernExcaliburBeam') {
       angle = base;
       reachScale = 1.18 + phase * 0.3;
-    } else if (unit.activeSkillAttack === 'spearPierce' || unit.activeSkillAttack === 'spearLuBu') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'spearPierce' || (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearLuBu') {
       angle = base;
       reachScale = 1.08 + phase * 0.36;
-    } else if (unit.activeSkillAttack === 'spearSweep') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'spearSweep') {
       angle = base - side * 0.92;
       reachScale = 0.72 + phase * 0.2;
     } else if (weapon.id === 'spear') {
@@ -437,7 +437,7 @@ function getWeaponVisual(unit, weapon) {
     } else if (weapon.id === 'dagger') {
       angle = base - side * (weapon.swingVisualArc || 0.54) * (0.42 + phase * 0.16);
       reachScale = 0.66 + phase * 0.16;
-    } else if (unit.activeSkillAttack === 'easternIaiSlash') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'easternIaiSlash') {
       angle = base - side * 0.12 * (1 - phase);
       reachScale = 0.62 + phase * 0.22;
     } else if (weapon.id === 'eastern') {
@@ -448,19 +448,19 @@ function getWeaponVisual(unit, weapon) {
       reachScale = 0.74 + phase * 0.08;
     }
   } else if (unit.attackState === 'active') {
-    if (unit.activeSkillAttack === 'westernCaliburnCharge') {
+    if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'westernCaliburnCharge') {
       angle = base;
       reachScale = 1.45 + Math.sin(phase * Math.PI) * 0.32;
-    } else if (unit.activeSkillAttack === 'westernExcaliburBeam') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'westernExcaliburBeam') {
       angle = base;
       reachScale = 2.4;
-    } else if (unit.activeSkillAttack === 'spearPierce') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'spearPierce') {
       angle = base;
       reachScale = 1.55 + Math.sin(phase * Math.PI) * 0.4;
-    } else if (unit.activeSkillAttack === 'spearLuBu') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'spearLuBu') {
       angle = base + side * Math.sin(phase * Math.PI * 3) * 0.06;
       reachScale = 1.45 + Math.sin(phase * Math.PI) * 0.48;
-    } else if (unit.activeSkillAttack === 'spearSweep') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'spearSweep') {
       angle = base + side * ((phase - 0.5) * 1.95);
       reachScale = 0.96 + Math.sin(phase * Math.PI) * 0.36;
     } else if (weapon.id === 'spear') {
@@ -469,7 +469,7 @@ function getWeaponVisual(unit, weapon) {
     } else if (weapon.id === 'dagger') {
       angle = base + side * ((phase - 0.5) * (weapon.swingVisualArc || 0.54) * 0.92);
       reachScale = 1.02 + Math.sin(phase * Math.PI) * 0.22;
-    } else if (unit.activeSkillAttack === 'easternIaiSlash') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'easternIaiSlash') {
       angle = base + side * ((phase - 0.5) * 0.18);
       reachScale = 1.12 + Math.sin(phase * Math.PI) * 0.24;
     } else if (weapon.id === 'eastern') {
@@ -480,13 +480,13 @@ function getWeaponVisual(unit, weapon) {
       reachScale = 0.98 + Math.sin(phase * Math.PI) * 0.15;
     }
   } else if (unit.attackState === 'recovery') {
-    if (unit.activeSkillAttack === 'westernCaliburnCharge' || unit.activeSkillAttack === 'westernExcaliburBeam' || unit.activeSkillAttack === 'spearPierce' || unit.activeSkillAttack === 'spearLuBu') {
+    if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'westernCaliburnCharge' || (unit.attackVisualSkill || unit.activeSkillAttack) === 'westernExcaliburBeam' || (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearPierce' || (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearLuBu') {
       angle = base;
       reachScale = weapon.id === 'spear' ? 0.68 : 0.82;
-    } else if (unit.activeSkillAttack === 'spearSweep') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'spearSweep') {
       angle = base + side * 0.82;
       reachScale = 0.72;
-    } else if (unit.activeSkillAttack === 'easternIaiSlash') {
+    } else if ((unit.attackVisualSkill || unit.activeSkillAttack) === 'easternIaiSlash') {
       angle = base + side * 0.14;
       reachScale = 0.72;
     } else {
@@ -498,7 +498,7 @@ function getWeaponVisual(unit, weapon) {
   return {
     angle,
     reachScale,
-    maxDrawLength: unit.activeSkillAttack === 'westernExcaliburBeam' ? 240 : unit.activeSkillAttack === 'westernCaliburnCharge' ? 118 : unit.activeSkillAttack === 'spearPierce' || unit.activeSkillAttack === 'spearLuBu' ? 170 : weapon.id === 'spear' ? 152 : weapon.id === 'western' ? 76 : unit.activeSkillAttack === 'easternIaiSlash' ? 82 : weapon.id === 'eastern' ? 68 : 52
+    maxDrawLength: (unit.attackVisualSkill || unit.activeSkillAttack) === 'westernExcaliburBeam' ? 240 : (unit.attackVisualSkill || unit.activeSkillAttack) === 'westernCaliburnCharge' ? 118 : (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearPierce' || (unit.attackVisualSkill || unit.activeSkillAttack) === 'spearLuBu' ? 170 : weapon.id === 'spear' ? 152 : weapon.id === 'western' ? 76 : (unit.attackVisualSkill || unit.activeSkillAttack) === 'easternIaiSlash' ? 82 : weapon.id === 'eastern' ? 68 : 52
   };
 }
 

@@ -24,6 +24,9 @@ const CHARGE_GUARD_SKILLS = new Set([
 
 const WEAPON_ATTACK_SKILL_TYPES = new Set(['attack', 'evolutionAttack', 'evolutionFollowUp']);
 const WEAPON_SKILL_CHAIN_LOCK_FRAMES = 42;
+const PASS_STRIKE_SKILLS = new Set(['easternAnnihilation', 'daggerAssassinate']);
+const SEQUENCE_SKILLS = new Set(['easternAnnihilation', 'daggerAssassinate', 'spearLuBu']);
+
 
 function isWeaponAttackSkill(skillId) {
   const skill = SKILLS[skillId];
@@ -54,6 +57,8 @@ function updateUnit(unit, enemy, state) {
 
   const weapon = WEAPONS[unit.weaponId];
   tickTimers(unit);
+
+  if (processActiveSkillSequence(unit, enemy, state)) return;
 
   if (unit.impactStopTimer > 0) {
     applyImpactStopDrift(unit);
@@ -822,6 +827,8 @@ function beginAttack(attacker, defender) {
   attacker.attackState = 'windup';
   attacker.attackAim = angleTo(attacker, defender);
   attacker.activeSkillAttack = chooseAttackSkill(attacker, defender);
+  attacker.attackVisualSkill = attacker.activeSkillAttack || '';
+  if (attacker.skillRuntime) attacker.skillRuntime.activeSequence = null;
   const focusWindupScale = attacker.weaponId === 'spear' && attacker.skillRuntime?.spearFocusTimer > 0
     ? Math.max(0.76, 0.92 - getUnitSkillLevel(attacker, 'spearFocus') * 0.04)
     : 1;
@@ -859,9 +866,25 @@ function updateAttackState(attacker, defender, state) {
         emitCombatEvent(state, getSkillActiveLabel(attacker.activeSkillAttack) || SKILLS[attacker.activeSkillAttack]?.name || '스킬', attacker.x, attacker.y - 44, '#ffd45a');
       }
       emitSkillActiveStartVisual(attacker, defender, state);
+      if (startEvolutionSkillSequence(attacker, defender, state)) {
+        return;
+      }
+      if (attacker.activeSkillAttack === 'daggerCloneTechnique') {
+        attacker.attackResolved = true;
+        attacker.attackState = 'recovery';
+        attacker.attackTimer = getAttackRecoveryDuration(attacker, weapon);
+        attacker.attackRecoveryMax = attacker.attackTimer;
+        attacker.lastAction = '분신 유지';
+        return;
+      }
       applyAttackLunge(attacker, weapon);
       attacker.attackResolved = resolveAttack(attacker, defender, state);
     }
+    return;
+  }
+
+  if (attacker.attackState === 'skillSequence') {
+    processActiveSkillSequence(attacker, defender, state);
     return;
   }
 
@@ -888,6 +911,7 @@ function updateAttackState(attacker, defender, state) {
       attacker.attackVisualPhase = 0;
       attacker.cooldownTimer = getRecoveryCooldown(attacker, weapon);
       attacker.lastAction = '재정비';
+      clearAttackSkillVisualState(attacker);
     }
   }
 }
@@ -1836,7 +1860,7 @@ function resolveAttack(attacker, defender, state) {
   applyReflectDamage(defender, attacker, damage, state);
   applyOffensiveSkillFollowUp(attacker, defender, weapon, skillAttack, hitQuality, state);
   attacker.counterTimer = 0;
-  attacker.activeSkillAttack = '';
+  // activeSkillAttack is cleared after recovery so skill visuals do not get stuck or vanish mid-swing.
 
   if (defender.hp <= 0) {
     defender.isDead = true;
@@ -1886,14 +1910,15 @@ function applyEvolutionSkillOnHit(attacker, defender, weapon, skillId, state, hi
   }
 
   if (skillId === 'easternAnnihilation') {
-    performRepeatedPassStrikes(attacker, defender, weapon, state, {
+    startPassStrikeSequence(attacker, defender, weapon, state, {
       hits: 3,
       label: '섬멸',
-      scale: 0.28,
+      scale: 0.3,
       forcedCrit: true,
       color: '#ffe28a',
-      sideBias: 0.18,
-      distanceOffset: 22
+      sideBias: 0.14,
+      distanceOffset: 28,
+      interval: 7
     });
   }
 
@@ -1916,22 +1941,20 @@ function applyEvolutionSkillOnHit(attacker, defender, weapon, skillId, state, hi
   }
 
   if (skillId === 'spearLuBu') {
-    performSpearRapidThrusts(attacker, defender, weapon, state, hitQuality);
-    pushDefender(attacker, defender, 6.8 + hitQuality * 2.6);
-    emitEvolutionLine(state, attacker, defender, '#cda2ff', 156, 6.4);
-    addScreenShake(state, 4);
+    startSpearLuBuSequence(attacker, defender, weapon, state, hitQuality);
   }
 
   if (skillId === 'daggerAssassinate') {
     moveToAssassinationAngle(attacker, defender, state);
-    performRepeatedPassStrikes(attacker, defender, weapon, state, {
+    startPassStrikeSequence(attacker, defender, weapon, state, {
       hits: 4,
       label: '암살',
-      scale: 0.16,
+      scale: 0.18,
       forcedCrit: true,
       color: '#b8ff8f',
-      sideBias: 0.72,
-      distanceOffset: 12
+      sideBias: 0.78,
+      distanceOffset: 12,
+      interval: 6
     });
   }
 
@@ -1943,6 +1966,281 @@ function applyEvolutionSkillOnHit(attacker, defender, weapon, skillId, state, hi
     defender.isDead = true;
     defender.lastAction = '전투 불능';
   }
+}
+
+
+function startEvolutionSkillSequence(attacker, defender, state) {
+  const skillId = attacker.activeSkillAttack;
+  if (!SEQUENCE_SKILLS.has(skillId)) return false;
+  const weapon = WEAPONS[attacker.weaponId];
+
+  if (skillId === 'spearLuBu') {
+    startSpearLuBuSequence(attacker, defender, weapon, state, 0.75);
+  } else if (skillId === 'easternAnnihilation') {
+    startPassStrikeSequence(attacker, defender, weapon, state, {
+      hits: 4,
+      label: '섬멸',
+      scale: 0.26,
+      forcedCrit: true,
+      color: '#ffe28a',
+      sideBias: 0.12,
+      distanceOffset: 30,
+      interval: 7,
+      passSpeed: 3.2
+    });
+  } else if (skillId === 'daggerAssassinate') {
+    moveToAssassinationAngle(attacker, defender, state);
+    startPassStrikeSequence(attacker, defender, weapon, state, {
+      hits: 5,
+      label: '암살',
+      scale: 0.14,
+      forcedCrit: true,
+      color: '#b8ff8f',
+      sideBias: 0.82,
+      distanceOffset: 12,
+      interval: 5,
+      passSpeed: 3.8
+    });
+  }
+  return true;
+}
+
+function processActiveSkillSequence(unit, enemy, state) {
+  const sequence = unit.skillRuntime?.activeSequence;
+  if (!sequence) return false;
+
+  if (unit.isDead || !enemy || enemy.isDead) {
+    finishSkillSequence(unit, enemy, state, true);
+    return false;
+  }
+
+  unit.attackState = 'skillSequence';
+  unit.attackVisualSkill = sequence.skillId;
+  unit.activeSkillAttack = sequence.skillId;
+  unit.attackAim = angleTo(unit, enemy);
+  unit.facing = moveToward(unit.facing, unit.attackAim, 0.42);
+  unit.vx *= 0.62;
+  unit.vy *= 0.62;
+  unit.attackVisualPhase = sequence.totalHits ? clamp(sequence.hitIndex / sequence.totalHits, 0, 1) : 0;
+  unit.lastAction = sequence.label;
+
+  sequence.timer -= 1;
+  if (sequence.timer > 0) return true;
+
+  if (sequence.kind === 'passStrikes') {
+    performPassStrikeStep(unit, enemy, state, sequence);
+  } else if (sequence.kind === 'spearRapidThrusts') {
+    performSpearRapidThrustStep(unit, enemy, state, sequence);
+  }
+
+  if (enemy.hp <= 0) {
+    enemy.isDead = true;
+    enemy.lastAction = '전투 불능';
+  }
+
+  if (sequence.hitIndex >= sequence.totalHits || enemy.isDead) {
+    finishSkillSequence(unit, enemy, state);
+    return true;
+  }
+
+  sequence.timer = sequence.interval;
+  return true;
+}
+
+function finishSkillSequence(unit, enemy, state, cancelled = false) {
+  const weapon = WEAPONS[unit.weaponId];
+  const sequence = unit.skillRuntime?.activeSequence;
+  if (sequence && !cancelled && sequence.kind === 'spearRapidThrusts' && enemy && !enemy.isDead) {
+    pushDefender(unit, enemy, 8.8 + (sequence.hitQuality || 0) * 3.4);
+    emitEvolutionLine(state, unit, enemy, '#cda2ff', 156, 6.4);
+    addScreenShake(state, 6);
+  }
+  if (unit.skillRuntime) unit.skillRuntime.activeSequence = null;
+  unit.attackState = 'recovery';
+  unit.attackTimer = Math.max(8, Math.round((weapon?.recovery || 18) * 0.82));
+  unit.attackRecoveryMax = unit.attackTimer;
+  unit.attackResolved = true;
+  unit.attackOutcome = cancelled ? 'cancelled' : 'hit';
+  unit.activeSkillAttack = '';
+  unit.attackVisualSkill = '';
+  unit.attackVisualPhase = 0;
+  unit.cooldownTimer = Math.max(unit.cooldownTimer || 0, 12);
+}
+
+function clearAttackSkillVisualState(unit) {
+  unit.activeSkillAttack = '';
+  unit.attackVisualSkill = '';
+  unit.attackSequenceId = 0;
+  if (unit.skillRuntime) unit.skillRuntime.activeSequence = null;
+}
+
+function startPassStrikeSequence(attacker, defender, weapon, state, options) {
+  attacker.skillRuntime ||= {};
+  const seq = attacker.skillRuntime.activeSequence;
+  if (seq && seq.skillId === attacker.activeSkillAttack) return;
+  const skillId = attacker.activeSkillAttack || (weapon.id === 'dagger' ? 'daggerAssassinate' : 'easternAnnihilation');
+  attacker.skillRuntime.activeSequence = {
+    kind: 'passStrikes',
+    skillId,
+    label: options?.label || '연속 관통',
+    totalHits: options?.hits || 3,
+    hitIndex: 0,
+    timer: 1,
+    interval: options?.interval || 6,
+    scale: options?.scale || 0.18,
+    forcedCrit: options?.forcedCrit !== false,
+    color: options?.color || weapon.color,
+    sideBias: options?.sideBias || 0.3,
+    distanceOffset: options?.distanceOffset || 16,
+    passSpeed: options?.passSpeed || 3.2,
+    orbitDir: attacker.orbitDir || 1
+  };
+  attacker.attackState = 'skillSequence';
+  attacker.attackVisualSkill = skillId;
+  attacker.activeSkillAttack = skillId;
+  attacker.attackResolved = true;
+  attacker.lastAction = options?.label || '연속 관통';
+  emitCombatEvent(state, attacker.lastAction, attacker.x, attacker.y - 46, options?.color || weapon.color);
+}
+
+function performPassStrikeStep(attacker, defender, state, sequence) {
+  const weapon = WEAPONS[attacker.weaponId];
+  const i = sequence.hitIndex;
+  const baseAngle = angleTo(attacker, defender);
+  const direction = i % 2 === 0 ? baseAngle : baseAngle + Math.PI;
+  const side = direction + Math.PI / 2;
+  const passDistance = defender.radius + attacker.radius + sequence.distanceOffset + (weapon.id === 'dagger' ? 18 : 30);
+  const sideSign = sequence.orbitDir * (i % 2 === 0 ? 1 : -1);
+  const sideOffset = sideSign * sequence.sideBias * (weapon.id === 'dagger' ? 22 : 12);
+  const fromX = defender.x - Math.cos(direction) * passDistance + Math.cos(side) * sideOffset;
+  const fromY = defender.y - Math.sin(direction) * passDistance + Math.sin(side) * sideOffset;
+  const toX = defender.x + Math.cos(direction) * passDistance + Math.cos(side) * sideOffset;
+  const toY = defender.y + Math.sin(direction) * passDistance + Math.sin(side) * sideOffset;
+
+  emitVisualEffect(state, {
+    type: 'afterimage',
+    x: attacker.x,
+    y: attacker.y,
+    color: sequence.color,
+    life: 13,
+    maxLife: 13,
+    size: attacker.radius + 5
+  });
+  emitVisualEffect(state, {
+    type: 'afterimage',
+    x: fromX,
+    y: fromY,
+    color: sequence.color,
+    life: 12,
+    maxLife: 12,
+    size: attacker.radius + 4
+  });
+
+  attacker.x = toX;
+  attacker.y = toY;
+  attacker.facing = direction;
+  attacker.attackAim = direction;
+  attacker.vx = Math.cos(direction) * sequence.passSpeed;
+  attacker.vy = Math.sin(direction) * sequence.passSpeed;
+
+  emitVisualEffect(state, {
+    type: 'trail',
+    x1: fromX,
+    y1: fromY,
+    x2: toX,
+    y2: toY,
+    color: sequence.color,
+    life: weapon.id === 'dagger' ? 18 : 20,
+    maxLife: weapon.id === 'dagger' ? 18 : 20,
+    width: weapon.id === 'dagger' ? 3.2 : 5.6,
+    weaponId: weapon.id,
+    skillId: sequence.skillId
+  });
+  emitVisualEffect(state, {
+    type: weapon.id === 'dagger' ? 'impact' : 'shockline',
+    x: defender.x,
+    y: defender.y,
+    angle: direction,
+    color: sequence.color,
+    life: 14,
+    maxLife: 14,
+    length: weapon.id === 'dagger' ? 58 : 92,
+    width: weapon.id === 'dagger' ? 2.4 : 4.2,
+    size: weapon.id === 'dagger' ? 18 : 24,
+    shape: weapon.id === 'dagger' ? 'stab' : 'slice'
+  });
+
+  dealExtraSkillDamage(attacker, defender, weapon, state, `${sequence.label} ${i + 1}타`, sequence.scale + i * 0.025, sequence.forcedCrit);
+  defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, 8);
+  sequence.hitIndex += 1;
+}
+
+function startSpearLuBuSequence(attacker, defender, weapon, state, hitQuality = 0) {
+  attacker.skillRuntime ||= {};
+  if (attacker.skillRuntime.activeSequence?.skillId === 'spearLuBu') return;
+  attacker.skillRuntime.activeSequence = {
+    kind: 'spearRapidThrusts',
+    skillId: 'spearLuBu',
+    label: '여포강림',
+    totalHits: 8,
+    hitIndex: 0,
+    timer: 1,
+    interval: 4,
+    hitQuality,
+    color: '#cda2ff'
+  };
+  attacker.attackState = 'skillSequence';
+  attacker.attackVisualSkill = 'spearLuBu';
+  attacker.activeSkillAttack = 'spearLuBu';
+  attacker.attackResolved = true;
+  attacker.lastAction = '여포강림';
+  emitCombatEvent(state, '초고속 연속 찌르기', attacker.x, attacker.y - 52, '#cda2ff');
+}
+
+function performSpearRapidThrustStep(attacker, defender, state, sequence) {
+  const weapon = WEAPONS[attacker.weaponId];
+  const i = sequence.hitIndex;
+  const angle = angleTo(attacker, defender);
+  const side = angle + Math.PI / 2;
+  const offset = (i - (sequence.totalHits - 1) / 2) * 3.7;
+  const startX = attacker.x + Math.cos(side) * offset + Math.cos(angle) * (attacker.radius + 5);
+  const startY = attacker.y + Math.sin(side) * offset + Math.sin(angle) * (attacker.radius + 5);
+  const endX = defender.x + Math.cos(side) * offset * 0.45 + Math.cos(angle) * (8 + i * 3);
+  const endY = defender.y + Math.sin(side) * offset * 0.45 + Math.sin(angle) * (8 + i * 3);
+
+  attacker.facing = angle;
+  attacker.attackAim = angle;
+  attacker.vx *= 0.45;
+  attacker.vy *= 0.45;
+
+  emitVisualEffect(state, {
+    type: 'trail',
+    x1: startX,
+    y1: startY,
+    x2: endX,
+    y2: endY,
+    color: sequence.color,
+    life: 11,
+    maxLife: 11,
+    width: 3.2,
+    weaponId: 'spear',
+    skillId: 'spearLuBu'
+  });
+  emitVisualEffect(state, {
+    type: 'shockline',
+    x: endX,
+    y: endY,
+    angle,
+    color: sequence.color,
+    life: 10,
+    maxLife: 10,
+    length: 70 + i * 7,
+    width: 2.7 + i * 0.15
+  });
+
+  dealExtraSkillDamage(attacker, defender, weapon, state, `여포강림 ${i + 1}타`, 0.08 + i * 0.012, i >= sequence.totalHits - 3);
+  applyPostureDamage(attacker, defender, weapon.postureDamage * (0.18 + i * 0.012), state);
+  sequence.hitIndex += 1;
 }
 
 function performSpearRapidThrusts(attacker, defender, weapon, state, hitQuality = 0) {
