@@ -40,6 +40,8 @@ const ctx = canvas.getContext('2d');
 
 const controls = {
   loginScreen: document.getElementById('loginScreen'),
+  contentScreen: document.getElementById('contentScreen'),
+  farmScreen: document.getElementById('farmScreen'),
   prepScreen: document.getElementById('prepScreen'),
   towerScreen: document.getElementById('towerScreen'),
   characterSetupCard: document.getElementById('characterSetupCard'),
@@ -49,6 +51,7 @@ const controls = {
   playerPersonality: document.getElementById('playerPersonality'),
   startBtn: document.getElementById('startBtn'),
   climbBtn: document.getElementById('climbBtn'),
+  adminResourceBtn: document.getElementById('adminResourceBtn'),
   simToggleBtn: document.getElementById('simToggleBtn'),
   shopStatusBox: document.getElementById('shopStatusBox'),
   simulatorPanel: document.getElementById('simulatorPanel'),
@@ -84,6 +87,10 @@ const controls = {
   accountBadge: document.getElementById('accountBadge'),
   accountId: document.getElementById('accountId'),
   accountPw: document.getElementById('accountPw'),
+  towerContentBtn: document.getElementById('towerContentBtn'),
+  farmContentBtn: document.getElementById('farmContentBtn'),
+  backToContentBtn: document.getElementById('backToContentBtn'),
+  farmBackToContentBtn: document.getElementById('farmBackToContentBtn'),
   createAccountBtn: document.getElementById('createAccountBtn'),
   loginBtn: document.getElementById('loginBtn'),
   tempLoadBtn: document.getElementById('tempLoadBtn'),
@@ -99,7 +106,8 @@ let account = {
   id: '',
   endpoint: CLOUD_SAVE_API_URL,
   mode: 'none',
-  pw: ''
+  pw: '',
+  role: 'player'
 };
 
 let state = null;
@@ -137,6 +145,11 @@ function init() {
   controls.createAccountBtn?.addEventListener('click', handleCreateAccount);
   controls.loginBtn?.addEventListener('click', handleAccountLogin);
   controls.tempLoadBtn?.addEventListener('click', handleTempLoad);
+  controls.towerContentBtn?.addEventListener('click', () => showPrepScreen());
+  controls.farmContentBtn?.addEventListener('click', () => showFarmScreen());
+  controls.backToContentBtn?.addEventListener('click', handleBackToContent);
+  controls.farmBackToContentBtn?.addEventListener('click', () => showContentScreen());
+  controls.adminResourceBtn?.addEventListener('click', handleAdminResourceAdd);
   controls.startBtn.addEventListener('click', handleMainButton);
   controls.climbBtn.addEventListener('click', startCurrentFloor);
   controls.playerWeapon.addEventListener('change', handleConfigChange);
@@ -469,6 +482,37 @@ function handlePrepGrowthTabClick(event) {
 function handleSimulatorToggle() {
   const isHidden = controls.simulatorPanel.classList.toggle('hidden');
   controls.simToggleBtn.textContent = isHidden ? '시뮬레이터' : '시뮬레이터 닫기';
+}
+
+function handleBackToContent() {
+  saveTemporarySnapshot('backToContent');
+  autoSaveSafePoint('콘텐츠 선택 화면 복귀');
+  showContentScreen();
+}
+
+function handleAdminResourceAdd() {
+  if (!isAdminAccount()) return;
+  const resources = getCurrentPersistentResources();
+  bankInventory = {
+    gold: resources.gold + 100000,
+    enhancementStone: resources.enhancementStone + 100,
+    bossSoul: resources.bossSoul + 100
+  };
+  bankGold = bankInventory.gold;
+
+  if (run?.player) {
+    run.player.gold = bankInventory.gold;
+    run.player.enhancementStone = bankInventory.enhancementStone;
+    run.player.bossSoul = bankInventory.bossSoul;
+    refreshPlayerUnit(state);
+  }
+
+  clearPanelKeys();
+  if (state) render(ctx, state);
+  renderAllPanels(true);
+  saveTemporarySnapshot('adminResourceAdd');
+  autoSaveSafePoint('관리자 재화 추가');
+  showAccountMessage('관리자 재화 추가: 골드 +100,000 / 강화석 +100 / 보스의 영혼 +100', 'good');
 }
 
 
@@ -1167,9 +1211,9 @@ async function handleCreateAccount() {
     const saveData = buildSavePayload({ includeSession: false, reason: 'createAccount' });
     const result = await requestCloudSave('createAccount', { id: credentials.id, pw: credentials.pw, saveData });
     if (!result.ok) throw new Error(result.message || '아이디 생성에 실패했습니다.');
-    setLoggedInAccount(credentials.id, credentials.endpoint, 'cloud', credentials.pw);
-    applySavePayload(result.saveData || saveData, { restoreSession: false });
-    showPrepScreen();
+    setLoggedInAccount(credentials.id, credentials.endpoint, 'cloud', credentials.pw, extractAccountRole(result));
+    applySavePayload(result.saveData || saveData, { restoreSession: false, showDefaultScreen: false });
+    showContentScreen();
     renderAllPanels(true);
     saveTemporarySnapshot('accountCreated');
     showAccountMessage(`${credentials.id} 계정을 생성하고 불러왔습니다.`, 'good');
@@ -1191,9 +1235,9 @@ async function handleAccountLogin() {
   try {
     const result = await requestCloudSave('login', { id: credentials.id, pw: credentials.pw });
     if (!result.ok) throw new Error(result.message || '로그인에 실패했습니다.');
-    setLoggedInAccount(credentials.id, credentials.endpoint, 'cloud', credentials.pw);
-    applySavePayload(result.saveData || createEmptySavePayload('loginEmpty'), { restoreSession: false });
-    showPrepScreen();
+    setLoggedInAccount(credentials.id, credentials.endpoint, 'cloud', credentials.pw, extractAccountRole(result));
+    applySavePayload(result.saveData || createEmptySavePayload('loginEmpty'), { restoreSession: false, showDefaultScreen: false });
+    showContentScreen();
     renderAllPanels(true);
     saveTemporarySnapshot('login');
     showAccountMessage(`${credentials.id} 계정 데이터를 불러왔습니다.`, 'good');
@@ -1215,7 +1259,7 @@ function handleTempLoad() {
     const payload = JSON.parse(raw);
     applySavePayload(payload, { restoreSession: true });
     if (payload.account?.id && !account.loggedIn) {
-      setLoggedInAccount(payload.account.id, account.endpoint, 'temp');
+      setLoggedInAccount(payload.account.id, account.endpoint, 'temp', '', payload.account.role || 'player');
     }
     renderAllPanels(true);
     showAccountMessage('임시저장 데이터를 불러왔습니다.', 'good');
@@ -1233,25 +1277,45 @@ function readAccountCredentials() {
   return { ok: true, id, pw, endpoint };
 }
 
-function setLoggedInAccount(id, endpoint, mode = 'cloud', pw = '') {
+function setLoggedInAccount(id, endpoint, mode = 'cloud', pw = '', role = 'player') {
   account = {
     loggedIn: true,
     id,
     endpoint: endpoint || CLOUD_SAVE_API_URL,
     mode,
-    pw
+    pw,
+    role: normalizeAccountRole(role)
   };
   updateAccountBadge();
+}
+
+function normalizeAccountRole(role) {
+  return String(role || 'player').toLowerCase() === 'admin' ? 'admin' : 'player';
+}
+
+function extractAccountRole(result = {}) {
+  return normalizeAccountRole(result.role || result.account?.role || result.user?.role || 'player');
+}
+
+function isAdminAccount() {
+  return account.loggedIn && account.role === 'admin';
 }
 
 function updateAccountBadge() {
   if (!controls.accountBadge) return;
   if (!account.loggedIn) {
     controls.accountBadge.textContent = '로그인 전';
+    updateAdminControls();
     return;
   }
-  if (account.mode === 'temp') controls.accountBadge.textContent = `${account.id} · 임시`;
-  else controls.accountBadge.textContent = `${account.id} · 로그인`;
+  if (account.mode === 'temp') controls.accountBadge.textContent = `${account.id} · 임시 · ${account.role}`;
+  else controls.accountBadge.textContent = `${account.id} · ${account.role}`;
+  updateAdminControls();
+}
+
+function updateAdminControls() {
+  if (!controls.adminResourceBtn) return;
+  controls.adminResourceBtn.classList.toggle('hidden', !isAdminAccount());
 }
 
 function setAccountButtonsDisabled(disabled) {
@@ -1306,7 +1370,7 @@ function buildSavePayload({ includeSession = false, reason = 'save' } = {}) {
     totalVictories: run?.victories || 0,
     bossClears: Math.floor((run?.victories || 0) / TOWER_RULES.bossInterval)
   };
-  payload.account = account.loggedIn ? { id: account.id, mode: account.mode } : null;
+  payload.account = account.loggedIn ? { id: account.id, mode: account.mode, role: account.role } : null;
   if (includeSession) {
     payload.session = {
       screen: getCurrentScreenName(),
@@ -1340,7 +1404,7 @@ function getCurrentPersistentResources() {
   };
 }
 
-function applySavePayload(payload = {}, { restoreSession = false } = {}) {
+function applySavePayload(payload = {}, { restoreSession = false, showDefaultScreen = true } = {}) {
   const resources = payload.resources || {};
   bankInventory = {
     gold: Number.isFinite(resources.gold) ? Math.max(0, Math.floor(resources.gold)) : SHOP_RULES.initialGold,
@@ -1360,6 +1424,8 @@ function applySavePayload(payload = {}, { restoreSession = false } = {}) {
     state = createBattleState(run);
     clearPanelKeys();
     if (payload.session.screen === 'tower') showTowerScreen();
+    else if (payload.session.screen === 'farm') showFarmScreen();
+    else if (payload.session.screen === 'content') showContentScreen();
     else showPrepScreen();
     return;
   }
@@ -1367,7 +1433,7 @@ function applySavePayload(payload = {}, { restoreSession = false } = {}) {
   run = null;
   state = null;
   clearPanelKeys();
-  showPrepScreen();
+  if (showDefaultScreen) showContentScreen();
 }
 
 function saveTemporarySnapshot(reason = 'temp') {
@@ -1393,6 +1459,8 @@ async function autoSaveSafePoint(reason = 'safePoint') {
 
 function getCurrentScreenName() {
   if (!controls.loginScreen?.classList.contains('hidden')) return 'login';
+  if (!controls.contentScreen?.classList.contains('hidden')) return 'content';
+  if (!controls.farmScreen?.classList.contains('hidden')) return 'farm';
   if (!controls.towerScreen.classList.contains('hidden')) return 'tower';
   return 'prep';
 }
@@ -2052,24 +2120,43 @@ function showShopOverlay(message = '') {
   renderPrepGrowthContent(true, message);
 }
 
+function hideAllMainScreens() {
+  controls.loginScreen?.classList.add('hidden');
+  controls.contentScreen?.classList.add('hidden');
+  controls.prepScreen?.classList.add('hidden');
+  controls.towerScreen?.classList.add('hidden');
+  controls.farmScreen?.classList.add('hidden');
+}
+
 function showLoginScreen() {
+  hideAllMainScreens();
   controls.loginScreen?.classList.remove('hidden');
-  controls.prepScreen.classList.add('hidden');
-  controls.towerScreen.classList.add('hidden');
   hideOverlay();
 }
 
+function showContentScreen() {
+  hideAllMainScreens();
+  controls.contentScreen?.classList.remove('hidden');
+  hideOverlay();
+  updateAdminControls();
+}
+
 function showPrepScreen() {
-  controls.loginScreen?.classList.add('hidden');
-  controls.prepScreen.classList.remove('hidden');
-  controls.towerScreen.classList.add('hidden');
+  hideAllMainScreens();
+  controls.prepScreen?.classList.remove('hidden');
   hideOverlay();
 }
 
 function showTowerScreen() {
-  controls.loginScreen?.classList.add('hidden');
-  controls.prepScreen.classList.add('hidden');
-  controls.towerScreen.classList.remove('hidden');
+  hideAllMainScreens();
+  controls.towerScreen?.classList.remove('hidden');
+}
+
+function showFarmScreen() {
+  hideAllMainScreens();
+  controls.farmScreen?.classList.remove('hidden');
+  hideOverlay();
+  saveTemporarySnapshot('farmOpen');
 }
 
 function showOverlay(title, text, buttonText, action, options = {}) {

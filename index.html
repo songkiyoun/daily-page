@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.41-heirloom-evolution" />
-  <title>Circle Battle Tower Rebuild v0.7.41</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.41" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.42-account-content-hub" />
+  <title>Circle Battle Tower Rebuild v0.7.42</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.42" />
 </head>
 <body>
   <main class="app">
@@ -13,12 +13,13 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">로그인 저장 구조와 영혼의 각인을 기반으로, 무기별 영구 상태를 정리한 v0.7.41 가보 무기 진화 연결 및 등급 효과 설명 업데이트입니다.</p>
+        <p class="subtext">admin/player 계정 권한과 콘텐츠 선택 화면을 추가한 v0.7.42 계정·콘텐츠 허브 업데이트입니다.</p>
       </div>
       <div class="topbar-actions">
+        <button id="adminResourceBtn" class="button mini admin-only hidden">재화 추가</button>
         <button id="simToggleBtn" class="button mini">시뮬레이터</button>
         <div id="accountBadge" class="version account-badge">로그인 전</div>
-        <div id="versionBadge" class="version">v0.7.41</div>
+        <div id="versionBadge" class="version">v0.7.42</div>
       </div>
     </header>
 
@@ -44,6 +45,24 @@
       </section>
     </section>
 
+    <section id="contentScreen" class="screen content-screen hidden">
+      <section class="card content-card">
+        <p class="eyebrow">CONTENT SELECT</p>
+        <h2>콘텐츠 선택</h2>
+        <p class="hint-text">로그인한 계정의 저장 데이터를 기준으로 플레이할 콘텐츠를 선택합니다.</p>
+        <div class="content-choice-grid">
+          <button id="towerContentBtn" class="content-choice-button" type="button">
+            <strong>탑 등반하기</strong>
+            <span>캐릭터를 생성하고 탑 전투에 도전합니다.</span>
+          </button>
+          <button id="farmContentBtn" class="content-choice-button" type="button">
+            <strong>마이 농장</strong>
+            <span>추후 추가될 실시간 작물 성장 콘텐츠입니다.</span>
+          </button>
+        </div>
+      </section>
+    </section>
+
     <section id="prepScreen" class="screen prep-screen hidden">
       <section id="characterSetupCard" class="card prep-card setup-card">
         <p class="eyebrow">STEP 1</p>
@@ -57,6 +76,7 @@
           <select id="playerPersonality"></select>
         </label>
         <div class="button-row single">
+          <button id="backToContentBtn" class="button">콘텐츠 선택으로</button>
           <button id="startBtn" class="button primary">새 캐릭터 생성</button>
         </div>
         <p class="hint-text">무기와 성격을 바꾸면 준비 상점과 스탯 화면이 현재 캐릭터 기준으로 갱신됩니다.</p>
@@ -141,6 +161,29 @@
       </aside>
     </section>
 
+    <section id="farmScreen" class="screen farm-screen hidden">
+      <section class="card farm-card">
+        <p class="eyebrow">MY FARM</p>
+        <h2>마이 농장</h2>
+        <p class="hint-text">실시간 작물 성장, 물 주기, 수확 기능은 추후 업데이트에서 추가됩니다.</p>
+        <div class="farm-placeholder-grid">
+          <div>
+            <strong>농장 슬롯</strong>
+            <span>작물을 심을 공간이 표시될 예정입니다.</span>
+          </div>
+          <div>
+            <strong>작물 성장</strong>
+            <span>심은 시간과 물 주기 기록을 기준으로 성장 상태를 계산할 예정입니다.</span>
+          </div>
+          <div>
+            <strong>수확 보상</strong>
+            <span>골드, 강화석, 보조 재료와 연결될 예정입니다.</span>
+          </div>
+        </div>
+        <button id="farmBackToContentBtn" class="button">콘텐츠 선택으로 돌아가기</button>
+      </section>
+    </section>
+
     <section id="simulatorPanel" class="card simulator-panel simulator-drawer hidden">
       <div class="simulator-head">
         <div>
@@ -182,6 +225,6 @@
     </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.41"></script>
+  <script type="module" src="./js/main.js?v=0.7.42"></script>
 </body>
 </html>
