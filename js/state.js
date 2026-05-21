@@ -56,6 +56,13 @@ const HEIRLOOM_ENHANCEMENT_RULES = [
   { from: 9, to: 10, stoneCost: 32, successRate: 0.1 }
 ];
 
+const HEIRLOOM_EVOLUTION_RULES = [
+  { from: 1, to: 2, stoneCost: 5, bossSoulCost: 1, successRate: 0.8, failRate: 0.2, greatFailRate: 0 },
+  { from: 2, to: 3, stoneCost: 10, bossSoulCost: 2, successRate: 0.65, failRate: 0.3, greatFailRate: 0.05 },
+  { from: 3, to: 4, stoneCost: 20, bossSoulCost: 4, successRate: 0.45, failRate: 0.4, greatFailRate: 0.15 },
+  { from: 4, to: 5, stoneCost: 40, bossSoulCost: 8, successRate: 0.25, failRate: 0.5, greatFailRate: 0.25 }
+];
+
 function getGradeById(gradeId) {
   return WEAPON_GRADES.find((item) => item.id === gradeId) || WEAPON_GRADES[0];
 }
@@ -67,6 +74,39 @@ function getGradeByOrder(order) {
 
 function formatChancePercent(rate) {
   return `${Math.round((rate || 0) * 100)}%`;
+}
+
+function formatBonusPercent(rate) {
+  const value = (rate || 0) * 100;
+  return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+}
+
+function getGradeEffectTextByOrder(order) {
+  const safeOrder = clamp(Math.floor(order || 0), 0, WEAPON_GRADES.length - 1);
+  return `공격력 +${formatBonusPercent(safeOrder * 0.02)} / 자세 +${formatBonusPercent(safeOrder * 0.012)}`;
+}
+
+function getEvolutionEffectText(weaponId, stageNumber) {
+  const safeStage = Math.max(1, Math.floor(stageNumber || 1));
+  const step = Math.max(0, safeStage - 1);
+
+  if (weaponId === 'western') {
+    return `공격력 +${step}% / 자세 피해 +${formatBonusPercent(step * 0.018)}`;
+  }
+
+  if (weaponId === 'eastern') {
+    return `쿨타임 안정 +${formatBonusPercent(step * 0.008)} / 회전 안정 +${step}%`;
+  }
+
+  if (weaponId === 'spear') {
+    return `사거리 +${step * 2} / 자세 피해 +${formatBonusPercent(step * 0.016)}`;
+  }
+
+  if (weaponId === 'dagger') {
+    return `치명타 +${step}% / 측후방 효율 +${formatBonusPercent(step * 0.018)}`;
+  }
+
+  return '기본 효과';
 }
 
 function getSoulEngravingPrice(itemId, level) {
@@ -187,6 +227,8 @@ export function getPermanentProgressSummary(progress = {}) {
       gradeId: grade.id,
       stageId: evolution?.id || null,
       enhancementLevel,
+      gradeEffectText: getGradeEffectTextByOrder(grade.order),
+      stageEffectText: getEvolutionEffectText(weapon.id, stageIndex + 1),
       enhancementEffectText: `공격력 +${enhancementLevel * 2}% / 자세 피해 +${enhancementLevel}%`
     };
   });
@@ -240,9 +282,16 @@ export function getHeirloomUpgradeOffers(progress = {}, resources = {}, weaponId
   const grade = getGradeById(item.weaponGrade || 'common');
   const nextGrade = WEAPON_GRADES.find((gradeItem) => gradeItem.order === grade.order + 1) || null;
   const gradeRule = HEIRLOOM_GRADE_RULES.find((rule) => rule.from === grade.id) || null;
+  const evolutionOptions = getWeaponEvolutionOptions(weapon.id);
+  const currentEvolution = evolutionOptions.find((stage) => stage.id === item.weaponEvolution) || evolutionOptions[0] || null;
+  const currentStageIndex = Math.max(0, evolutionOptions.findIndex((stage) => stage.id === currentEvolution?.id));
+  const currentStageNumber = currentEvolution ? currentStageIndex + 1 : 1;
+  const nextEvolution = currentStageIndex < evolutionOptions.length - 1 ? evolutionOptions[currentStageIndex + 1] : null;
+  const evolutionRule = HEIRLOOM_EVOLUTION_RULES.find((rule) => rule.from === currentStageNumber) || null;
   const enhancementLevel = clamp(Math.floor(item.enhancementLevel || 0), 0, 10);
   const enhanceRule = HEIRLOOM_ENHANCEMENT_RULES.find((rule) => rule.from === enhancementLevel) || null;
   const stones = Math.max(0, Math.floor(resources.enhancementStone || 0));
+  const bossSouls = Math.max(0, Math.floor(resources.bossSoul || 0));
 
   const gradeOffer = {
     id: 'grade',
@@ -258,8 +307,33 @@ export function getHeirloomUpgradeOffers(progress = {}, resources = {}, weaponId
     chanceText: gradeRule
       ? `성공 ${formatChancePercent(gradeRule.successRate)} / 실패 ${formatChancePercent(gradeRule.failRate)} / 대실패 ${formatChancePercent(gradeRule.greatFailRate)}`
       : '최대 등급',
+    effectText: `현재 효과: ${getGradeEffectTextByOrder(grade.order)}`,
+    nextEffectText: nextGrade ? `다음 효과: ${getGradeEffectTextByOrder(nextGrade.order)}` : '최대 효과',
     disabled: !gradeRule || !nextGrade || stones < (gradeRule?.stoneCost || 0),
     disabledReason: !gradeRule || !nextGrade ? '최대 등급' : (stones < gradeRule.stoneCost ? '강화석 부족' : '')
+  };
+
+  const evolutionOffer = {
+    id: 'evolution',
+    title: '무기 진화',
+    description: nextEvolution
+      ? `${currentStageNumber}단계 ${currentEvolution?.name || '-'} → ${currentStageNumber + 1}단계 ${nextEvolution.name}`
+      : '이미 최종 단계입니다.',
+    costText: evolutionRule ? `강화석 ${evolutionRule.stoneCost} / 보스의 영혼 ${evolutionRule.bossSoulCost}` : '완료',
+    stoneCost: evolutionRule?.stoneCost || 0,
+    bossSoulCost: evolutionRule?.bossSoulCost || 0,
+    successRate: evolutionRule?.successRate || 0,
+    failRate: evolutionRule?.failRate || 0,
+    greatFailRate: evolutionRule?.greatFailRate || 0,
+    chanceText: evolutionRule
+      ? `성공 ${formatChancePercent(evolutionRule.successRate)} / 실패 ${formatChancePercent(evolutionRule.failRate)} / 대실패 ${formatChancePercent(evolutionRule.greatFailRate)}`
+      : '최종 단계',
+    effectText: `현재 효과: ${getEvolutionEffectText(weapon.id, currentStageNumber)}`,
+    nextEffectText: nextEvolution ? `다음 효과: ${getEvolutionEffectText(weapon.id, currentStageNumber + 1)}` : '최대 효과',
+    disabled: !evolutionRule || !nextEvolution || stones < (evolutionRule?.stoneCost || 0) || bossSouls < (evolutionRule?.bossSoulCost || 0),
+    disabledReason: !evolutionRule || !nextEvolution
+      ? '최종 단계'
+      : (stones < evolutionRule.stoneCost ? '강화석 부족' : (bossSouls < evolutionRule.bossSoulCost ? '보스의 영혼 부족' : ''))
   };
 
   const enhanceOffer = {
@@ -278,21 +352,26 @@ export function getHeirloomUpgradeOffers(progress = {}, resources = {}, weaponId
     disabledReason: !enhanceRule ? '최대 강화' : (stones < enhanceRule.stoneCost ? '강화석 부족' : '')
   };
 
-  return { weaponId: weapon.id, weaponName: weapon.name, gradeOffer, enhanceOffer };
+  return { weaponId: weapon.id, weaponName: weapon.name, gradeOffer, evolutionOffer, enhanceOffer };
 }
 
 export function purchaseHeirloomUpgrade(progress = {}, resources = {}, weaponId, upgradeType) {
   const normalized = createPermanentProgress(progress);
   const weapon = WEAPONS[weaponId] || Object.values(WEAPONS)[0];
   const offers = getHeirloomUpgradeOffers(normalized, resources, weapon.id);
-  const offer = upgradeType === 'grade' ? offers.gradeOffer : offers.enhanceOffer;
+  const offerMap = {
+    grade: offers.gradeOffer,
+    evolution: offers.evolutionOffer,
+    enhance: offers.enhanceOffer
+  };
+  const offer = offerMap[upgradeType];
   if (!offer) return { ok: false, message: '알 수 없는 가보 강화입니다.', progress: normalized, resources };
   if (offer.disabled) return { ok: false, message: offer.disabledReason || '강화할 수 없습니다.', progress: normalized, resources };
 
   const nextResources = {
     gold: Math.max(0, Math.floor(resources.gold || 0)),
-    enhancementStone: Math.max(0, Math.floor((resources.enhancementStone || 0) - offer.stoneCost)),
-    bossSoul: Math.max(0, Math.floor(resources.bossSoul || 0))
+    enhancementStone: Math.max(0, Math.floor((resources.enhancementStone || 0) - (offer.stoneCost || 0))),
+    bossSoul: Math.max(0, Math.floor((resources.bossSoul || 0) - (offer.bossSoulCost || 0)))
   };
   const item = normalized.heirloom[weapon.id];
   const roll = Math.random();
@@ -319,6 +398,32 @@ export function purchaseHeirloomUpgrade(progress = {}, resources = {}, weaponId,
       message = downGrade.id === currentGrade.id
         ? `가보 등급 강화 대실패: ${weapon.name} ${currentGrade.name} 유지`
         : `가보 등급 강화 대실패: ${weapon.name} ${currentGrade.name} → ${downGrade.name}`;
+    }
+  }
+
+  if (upgradeType === 'evolution') {
+    const options = getWeaponEvolutionOptions(weapon.id);
+    const currentEvolution = options.find((stage) => stage.id === item.weaponEvolution) || options[0] || null;
+    const currentIndex = Math.max(0, options.findIndex((stage) => stage.id === currentEvolution?.id));
+    const currentStageNumber = currentEvolution ? currentIndex + 1 : 1;
+    const rule = HEIRLOOM_EVOLUTION_RULES.find((evolutionRule) => evolutionRule.from === currentStageNumber);
+    if (!rule || currentIndex >= options.length - 1) return { ok: false, message: '이미 최종 단계입니다.', progress: normalized, resources };
+
+    if (roll < rule.successRate) {
+      const nextEvolution = options[currentIndex + 1];
+      item.weaponEvolution = nextEvolution.id;
+      resultType = 'success';
+      message = `가보 무기 진화 성공: ${weapon.name} ${currentEvolution.name} → ${nextEvolution.name}`;
+    } else if (roll < rule.successRate + rule.failRate) {
+      resultType = 'fail';
+      message = `가보 무기 진화 실패: ${weapon.name} ${currentEvolution.name} 유지`;
+    } else {
+      const firstEvolution = options[0] || currentEvolution;
+      item.weaponEvolution = firstEvolution?.id || item.weaponEvolution;
+      resultType = 'greatFail';
+      message = firstEvolution?.id === currentEvolution?.id
+        ? `가보 무기 진화 대실패: ${weapon.name} ${currentEvolution.name} 유지`
+        : `가보 무기 진화 대실패: ${weapon.name} ${currentEvolution.name} → ${firstEvolution.name}`;
     }
   }
 

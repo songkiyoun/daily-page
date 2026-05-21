@@ -1792,9 +1792,10 @@ function renderHeirloomBox(force = false, message = '') {
     'heirloom-upgrade',
     activeHeirloomWeapon,
     resources.enhancementStone,
+    resources.bossSoul,
     message,
     summary.heirloomItems.map((item) => `${item.weaponId}:${item.gradeName}:${item.stageText}:${item.enhancementLevel}`).join('|'),
-    `${offers.gradeOffer.disabled}:${offers.enhanceOffer.disabled}`
+    `${offers.gradeOffer.disabled}:${offers.evolutionOffer.disabled}:${offers.enhanceOffer.disabled}`
   ].join('|');
   if (!force && panelKeys.prepGrowth === key) return;
   panelKeys.prepGrowth = key;
@@ -1820,13 +1821,15 @@ function renderHeirloomBox(force = false, message = '') {
         <div class="heirloom-detail-main">
           <strong>${selected.weaponName}</strong>
           <span>${selected.gradeName} · ${selected.stageText} · +${selected.enhancementLevel}</span>
-          <em>무기 진화는 다음 가보 업데이트에서 연결됩니다. 이번 버전에서는 등급 강화와 +강화만 사용할 수 있습니다.</em>
+          <em>등급 강화, 무기 진화, +강화는 모두 가보에 저장되어 새 도전에 반영됩니다.</em>
         </div>
       </div>
       <div class="heirloom-stat-grid">
         <div><span>영구 등급</span><strong>${selected.gradeName}</strong></div>
         <div><span>영구 단계</span><strong>${selected.stageText}</strong></div>
         <div><span>영구 강화</span><strong>+${selected.enhancementLevel}</strong></div>
+        <div><span>등급 효과</span><strong>${selected.gradeEffectText}</strong></div>
+        <div><span>단계 효과</span><strong>${selected.stageEffectText}</strong></div>
         <div><span>강화 효과</span><strong>${selected.enhancementEffectText}</strong></div>
         <div><span>보유 강화석</span><strong>${resources.enhancementStone}</strong></div>
         <div><span>보스의 영혼</span><strong>${resources.bossSoul}</strong></div>
@@ -1837,10 +1840,23 @@ function renderHeirloomBox(force = false, message = '') {
             <strong>${offers.gradeOffer.title}</strong>
             <span>${offers.gradeOffer.description}</span>
             <em>${offers.gradeOffer.chanceText}</em>
+            <em>${offers.gradeOffer.effectText} · ${offers.gradeOffer.nextEffectText}</em>
           </div>
           <small>${offers.gradeOffer.costText}</small>
           <button class="button mini heirloom-upgrade-button" type="button" data-heirloom-upgrade="grade" ${offers.gradeOffer.disabled ? 'disabled' : ''}>
             ${offers.gradeOffer.disabledReason || '강화'}
+          </button>
+        </div>
+        <div class="heirloom-action-card">
+          <div>
+            <strong>${offers.evolutionOffer.title}</strong>
+            <span>${offers.evolutionOffer.description}</span>
+            <em>${offers.evolutionOffer.chanceText}</em>
+            <em>${offers.evolutionOffer.effectText} · ${offers.evolutionOffer.nextEffectText}</em>
+          </div>
+          <small>${offers.evolutionOffer.costText}</small>
+          <button class="button mini heirloom-upgrade-button" type="button" data-heirloom-upgrade="evolution" ${offers.evolutionOffer.disabled ? 'disabled' : ''}>
+            ${offers.evolutionOffer.disabledReason || '진화'}
           </button>
         </div>
         <div class="heirloom-action-card">
