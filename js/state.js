@@ -614,6 +614,29 @@ function getAllEvolutionSkillIds() {
     .map((item) => item.skillId);
 }
 
+const OPENING_WEAPON_SKILL_TYPES = new Set(['attack', 'evolutionAttack', 'evolutionFollowUp']);
+
+function isOpeningWeaponAttackSkill(skillId) {
+  const skill = SKILLS[skillId];
+  return !!skill && (skill.source === 'weapon' || skill.source === 'weaponEvolution') && OPENING_WEAPON_SKILL_TYPES.has(skill.type);
+}
+
+function createOpeningSkillCooldowns(skillIds = []) {
+  const cooldowns = {};
+  let weaponSkillOrder = 0;
+
+  skillIds.forEach((skillId) => {
+    if (!isOpeningWeaponAttackSkill(skillId)) return;
+
+    const skill = SKILLS[skillId];
+    const baseDelay = skill.source === 'weaponEvolution' ? 72 : 28;
+    cooldowns[skillId] = baseDelay + weaponSkillOrder * 30;
+    weaponSkillOrder += 1;
+  });
+
+  return cooldowns;
+}
+
 function syncWeaponEvolutionSkills(player) {
   if (!player) return player;
   const allowed = getEvolutionSkillIdsForStage(player.weaponId, player.weaponEvolution);
@@ -1304,7 +1327,8 @@ function createUnitFromPlayer(player, x, y) {
     stats: { ...player.stats },
     skills: [...player.skills],
     skillLevels: { ...(player.skillLevels || createInitialSkillLevels(player.skills)) },
-    skillCooldowns: {},
+    skillCooldowns: createOpeningSkillCooldowns(player.skills),
+    weaponSkillChainLockTimer: 0,
     skillUsed: {},
     skillRuntime: {},
     mastery: player.mastery,
@@ -1389,7 +1413,8 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     weaponGrade: enemyConfig.weaponGrade || 'common',
     weaponEvolution: enemyConfig.weaponEvolution || null,
     weaponEvolutionOptions: getWeaponEvolutionOptions(enemyConfig.weaponId),
-    skillCooldowns: {},
+    skillCooldowns: createOpeningSkillCooldowns(enemyConfig.skills),
+    weaponSkillChainLockTimer: 0,
     skillUsed: {},
     skillRuntime: {},
     mastery: enemyConfig.mastery,

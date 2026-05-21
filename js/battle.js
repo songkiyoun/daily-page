@@ -22,6 +22,14 @@ const CHARGE_GUARD_SKILLS = new Set([
   'westernExcaliburBeam'
 ]);
 
+const WEAPON_ATTACK_SKILL_TYPES = new Set(['attack', 'evolutionAttack', 'evolutionFollowUp']);
+const WEAPON_SKILL_CHAIN_LOCK_FRAMES = 42;
+
+function isWeaponAttackSkill(skillId) {
+  const skill = SKILLS[skillId];
+  return !!skill && (skill.source === 'weapon' || skill.source === 'weaponEvolution') && WEAPON_ATTACK_SKILL_TYPES.has(skill.type);
+}
+
 export function updateBattle(state) {
   if (!state.running || state.paused || state.result) return;
 
@@ -104,6 +112,7 @@ function tickTimers(unit) {
   if (unit.riposteTimer > 0) unit.riposteTimer -= 1;
   if (unit.skillRuntime?.highSpeedTimer > 0) unit.skillRuntime.highSpeedTimer -= 1;
   if (unit.skillRuntime?.spearFocusTimer > 0) unit.skillRuntime.spearFocusTimer -= 1;
+  if (unit.weaponSkillChainLockTimer > 0) unit.weaponSkillChainLockTimer -= 1;
   if (unit.closeResetGraceTimer > 0) unit.closeResetGraceTimer -= 1;
   Object.keys(unit.skillCooldowns || {}).forEach((skillId) => {
     if (unit.skillCooldowns[skillId] > 0) unit.skillCooldowns[skillId] -= 1;
@@ -1465,7 +1474,10 @@ function getUnitSkillLevel(unit, skillId) {
 }
 
 function hasReadySkill(unit, skillId) {
-  return hasSkill(unit, skillId) && (unit.skillCooldowns?.[skillId] || 0) <= 0;
+  if (!hasSkill(unit, skillId)) return false;
+  if ((unit.skillCooldowns?.[skillId] || 0) > 0) return false;
+  if (isWeaponAttackSkill(skillId) && (unit.weaponSkillChainLockTimer || 0) > 0) return false;
+  return true;
 }
 
 function useSkill(unit, skillId, overrideCooldown = null) {
@@ -1476,6 +1488,10 @@ function useSkill(unit, skillId, overrideCooldown = null) {
   const baseCooldown = overrideCooldown ?? (skill?.cooldown || 300);
   const cooldownScale = Math.max(0.64, 1 - (level - 1) * 0.11);
   unit.skillCooldowns[skillId] = Math.round(baseCooldown * cooldownScale);
+
+  if (isWeaponAttackSkill(skillId)) {
+    unit.weaponSkillChainLockTimer = Math.max(unit.weaponSkillChainLockTimer || 0, WEAPON_SKILL_CHAIN_LOCK_FRAMES);
+  }
 }
 
 
