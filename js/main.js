@@ -326,16 +326,51 @@ function handleConfigChange() {
 function startCurrentFloor() {
   if (!canStartCurrentFloor()) return;
   lockPreTowerShop(run);
-  startState(state);
   showTowerScreen();
   hideOverlay();
+  if (state?.bossEncounter && !state.bossEncounter.entered) {
+    startBossEncounterSequence();
+  } else {
+    startState(state);
+    updatePauseButton();
+    renderAllPanels(true);
+    saveTemporarySnapshot('startFloor');
+  }
+}
+
+function startBossEncounterSequence() {
+  if (!state?.bossEncounter) return;
+  const encounter = state.bossEncounter;
+  encounter.entered = true;
+  encounter.phase = 'intro';
+  encounter.timer = 120;
+  encounter.maxTimer = 120;
+  controls.startBtn.disabled = true;
   updatePauseButton();
   renderAllPanels(true);
-  saveTemporarySnapshot('startFloor');
+
+  window.setTimeout(() => {
+    if (!state?.bossEncounter || state.bossEncounter !== encounter || state.result) return;
+    encounter.phase = 'warning';
+    encounter.timer = 78;
+    encounter.maxTimer = 78;
+  }, 1200);
+
+  window.setTimeout(() => {
+    if (!state?.bossEncounter || state.bossEncounter !== encounter || state.result) return;
+    encounter.phase = 'combat';
+    encounter.timer = 0;
+    encounter.maxTimer = 0;
+    startState(state);
+    updatePauseButton();
+    renderAllPanels(true);
+    saveTemporarySnapshot('startBossFloor');
+  }, 2100);
 }
 
 function canStartCurrentFloor() {
-  return !!state && !state.running && !state.result && !!run?.active;
+  const bossIntroActive = !!state?.bossEncounter && state.bossEncounter.entered && state.bossEncounter.phase !== 'combat';
+  return !!state && !state.running && !state.result && !!run?.active && !bossIntroActive;
 }
 
 function canCreateNewCharacter() {
@@ -2082,6 +2117,7 @@ function renderTowerInfo(force = false) {
     state.enemy.weaponEvolution || 'none',
     state.enemy.bossId || 'normal',
     state.enemy.bossPattern || '',
+    state.enemy.bossSkill?.name || '',
     enemySkillText
   ].join('|');
   if (!force && panelKeys.tower === key) return;
@@ -2093,6 +2129,7 @@ function renderTowerInfo(force = false) {
   const bossRows = isBossFloor && state.enemy.bossId ? `
     <div class="tower-row boss-row"><span>보스명</span><strong>${state.enemy.name}</strong></div>
     <div class="tower-row"><span>보스 패턴</span><strong>${state.enemy.bossPattern || '-'}</strong></div>
+    <div class="tower-row"><span>보스 전용기</span><strong>${state.enemy.bossSkill?.name || '-'}</strong></div>
   ` : '';
 
   controls.towerBox.innerHTML = `
@@ -2660,7 +2697,8 @@ function renderResultIfNeeded() {
     const levelText = state.run.levelMessage ? `${state.run.levelMessage}\n` : '';
     const goldText = state.run.victoryGoldMessage ? `${state.run.victoryGoldMessage}\n` : '';
     const normalClearMessage = `${levelText}${goldText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`;
-    const bossClearMessage = '기본보상 : 레벨 및 숙련도 +1, 스텟포인트+5, 보스영혼, 강화석을 얻었습니다.\n일반 보상과 보스 전용 보상을 각각 선택 후, 다음층으로 이동합니다.';
+    const bossDeathLine = state.enemy.bossDefeatLine ? `${state.enemy.name}: “${state.enemy.bossDefeatLine}”\n` : '';
+    const bossClearMessage = `${bossDeathLine}기본보상 : 레벨 및 숙련도 +1, 스텟포인트+5, 보스영혼, 강화석을 얻었습니다.\n일반 보상과 보스 전용 보상을 각각 선택 후, 다음층으로 이동합니다.`;
     panelKeys.player = '';
     panelKeys.tower = '';
     showOverlay(

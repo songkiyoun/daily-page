@@ -40,6 +40,7 @@ export function updateBattle(state) {
   state.elapsed += 1 / 60;
   updateCombatEffects(state);
   updateSummonedClones(state);
+  updateBossPattern(state);
   updateCombatStallEngagement(state);
 
   updateUnit(state.player, state.enemy, state);
@@ -50,6 +51,161 @@ export function updateBattle(state) {
   clampToArena(state.player, state.arena);
   clampToArena(state.enemy, state.arena);
   checkResult(state);
+}
+
+
+function processBossActionLock(unit) {
+  if (!unit?.skillRuntime?.bossActionLock) return false;
+  unit.skillRuntime.bossActionLock = Math.max(0, unit.skillRuntime.bossActionLock - 1);
+  unit.vx *= 0.72;
+  unit.vy *= 0.72;
+  unit.lastAction = unit.skillRuntime.bossActionLabel || '보스 패턴 준비';
+  return unit.skillRuntime.bossActionLock > 0;
+}
+
+function updateBossPattern(state) {
+  const boss = state.enemy;
+  const player = state.player;
+  if (!boss?.bossSkill || !boss.bossSkillState || boss.isDead || player.isDead) return;
+
+  const skill = boss.bossSkill;
+  const runtime = boss.bossSkillState;
+  if (runtime.cooldown > 0) runtime.cooldown -= 1;
+
+  if (runtime.phase === 'ready') {
+    const hpRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
+    const cooldownReady = runtime.cooldown <= 0;
+    const distanceOk = distance(boss, player) < 340 || skill.id === 'deathMark';
+    if (!cooldownReady || !distanceOk) return;
+
+    runtime.phase = 'casting';
+    runtime.timer = Math.max(30, skill.telegraph || 60);
+    runtime.resolved = false;
+    runtime.payload = createBossSkillPayload(skill, boss, player);
+    boss.skillRuntime.bossActionLock = runtime.timer + 12;
+    boss.skillRuntime.bossActionLabel = skill.name;
+    boss.lastAction = skill.name;
+    emitBossTelegraph(state, boss, player, skill, runtime.payload);
+    emitCombatEvent(state, skill.name, boss.x, boss.y - 58, '#ff5d6c');
+    addScreenShake(state, hpRatio <= 0.5 ? 4 : 3);
+    return;
+  }
+
+  if (runtime.phase !== 'casting') return;
+  runtime.timer -= 1;
+  if (!runtime.resolved && runtime.timer <= 0) {
+    resolveBossSkillImpact(state, boss, player, skill, runtime.payload || {});
+    runtime.resolved = true;
+    runtime.phase = 'ready';
+    const hpRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
+    runtime.cooldown = Math.max(150, Math.round((skill.cooldown || 320) * (hpRatio <= 0.5 ? 0.74 : 1)));
+    runtime.payload = null;
+  }
+}
+
+function createBossSkillPayload(skill, boss, player) {
+  if (skill.id === 'archerVanguardPierce') {
+    const aim = angleTo(boss, player);
+    return {
+      aim,
+      x1: boss.x + Math.cos(aim) * boss.radius,
+      y1: boss.y + Math.sin(aim) * boss.radius,
+      x2: boss.x + Math.cos(aim) * (skill.length || 420),
+      y2: boss.y + Math.sin(aim) * (skill.length || 420)
+    };
+  }
+  if (skill.id === 'arbiterWarGodPressure') {
+    return { x: boss.x, y: boss.y };
+  }
+  return { x: player.x, y: player.y };
+}
+
+function emitBossTelegraph(state, boss, player, skill, payload) {
+  const telegraph = Math.max(30, skill.telegraph || 60);
+  const common = { life: telegraph, maxLife: telegraph, color: '#ff4d5f' };
+  if (skill.id === 'archerVanguardPierce') {
+    emitVisualEffect(state, {
+      ...common,
+      type: 'warningLine',
+      x1: payload.x1,
+      y1: payload.y1,
+      x2: payload.x2,
+      y2: payload.y2,
+      width: skill.width || 48
+    });
+    return;
+  }
+  if (skill.id === 'deathMark') {
+    emitVisualEffect(state, {
+      ...common,
+      type: 'deathMark',
+      x: player.x,
+      y: player.y,
+      targetSide: player.side,
+      radius: skill.radius || 72
+    });
+    return;
+  }
+  emitVisualEffect(state, {
+    ...common,
+    type: 'warningCircle',
+    x: payload.x,
+    y: payload.y,
+    radius: skill.radius || 86
+  });
+}
+
+function resolveBossSkillImpact(state, boss, player, skill, payload) {
+  if (player.isDead || player.hp <= 0) return;
+  let hit = false;
+  if (skill.id === 'archerVanguardPierce') {
+    hit = distancePointToSegment(player.x, player.y, payload.x1, payload.y1, payload.x2, payload.y2) <= (skill.width || 48) / 2 + player.radius * 0.5;
+    emitVisualEffect(state, { type: 'trail', x1: payload.x1, y1: payload.y1, x2: payload.x2, y2: payload.y2, color: '#ff7a5c', life: 18, maxLife: 18, width: 7, skillId: 'bossPierce' });
+  } else if (skill.id === 'deathMark') {
+    hit = true;
+    emitVisualEffect(state, { type: 'ring', x: player.x, y: player.y, color: '#a56cff', life: 24, maxLife: 24, size: (skill.radius || 72) * 0.8, power: 1.45 });
+  } else {
+    const center = skill.id === 'arbiterWarGodPressure' ? payload : payload;
+    hit = distance(player, center) <= (skill.radius || 86) + player.radius;
+    emitVisualEffect(state, { type: 'ring', x: center.x, y: center.y, color: skill.id === 'callonJudgement' ? '#ffd45a' : '#a888ff', life: 24, maxLife: 24, size: (skill.radius || 86), power: 1.6 });
+  }
+  if (!hit) {
+    emitCombatEvent(state, '회피', player.x, player.y - 44, '#b5ffcf');
+    return;
+  }
+  applyBossSkillDamage(state, boss, player, skill);
+}
+
+function applyBossSkillDamage(state, attacker, defender, skill) {
+  const weapon = WEAPONS[attacker.weaponId] || WEAPONS.western;
+  const base = weapon.damage * (attacker.attackScale || 1) * (skill.damageScale || 1.35);
+  const damage = Math.max(1, base * (1 - getEffectiveDefense(defender)));
+  defender.hp = clamp(defender.hp - damage, 0, defender.maxHp);
+  defender.posture = clamp(defender.posture - damage * 0.56, 0, defender.maxPosture);
+  attacker.damageDealt += damage;
+  attacker.hits += 1;
+  defender.staggerTimer = Math.max(defender.staggerTimer || 0, 10);
+  defender.vx += Math.cos(angleTo(attacker, defender)) * 2.3;
+  defender.vy += Math.sin(angleTo(attacker, defender)) * 2.3;
+  attacker.lastAction = skill.name;
+  emitCombatEvent(state, skill.name, defender.x, defender.y - 52, '#ff4d5f');
+  addScreenShake(state, 7);
+  if (defender.hp <= 0) {
+    defender.isDead = true;
+    defender.lastAction = '전투 불능';
+  }
+}
+
+function distancePointToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lengthSq = dx * dx + dy * dy || 1;
+  const t = clamp(((px - x1) * dx + (py - y1) * dy) / lengthSq, 0, 1);
+  const sx = x1 + dx * t;
+  const sy = y1 + dy * t;
+  const ddx = px - sx;
+  const ddy = py - sy;
+  return Math.hypot(ddx, ddy);
 }
 
 function getActiveBattleTarget(unit, defaultEnemy, state) {
@@ -81,6 +237,8 @@ function updateUnit(unit, enemy, state) {
   tickTimers(unit);
 
   if (processActiveSkillSequence(unit, activeTarget, state)) return;
+
+  if (processBossActionLock(unit)) return;
 
   if (unit.impactStopTimer > 0) {
     applyImpactStopDrift(unit);

@@ -30,6 +30,7 @@ export function render(ctx, state) {
   ctx.restore();
 
   drawTopText(ctx, state);
+  drawBossCinematic(ctx, state);
 }
 
 function clear(ctx, arena) {
@@ -572,6 +573,52 @@ function drawVisualEffects(ctx, effects, layer = 'front') {
     ctx.save();
     ctx.globalAlpha = alpha;
 
+    if (effect.type === 'warningCircle') {
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, effect.radius || 80, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(effect.color || '#ff4d5f', 0.16 + inv * 0.14);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(effect.color || '#ff4d5f', 0.72);
+      ctx.lineWidth = 3 + inv * 2;
+      ctx.setLineDash([10, 7]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (effect.type === 'warningLine') {
+      ctx.beginPath();
+      ctx.moveTo(effect.x1, effect.y1);
+      ctx.lineTo(effect.x2, effect.y2);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ff4d5f', 0.16 + inv * 0.18);
+      ctx.lineWidth = effect.width || 46;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(effect.x1, effect.y1);
+      ctx.lineTo(effect.x2, effect.y2);
+      ctx.strokeStyle = hexToRgba(effect.color || '#ff4d5f', 0.78);
+      ctx.lineWidth = 3 + inv * 2;
+      ctx.setLineDash([14, 9]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (effect.type === 'deathMark') {
+      const pulse = 0.78 + Math.sin(inv * Math.PI * 6) * 0.14;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, (effect.radius || 72) * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = hexToRgba(effect.color || '#a56cff', 0.78);
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 8]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = 'bold 28px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = hexToRgba(effect.color || '#a56cff', 0.9);
+      ctx.fillText('✦', effect.x, effect.y - 2);
+    }
+
     if (effect.type === 'afterimage') {
       ctx.beginPath();
       ctx.arc(effect.x, effect.y, (effect.size || 20) + inv * 6, 0, Math.PI * 2);
@@ -871,6 +918,39 @@ function drawTopText(ctx, state) {
   const bossText = state.run.floor % TOWER_RULES.bossInterval === 0 ? ' · BOSS FLOOR' : '';
   ctx.fillText(`FLOOR ${state.run.floor}${bossText}`, 18, 24);
   ctx.fillText(`TIME ${elapsed}s`, 18, 44);
+  ctx.restore();
+}
+
+
+function drawBossCinematic(ctx, state) {
+  const encounter = state.bossEncounter;
+  if (!encounter || !encounter.phase || encounter.phase === 'combat') return;
+  const phase = encounter.phase;
+  const progress = encounter.timer / Math.max(1, encounter.maxTimer || encounter.timer || 1);
+  const inv = 1 - progress;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.34)';
+  ctx.fillRect(0, 0, state.arena.width, state.arena.height);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (phase === 'intro') {
+    ctx.font = '700 28px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,212,90,0.94)';
+    ctx.fillText(encounter.bossName || 'BOSS', state.arena.centerX, state.arena.centerY - 48);
+    ctx.font = '18px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(238,234,248,0.92)';
+    ctx.fillText(encounter.introLine || '침입자를 확인했다.', state.arena.centerX, state.arena.centerY + 2);
+  } else if (phase === 'warning') {
+    ctx.font = `900 ${Math.round(44 + inv * 20)}px system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(255,77,95,0.96)';
+    ctx.fillText('B.O.S.S', state.arena.centerX, state.arena.centerY - 20);
+    ctx.font = '17px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,220,226,0.9)';
+    ctx.fillText('보스 전용 패턴을 주의하세요', state.arena.centerX, state.arena.centerY + 34);
+  }
+
   ctx.restore();
 }
 
