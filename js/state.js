@@ -1386,6 +1386,7 @@ function deriveEnemyProfile(enemy, floor) {
   const skillEffects = collectSkillEffects(enemy.skills, enemy.skillLevels);
   const gradeEffects = getWeaponGradeEffects(enemy);
   const stageEffects = getWeaponStageEffects(enemy);
+  const enhancementEffects = getWeaponEnhancementEffects(enemy);
   const stats = enemy.stats;
   const rawFloorIndex = Math.max(0, floor - 1);
   const bossBlock = Math.floor(rawFloorIndex / TOWER_RULES.bossInterval);
