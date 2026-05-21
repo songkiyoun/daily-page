@@ -79,6 +79,24 @@ export function getPlayerInventory(player) {
   };
 }
 
+export function getPlayerCombatSummary(player) {
+  if (!player) return null;
+  const profile = derivePlayerProfile(player);
+  const weapon = WEAPONS[player.weaponId];
+  return {
+    maxHp: profile.maxHp,
+    maxPosture: profile.maxPosture,
+    totalAttack: Math.max(1, Math.round((weapon?.damage || 10) * profile.attackScale)),
+    attackScalePercent: Math.round(profile.attackScale * 100),
+    defensePercent: Math.round(profile.defense * 100),
+    evasionPercent: Math.round(profile.evasion * 100),
+    critPercent: Math.round(profile.crit * 100),
+    critDamagePercent: Math.round(profile.critDamage * 100),
+    cooldownPercent: Math.round(profile.cooldownScale * 100),
+    moveSpeedPercent: Math.round(profile.moveSpeedScale * 100)
+  };
+}
+
 function getWeaponGradeEffects(unit) {
   const growth = getWeaponGrowthInfo(unit);
   const order = growth.grade?.order || 0;
@@ -627,11 +645,10 @@ export function completeFloorVictory(state) {
 
   const isBossFloor = run.floor > 0 && run.floor % TOWER_RULES.bossInterval === 0;
   run.lastBossRewardMessage = '';
+  run.pendingBossRewards = [];
   if (isBossFloor) {
-    const bossSoulReward = TOWER_RULES.bossSoulReward || 1;
-    run.player.bossSoul = (run.player.bossSoul || 0) + bossSoulReward;
-    if (run.challenge) run.challenge.earnedBossSoul = (run.challenge.earnedBossSoul || 0) + bossSoulReward;
-    run.lastBossRewardMessage = `보스 처치 보상 · 보스의 영혼 +${bossSoulReward}`;
+    run.lastBossRewardMessage = grantBossClearRewards(run);
+    run.pendingBossRewards = createBossRewardChoices(run);
   }
 
   const baseExpGain = REWARD_RULES.baseExp + run.floor * REWARD_RULES.expPerFloor;
@@ -641,13 +658,23 @@ export function completeFloorVictory(state) {
   state.rewardsPrepared = true;
 }
 
-export function applyRewardAndAdvance(state, rewardId) {
+export function applyRewardAndAdvance(state, rewardId, rewardType = 'normal') {
   const run = state.run;
-  const reward = run.pendingRewards.find((item) => item.id === rewardId);
+  const list = rewardType === 'boss' ? (run.pendingBossRewards || []) : (run.pendingRewards || []);
+  const reward = list.find((item) => item.id === rewardId);
   if (!reward) return state;
 
   applyReward(run, reward);
-  run.pendingRewards = [];
+  if (rewardType === 'boss') {
+    run.pendingBossRewards = [];
+  } else {
+    run.pendingRewards = [];
+  }
+
+  if ((run.pendingRewards?.length || 0) > 0 || (run.pendingBossRewards?.length || 0) > 0) {
+    return state;
+  }
+
   run.floor += 1;
   run.bestFloor = Math.max(run.bestFloor, run.floor);
   healPlayerToFull(run.player);
@@ -973,21 +1000,26 @@ function createEnemyStats(floor, isBossFloor) {
   }
 
   const floorIndex = Math.max(0, floor - TOWER_RULES.startFloor);
-  const base = 5 + Math.floor(floorIndex * 0.38);
-  const bossBonus = isBossFloor ? 2 : 0;
+  const bossBlock = Math.floor(floorIndex / TOWER_RULES.bossInterval);
+  const floorInBlock = floorIndex % TOWER_RULES.bossInterval;
+  const base = 5 + bossBlock * 4 + Math.floor(floorInBlock * 0.28);
+  const bossBonus = isBossFloor ? 2 + Math.floor(bossBlock * 0.5) : 0;
 
   return {
     str: base + bossBonus + randomInt(0, 1),
     vit: base + bossBonus + randomInt(0, 2),
     def: base + bossBonus + randomInt(0, 1),
     agi: base + bossBonus + randomInt(0, 1),
-    luck: base + randomInt(0, 1)
+    luck: base + Math.floor(bossBonus * 0.5) + randomInt(0, 1)
   };
 }
 
 function createEnemyMastery(floor, isBossFloor) {
   if (floor === TOWER_RULES.startFloor && !isBossFloor) return 0;
-  return Math.floor(floor / 6) + (isBossFloor ? 1 : 0);
+  const floorIndex = Math.max(0, floor - TOWER_RULES.startFloor);
+  const bossBlock = Math.floor(floorIndex / TOWER_RULES.bossInterval);
+  const blockProgress = floorIndex % TOWER_RULES.bossInterval;
+  return bossBlock * 2 + Math.floor(blockProgress / 6) + (isBossFloor ? 1 : 0);
 }
 
 function deriveEnemyProfile(enemy, floor) {
@@ -997,8 +1029,11 @@ function deriveEnemyProfile(enemy, floor) {
   const gradeEffects = getWeaponGradeEffects(enemy);
   const stageEffects = getWeaponStageEffects(enemy);
   const stats = enemy.stats;
-  const floorIndex = Math.max(0, floor - 1);
-  const bossMult = floor % TOWER_RULES.bossInterval === 0 ? 1.12 : 1;
+  const rawFloorIndex = Math.max(0, floor - 1);
+  const bossBlock = Math.floor(rawFloorIndex / TOWER_RULES.bossInterval);
+  const blockProgress = rawFloorIndex % TOWER_RULES.bossInterval;
+  const floorIndex = bossBlock * 6 + blockProgress;
+  const bossMult = floor % TOWER_RULES.bossInterval === 0 ? 1.1 + bossBlock * 0.015 : 1;
 
   const maxHp = Math.round(
     (BASE_STATS.maxHp + stats.vit * 10 + stats.def * 3 + floorIndex * 3) *
@@ -1419,6 +1454,94 @@ function createLegendaryReward(run) {
   return pool.length ? sample(pool) : null;
 }
 
+
+function createBossRewardChoices(run) {
+  const growth = getWeaponGrowthInfo(run.player);
+  const jackpotGoldBase = 120 + run.floor * 18;
+  const jackpotGold = getGoldRewardAmount(run.player, jackpotGoldBase);
+  const rewards = [
+    {
+      id: `boss-jackpot-${run.floor}`,
+      type: 'bossJackpot',
+      rarity: 'legendary',
+      amount: jackpotGold,
+      enhancementStoneAmount: 1,
+      title: '횡재',
+      description: `골드 +${jackpotGold} / 강화석 +1`
+    },
+    {
+      id: `boss-mastery-${run.floor}`,
+      type: 'mastery',
+      rarity: 'hero',
+      amount: 3,
+      title: '깨달음',
+      description: '무기 숙련도 +3'
+    },
+    {
+      id: `boss-awakening-${run.floor}`,
+      type: 'statPoint',
+      rarity: 'hero',
+      amount: 5,
+      title: '각성',
+      description: '스탯포인트 +5'
+    }
+  ];
+
+  if (!growth.isMaxStage && growth.nextStage) {
+    rewards.splice(1, 0, {
+      id: `boss-evolution-${growth.nextStage.id}`,
+      type: 'weaponStageUp',
+      rarity: 'legendary',
+      amount: 1,
+      title: '진화',
+      description: `${growth.currentStage.name} → ${growth.nextStage.name}`
+    });
+  }
+
+  if (!growth.isMaxGrade && growth.nextGrade) {
+    rewards.splice(2, 0, {
+      id: `boss-smith-${growth.nextGrade.id}`,
+      type: 'weaponGradeUp',
+      rarity: 'legendary',
+      amount: 1,
+      title: '대장장이',
+      description: `${growth.grade.name} → ${growth.nextGrade.name}`
+    });
+  }
+
+  return rewards.slice(0, 5);
+}
+
+function grantBossClearRewards(run) {
+  const player = run.player;
+  ensurePlayerResources(player);
+  const bossTier = Math.max(1, Math.floor(run.floor / TOWER_RULES.bossInterval));
+  const bossGoldBase = (TOWER_RULES.bossGoldBase || 80) + run.floor * (TOWER_RULES.bossGoldPerFloor || 8);
+  const bossGold = getGoldRewardAmount(player, bossGoldBase);
+  const stoneMin = Math.max(0, (TOWER_RULES.bossStoneBaseMin || 0) + bossTier - 1);
+  const stoneMax = Math.max(stoneMin, (TOWER_RULES.bossStoneBaseMax || 3) + bossTier - 1);
+  const stones = randomInt(stoneMin, stoneMax);
+  const bossSoulReward = TOWER_RULES.bossSoulReward || 1;
+  const masteryReward = TOWER_RULES.bossMasteryReward || 1;
+  const levelUpReward = TOWER_RULES.bossLevelUpReward || 1;
+  const statPointReward = levelUpReward * (REWARD_RULES.levelUpStatPoints || 5);
+
+  player.gold = (player.gold || 0) + bossGold;
+  player.mastery = (player.mastery || 0) + masteryReward;
+  player.bossSoul = (player.bossSoul || 0) + bossSoulReward;
+  player.enhancementStone = (player.enhancementStone || 0) + stones;
+  player.level = (player.level || 1) + levelUpReward;
+  player.statPoints = (player.statPoints || 0) + statPointReward;
+
+  if (run.challenge) {
+    run.challenge.earnedGold = (run.challenge.earnedGold || 0) + bossGold;
+    run.challenge.earnedBossSoul = (run.challenge.earnedBossSoul || 0) + bossSoulReward;
+    run.challenge.earnedEnhancementStone = (run.challenge.earnedEnhancementStone || 0) + stones;
+  }
+
+  return `보스 기본 보상 · 골드 +${bossGold}G / 레벨 +${levelUpReward} / 무기 숙련도 +${masteryReward} / 보스의 영혼 +${bossSoulReward} / 강화석 +${stones}`;
+}
+
 function getFallbackRewards(run) {
   return [
     createNormalReward(run),
@@ -1443,7 +1566,7 @@ function getShortSkillDescription(skillId) {
 
 function describeTraitEffects(traitId) {
   const trait = REWARD_TRAITS[traitId];
-  if (!trait?.effects) return trait?.description || '';
+  if (!trait?.effects || Object.keys(trait.effects).length === 0) return trait?.description || '';
 
   const labels = {
     attackBonus: '공격력',
@@ -1538,6 +1661,18 @@ function applyReward(run, reward) {
     player.bossSoul += reward.amount;
     if (run.challenge) run.challenge.earnedBossSoul = (run.challenge.earnedBossSoul || 0) + reward.amount;
     run.lastRewardLog = `보스의 영혼 +${reward.amount}`;
+  }
+
+  if (reward.type === 'bossJackpot') {
+    const gold = reward.amount || 0;
+    const stones = reward.enhancementStoneAmount || 0;
+    player.gold += gold;
+    player.enhancementStone += stones;
+    if (run.challenge) {
+      run.challenge.earnedGold = (run.challenge.earnedGold || 0) + gold;
+      run.challenge.earnedEnhancementStone = (run.challenge.earnedEnhancementStone || 0) + stones;
+    }
+    run.lastRewardLog = `횡재: 골드 +${gold} / 강화석 +${stones}`;
   }
 
   if (reward.type === 'exp') {

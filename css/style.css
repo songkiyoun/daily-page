@@ -435,9 +435,30 @@ select option {
 
 .overlay-reward-box {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
+  gap: 12px;
   margin: 14px 0 4px;
+}
+
+.reward-section {
+  display: grid;
+  gap: 8px;
+}
+
+.reward-section h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.reward-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.boss-reward-section h3 {
+  color: var(--gold);
 }
 
 .overlay-reward-box.hidden {
@@ -445,11 +466,11 @@ select option {
 }
 
 .reward-button {
-  min-height: 104px;
+  min-height: 92px;
   border: 1px solid rgba(255, 212, 90, 0.34);
   background: rgba(255, 212, 90, 0.075);
   color: var(--text);
-  padding: 11px;
+  padding: 9px;
   cursor: pointer;
   text-align: left;
   display: grid;
@@ -523,6 +544,45 @@ select option {
   color: var(--muted);
   font-style: normal;
   font-size: 0.8rem;
+}
+
+.combat-summary-panel {
+  padding: 12px;
+}
+
+.combat-summary-panel h2 {
+  margin-bottom: 8px;
+}
+
+.combat-summary-box {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(82px, 1fr));
+  gap: 8px;
+}
+
+.combat-summary-box > div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(168, 136, 255, 0.2);
+  background: rgba(168, 136, 255, 0.055);
+  padding: 8px;
+  min-height: 58px;
+}
+
+.combat-summary-box span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.combat-summary-box strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.combat-summary-box em {
+  color: var(--gold);
+  font-size: 0.68rem;
+  font-style: normal;
 }
 
 .inventory-panel {
@@ -612,6 +672,12 @@ select option {
   }
 }
 
+@media (max-width: 1180px) {
+  .combat-summary-box {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 @media (max-width: 860px) {
   .app {
     width: min(100% - 20px, 760px);
@@ -633,10 +699,11 @@ select option {
     flex-direction: column;
   }
 
-  .overlay-reward-box,
   .challenge-result-grid,
   .inventory-box,
-  .resource-grid {
+  .resource-grid,
+  .combat-summary-box,
+  .reward-grid {
     grid-template-columns: 1fr;
   }
 }

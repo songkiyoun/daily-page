@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.32-all-growth-simulator-easier-tower" />
-  <title>Circle Battle Tower Rebuild v0.7.32</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.32" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.34-boss-reward-combat-summary" />
+  <title>Circle Battle Tower Rebuild v0.7.34</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.34" />
 </head>
 <body>
   <main class="app">
@@ -13,11 +13,11 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">10층마다 보스층을 추가하고 경험치 성장과 등반 성장 시뮬레이션을 확장한 v0.7.32 뼈대입니다.</p>
+        <p class="subtext">10층마다 보스층을 추가하고 경험치 성장과 등반 성장 시뮬레이션을 확장한 v0.7.34 통합 업데이트입니다.</p>
       </div>
       <div class="topbar-actions">
         <button id="simToggleBtn" class="button mini">시뮬레이터</button>
-        <div id="versionBadge" class="version">v0.7.32</div>
+        <div id="versionBadge" class="version">v0.7.34</div>
       </div>
     </header>
 
@@ -81,6 +81,11 @@
             </div>
           </div>
         </div>
+
+        <section class="card compact-card combat-summary-panel">
+          <h2>현재 전투 능력</h2>
+          <div id="combatSummaryBox" class="combat-summary-box"></div>
+        </section>
 
         <section class="card compact-card inventory-panel">
           <h2>인벤토리</h2>
@@ -149,6 +154,6 @@
     </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.32"></script>
+  <script type="module" src="./js/main.js?v=0.7.34"></script>
 </body>
 </html>

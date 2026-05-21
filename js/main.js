@@ -10,6 +10,7 @@ import {
   createFixedEnemyConfig,
   createRun,
   getNextLevelExp,
+  getPlayerCombatSummary,
   getPlayerInventory,
   getShopOffers,
   getShopSummary,
@@ -51,6 +52,7 @@ const controls = {
   towerBox: document.getElementById('towerBox'),
   prepPlayerBox: document.getElementById('prepPlayerBox'),
   towerPlayerBox: document.getElementById('towerPlayerBox'),
+  combatSummaryBox: document.getElementById('combatSummaryBox'),
   inventoryBox: document.getElementById('inventoryBox'),
   resultOverlay: document.getElementById('resultOverlay'),
   resultTitle: document.getElementById('resultTitle'),
@@ -81,7 +83,8 @@ let panelKeys = {
   reward: '',
   shop: '',
   controls: '',
-  inventory: ''
+  inventory: '',
+  combatSummary: ''
 };
 
 init();
@@ -280,14 +283,29 @@ function handleStatClick(event) {
 
 function handleRewardClick(event) {
   const button = event.target.closest('.reward-button');
-  if (!button || !state?.run?.pendingRewards?.length || state.result !== 'victory') return;
-  state = applyRewardAndAdvance(state, button.dataset.reward);
+  const hasRewards = !!state?.run && ((state.run.pendingRewards?.length || 0) > 0 || (state.run.pendingBossRewards?.length || 0) > 0);
+  if (!button || !hasRewards || state.result !== 'victory') return;
+  const rewardType = button.dataset.rewardType || 'normal';
+  state = applyRewardAndAdvance(state, button.dataset.reward, rewardType);
   run = state.run;
   syncBankFromRun();
   clearPanelKeys();
   updatePauseButton();
   render(ctx, state);
   renderAllPanels(true);
+
+  if (state.result === 'victory') {
+    showOverlay(
+      'REWARD',
+      '남은 보상을 선택하세요. 일반 보상과 보스 전용 보상은 각각 한 번씩 선택할 수 있습니다.',
+      '',
+      'waitReward',
+      { hideButton: true, keepRewards: true }
+    );
+    renderRewardBox(true);
+    return;
+  }
+
   showOverlay(
     'NEXT FLOOR',
     `${state.run.floor}층에 도착했습니다. 체력은 완전히 회복되었습니다. 스탯 포인트가 있다면 배분한 뒤 전투를 시작하세요.`,
@@ -457,8 +475,16 @@ function simulateSingleProgressionRun({ playerWeapon, playerPersonality, profile
 
     const reward = chooseProgressionReward(simRun.pendingRewards, profile);
     if (!reward) break;
-    simState = applyRewardAndAdvance(simState, reward.id);
+    simState = applyRewardAndAdvance(simState, reward.id, 'normal');
     simRun = simState.run;
+
+    if (simState.result === 'victory' && simRun.pendingBossRewards?.length) {
+      const bossReward = chooseProgressionReward(simRun.pendingBossRewards, profile);
+      if (!bossReward) break;
+      simState = applyRewardAndAdvance(simState, bossReward.id, 'boss');
+      simRun = simState.run;
+    }
+
     allocateProgressionStats(simRun, profile);
     lastResult = 'victory';
   }
@@ -493,6 +519,7 @@ function scoreProgressionReward(reward, profile) {
   const bias = profile.rewardBias || {};
   let score = bias[reward.type] || 0;
   if (reward.type === 'skillLevelMastery' || reward.type === 'skillLevelStatPoint') score += bias.skillLevel || 0;
+  if (reward.type === 'bossJackpot') score += bias.gold || 0;
   if (reward.type === 'stat' && profile.statPriority.includes(reward.statKey)) {
     score += Math.max(1, profile.statPriority.length - profile.statPriority.indexOf(reward.statKey));
   }
@@ -1002,6 +1029,7 @@ function renderAllPanels(force = false) {
   renderStatus();
   renderTowerInfo(force);
   renderPlayerInfo(force);
+  renderCombatSummary(force);
   renderInventory(force);
   renderShopStatus(force);
   renderRewardBox(force);
@@ -1163,6 +1191,35 @@ function getWeaponIcon(weaponId) {
   return '□';
 }
 
+function renderCombatSummary(force = false) {
+  if (!controls.combatSummaryBox) return;
+  if (!run?.player) {
+    controls.combatSummaryBox.innerHTML = `
+      <div class="empty-panel slim">
+        <strong>전투 능력 없음</strong>
+        <span>탑에 오르면 현재 총 전투 능력이 표시됩니다.</span>
+      </div>
+    `;
+    panelKeys.combatSummary = 'empty';
+    return;
+  }
+
+  const summary = getPlayerCombatSummary(run.player);
+  const key = Object.values(summary).join('|');
+  if (!force && panelKeys.combatSummary === key) return;
+  panelKeys.combatSummary = key;
+
+  controls.combatSummaryBox.innerHTML = `
+    <div><span>총 체력</span><strong>${summary.maxHp}</strong></div>
+    <div><span>총 공격력</span><strong>${summary.totalAttack}</strong><em>${summary.attackScalePercent}%</em></div>
+    <div><span>총 방어력</span><strong>${summary.defensePercent}%</strong></div>
+    <div><span>자세</span><strong>${summary.maxPosture}</strong></div>
+    <div><span>회피율</span><strong>${summary.evasionPercent}%</strong></div>
+    <div><span>치명타 확률</span><strong>${summary.critPercent}%</strong></div>
+    <div><span>치명타 피해</span><strong>${summary.critDamagePercent}%</strong></div>
+  `;
+}
+
 function renderInventory(force = false) {
   if (!controls.inventoryBox) return;
   if (!run?.player) {
@@ -1283,27 +1340,44 @@ function hideShopBox() {
 }
 
 function renderRewardBox(force = false) {
-  if (!state?.run?.pendingRewards?.length || state.result !== 'victory') {
+  const normalRewards = state?.run?.pendingRewards || [];
+  const bossRewards = state?.run?.pendingBossRewards || [];
+  if ((normalRewards.length + bossRewards.length === 0) || state.result !== 'victory') {
     hideRewardBox();
     return;
   }
 
-  const nextKey = `${state.run.floor}:${state.run.pendingRewards.map((reward) => reward.id).join('|')}`;
+  const nextKey = `${state.run.floor}:N:${normalRewards.map((reward) => reward.id).join('|')}:B:${bossRewards.map((reward) => reward.id).join('|')}`;
   if (!force && panelKeys.reward === nextKey) return;
   panelKeys.reward = nextKey;
 
-  controls.overlayRewardBox.classList.remove('hidden');
-  controls.overlayRewardBox.innerHTML = state.run.pendingRewards.map((reward) => {
+  const renderRewardButtons = (rewards, type) => rewards.map((reward) => {
     const rarity = reward.rarity || 'normal';
     const rarityName = REWARD_RARITIES[rarity]?.name || rarity;
     return `
-      <button class="reward-button reward-${rarity}" type="button" data-reward="${reward.id}">
+      <button class="reward-button reward-${rarity}" type="button" data-reward="${reward.id}" data-reward-type="${type}">
         <em>${rarityName}</em>
         <strong>${reward.title}</strong>
         <span>${reward.description}</span>
       </button>
     `;
   }).join('');
+
+  controls.overlayRewardBox.classList.remove('hidden');
+  controls.overlayRewardBox.innerHTML = `
+    ${normalRewards.length ? `
+      <div class="reward-section">
+        <h3>일반 보상 선택</h3>
+        <div class="reward-grid">${renderRewardButtons(normalRewards, 'normal')}</div>
+      </div>
+    ` : ''}
+    ${bossRewards.length ? `
+      <div class="reward-section boss-reward-section">
+        <h3>보스 전용 보상 선택</h3>
+        <div class="reward-grid">${renderRewardButtons(bossRewards, 'boss')}</div>
+      </div>
+    ` : ''}
+  `;
 }
 
 function hideRewardBox() {
@@ -1380,7 +1454,7 @@ function renderResultIfNeeded() {
     panelKeys.tower = '';
     showOverlay(
       state.run.lastBossRewardMessage ? 'BOSS CLEAR' : 'VICTORY',
-      `${levelText}${goldText}${bossText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`,
+      `${levelText}${goldText}${bossText}${state.run.floor}층을 클리어했습니다. ${state.run.pendingBossRewards?.length ? '일반 보상과 보스 전용 보상을 각각 하나씩 선택하면' : '보상을 하나 선택하면'} ${nextFloor}층으로 이동합니다.`,
       '',
       'waitReward',
       { hideButton: true }
@@ -1479,6 +1553,7 @@ function clearPanelKeys() {
     reward: '',
     shop: '',
     controls: '',
-    inventory: ''
+    inventory: '',
+    combatSummary: ''
   };
 }

@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.32';
+export const VERSION = '0.7.34';
 
 export const WEAPONS = {
   spear: {
@@ -939,26 +939,32 @@ export const REWARD_TRAITS = {
     id: 'weaponUnderstanding',
     name: '무기 이해',
     rarity: 'hero',
-    description: '무기 숙련과 무기 스킬 성장을 함께 노립니다.',
-    effects: {}
+    description: '무기 운용 이해도가 올라 공격 준비와 기본 공격 효율이 좋아집니다.',
+    effects: { attackBonus: 0.015, cooldownBonus: -0.015 }
   },
   personalityReinforcement: {
     id: 'personalityReinforcement',
     name: '성격 강화',
     rarity: 'hero',
-    description: '성격 스킬 성장과 추가 스탯 포인트를 함께 노립니다.',
-    effects: {}
+    description: '현재 성격의 장점을 고르게 끌어올립니다.',
+    effects: { maxHpBonus: 0.012, attackBonus: 0.012, defenseBonus: 0.008, evasionBonus: 0.006, critBonus: 0.006, postureBonus: 0.01 }
   }
 };
 
 export const TOWER_RULES = {
   startFloor: 1,
-  hpGrowthPerFloor: 0.085,
-  damageGrowthPerFloor: 0.052,
-  defenseGrowthPerFloor: 0.004,
-  maxEnemyDefense: 0.24,
+  hpGrowthPerFloor: 0.072,
+  damageGrowthPerFloor: 0.044,
+  defenseGrowthPerFloor: 0.0035,
+  maxEnemyDefense: 0.23,
   bossInterval: 10,
-  bossSoulReward: 1
+  bossSoulReward: 1,
+  bossMasteryReward: 1,
+  bossLevelUpReward: 1,
+  bossGoldBase: 80,
+  bossGoldPerFloor: 8,
+  bossStoneBaseMin: 0,
+  bossStoneBaseMax: 3
 };
 
 export const ENEMY_NAMES = [
