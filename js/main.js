@@ -49,6 +49,10 @@ const controls = {
   prepShopCard: document.getElementById('prepShopCard'),
   playerWeapon: document.getElementById('playerWeapon'),
   playerPersonality: document.getElementById('playerPersonality'),
+  profileImageUrl: document.getElementById('profileImageUrl'),
+  profileImagePreview: document.getElementById('profileImagePreview'),
+  saveProfileImageBtn: document.getElementById('saveProfileImageBtn'),
+  clearProfileImageBtn: document.getElementById('clearProfileImageBtn'),
   startBtn: document.getElementById('startBtn'),
   climbBtn: document.getElementById('climbBtn'),
   adminResourceBtn: document.getElementById('adminResourceBtn'),
@@ -110,6 +114,10 @@ let account = {
   role: 'player'
 };
 
+let accountProfile = {
+  imageUrl: ''
+};
+
 let state = null;
 let run = null;
 let bankGold = null;
@@ -126,7 +134,8 @@ let panelKeys = {
   controls: '',
   inventory: '',
   combatSummary: '',
-  prepGrowth: ''
+  prepGrowth: '',
+  profileImage: ''
 };
 
 init();
@@ -154,6 +163,14 @@ function init() {
   controls.climbBtn.addEventListener('click', startCurrentFloor);
   controls.playerWeapon.addEventListener('change', handleConfigChange);
   controls.playerPersonality.addEventListener('change', handleConfigChange);
+  controls.saveProfileImageBtn?.addEventListener('click', handleProfileImageSave);
+  controls.clearProfileImageBtn?.addEventListener('click', handleProfileImageClear);
+  controls.profileImageUrl?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleProfileImageSave();
+    }
+  });
   controls.overlayActionBtn.addEventListener('click', handleOverlayAction);
   controls.pauseBtn.addEventListener('click', () => {
     if (!state) return;
@@ -209,7 +226,8 @@ function startNewRun() {
     startingGold,
     startingEnhancementStone: bankInventory.enhancementStone || 0,
     startingBossSoul: bankInventory.bossSoul || 0,
-    permanentProgress
+    permanentProgress,
+    profileImageUrl: accountProfile.imageUrl || ''
   });
   state = createBattleState(run);
   clearPanelKeys();
@@ -513,6 +531,79 @@ function handleAdminResourceAdd() {
   saveTemporarySnapshot('adminResourceAdd');
   autoSaveSafePoint('관리자 재화 추가');
   showAccountMessage('관리자 재화 추가: 골드 +100,000 / 강화석 +100 / 보스의 영혼 +100', 'good');
+}
+
+
+function normalizeAccountProfile(profile = {}) {
+  const imageUrl = String(profile.imageUrl || profile.profileImageUrl || '').trim();
+  return { imageUrl };
+}
+
+function isLikelyImageUrl(url = '') {
+  const value = String(url || '').trim();
+  if (!value) return true;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' || parsed.protocol === 'data:';
+  } catch (error) {
+    return false;
+  }
+}
+
+function handleProfileImageSave() {
+  const imageUrl = String(controls.profileImageUrl?.value || '').trim();
+  if (!isLikelyImageUrl(imageUrl)) {
+    showAccountMessage('이미지 URL 형식이 올바르지 않습니다.', 'warn');
+    return;
+  }
+
+  accountProfile = normalizeAccountProfile({ imageUrl });
+  applyProfileImageToCurrentRun();
+  clearPanelKeys();
+  renderAllPanels(true);
+  if (state) render(ctx, state);
+  saveTemporarySnapshot('profileImageSave');
+  autoSaveSafePoint('캐릭터 이미지 등록');
+  showAccountMessage(imageUrl ? '캐릭터 이미지가 저장되었습니다.' : '캐릭터 이미지가 비어 있습니다.', 'good');
+}
+
+function handleProfileImageClear() {
+  accountProfile = normalizeAccountProfile({ imageUrl: '' });
+  if (controls.profileImageUrl) controls.profileImageUrl.value = '';
+  applyProfileImageToCurrentRun();
+  clearPanelKeys();
+  renderAllPanels(true);
+  if (state) render(ctx, state);
+  saveTemporarySnapshot('profileImageClear');
+  autoSaveSafePoint('캐릭터 이미지 제거');
+  showAccountMessage('캐릭터 이미지를 제거했습니다.', 'good');
+}
+
+function applyProfileImageToCurrentRun() {
+  if (run?.player) run.player.profileImageUrl = accountProfile.imageUrl || '';
+  if (state?.player) state.player.profileImageUrl = accountProfile.imageUrl || '';
+}
+
+function renderProfileImagePanel(force = false) {
+  if (!controls.profileImagePreview) return;
+  const key = accountProfile.imageUrl || 'empty';
+  if (!force && panelKeys.profileImage === key) return;
+  panelKeys.profileImage = key;
+
+  if (controls.profileImageUrl && controls.profileImageUrl.value !== (accountProfile.imageUrl || '')) {
+    controls.profileImageUrl.value = accountProfile.imageUrl || '';
+  }
+
+  if (!accountProfile.imageUrl) {
+    controls.profileImagePreview.innerHTML = '<span>이미지 없음</span>';
+    controls.profileImagePreview.style.backgroundImage = '';
+    controls.profileImagePreview.classList.remove('has-image');
+    return;
+  }
+
+  controls.profileImagePreview.innerHTML = '';
+  controls.profileImagePreview.style.backgroundImage = `url("${accountProfile.imageUrl.replace(/"/g, '%22')}")`;
+  controls.profileImagePreview.classList.add('has-image');
 }
 
 
@@ -1371,6 +1462,7 @@ function buildSavePayload({ includeSession = false, reason = 'save' } = {}) {
     bossClears: Math.floor((run?.victories || 0) / TOWER_RULES.bossInterval)
   };
   payload.account = account.loggedIn ? { id: account.id, mode: account.mode, role: account.role } : null;
+  payload.profile = normalizeAccountProfile(accountProfile);
   if (includeSession) {
     payload.session = {
       screen: getCurrentScreenName(),
@@ -1413,6 +1505,8 @@ function applySavePayload(payload = {}, { restoreSession = false, showDefaultScr
   };
   bankGold = bankInventory.gold;
   permanentProgress = clonePermanentProgress(payload.permanentProgress || {});
+  accountProfile = normalizeAccountProfile(payload.profile || payload.accountProfile || {});
+  if (controls.profileImageUrl) controls.profileImageUrl.value = accountProfile.imageUrl || '';
   activePrepTab = payload.session?.activePrepTab || 'shop';
   activeHeirloomWeapon = payload.session?.activeHeirloomWeapon || activeHeirloomWeapon;
 
@@ -1421,6 +1515,7 @@ function applySavePayload(payload = {}, { restoreSession = false, showDefaultScr
     run.permanentProgress = clonePermanentProgress(run.permanentProgress || permanentProgress);
     permanentProgress = clonePermanentProgress(run.permanentProgress);
     applyPermanentProgressToPlayer(run.player, permanentProgress);
+    if (run.player) run.player.profileImageUrl = accountProfile.imageUrl || run.player.profileImageUrl || '';
     state = createBattleState(run);
     clearPanelKeys();
     if (payload.session.screen === 'tower') showTowerScreen();
@@ -1483,6 +1578,7 @@ function renderAllPanels(force = false) {
   renderCombatSummary(force);
   renderInventory(force);
   renderShopStatus(force);
+  renderProfileImagePanel(force);
   renderRewardBox(force);
   renderPrepGrowthContent(force);
   renderControlState(force);
@@ -2201,6 +2297,7 @@ function clearPanelKeys() {
     controls: '',
     inventory: '',
     combatSummary: '',
-    prepGrowth: ''
+    prepGrowth: '',
+    profileImage: ''
   };
 }

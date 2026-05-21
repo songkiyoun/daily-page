@@ -4,6 +4,8 @@
 import { TOWER_RULES, WEAPONS } from './data.js';
 import { clamp } from './utils.js';
 
+const unitImageCache = new Map();
+
 export function render(ctx, state) {
   clear(ctx, state.arena);
 
@@ -187,13 +189,7 @@ function drawUnit(ctx, unit) {
   ctx.fillStyle = unit.side === 'player' ? 'rgba(103,229,157,0.12)' : 'rgba(255,101,119,0.12)';
   ctx.fill();
 
-  ctx.beginPath();
-  ctx.arc(0, 0, unit.radius, 0, Math.PI * 2);
-  ctx.fillStyle = unit.side === 'player' ? '#67e59d' : '#ff6577';
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = unit.staggerTimer > 0 ? '#ffd45a' : weapon.color;
-  ctx.stroke();
+  drawUnitBody(ctx, unit, weapon);
 
   if (unit.staggerTimer > 0) {
     ctx.beginPath();
@@ -238,6 +234,46 @@ function drawUnit(ctx, unit) {
   drawHealthBar(ctx, unit);
   drawPostureBar(ctx, unit);
   drawUnitLabel(ctx, unit);
+}
+
+
+function drawUnitBody(ctx, unit, weapon) {
+  const imageUrl = unit.side === 'player' ? String(unit.profileImageUrl || '').trim() : '';
+  const image = imageUrl ? getCachedUnitImage(imageUrl) : null;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, unit.radius, 0, Math.PI * 2);
+  ctx.closePath();
+
+  if (image?.complete && image.naturalWidth > 0) {
+    ctx.clip();
+    const size = unit.radius * 2;
+    const scale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
+    const drawW = image.naturalWidth * scale;
+    const drawH = image.naturalHeight * scale;
+    ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
+  } else {
+    ctx.fillStyle = unit.side === 'player' ? '#67e59d' : '#ff6577';
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(0, 0, unit.radius, 0, Math.PI * 2);
+  ctx.lineWidth = image?.complete && image.naturalWidth > 0 ? 3 : 2;
+  ctx.strokeStyle = unit.staggerTimer > 0 ? '#ffd45a' : weapon.color;
+  ctx.stroke();
+}
+
+function getCachedUnitImage(url) {
+  if (!url) return null;
+  if (unitImageCache.has(url)) return unitImageCache.get(url);
+  const image = new Image();
+  image.referrerPolicy = 'no-referrer';
+  image.src = url;
+  unitImageCache.set(url, image);
+  return image;
 }
 
 

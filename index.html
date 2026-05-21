@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.7.42-account-content-hub" />
-  <title>Circle Battle Tower Rebuild v0.7.42</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.7.42" />
+  <meta name="build" content="circle-battle-rebuild-v0.7.43-profile-image-custom" />
+  <title>Circle Battle Tower Rebuild v0.7.43</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.7.43" />
 </head>
 <body>
   <main class="app">
@@ -13,13 +13,13 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">admin/player 계정 권한과 콘텐츠 선택 화면을 추가한 v0.7.42 계정·콘텐츠 허브 업데이트입니다.</p>
+        <p class="subtext">admin/player 계정 권한과 콘텐츠 선택 화면을 추가한 v0.7.43 캐릭터 이미지 커스텀 업데이트입니다.</p>
       </div>
       <div class="topbar-actions">
         <button id="adminResourceBtn" class="button mini admin-only hidden">재화 추가</button>
         <button id="simToggleBtn" class="button mini">시뮬레이터</button>
         <div id="accountBadge" class="version account-badge">로그인 전</div>
-        <div id="versionBadge" class="version">v0.7.42</div>
+        <div id="versionBadge" class="version">v0.7.43</div>
       </div>
     </header>
 
@@ -75,6 +75,17 @@
           <span>플레이어 성격</span>
           <select id="playerPersonality"></select>
         </label>
+        <div class="profile-image-editor">
+          <div class="profile-image-preview" id="profileImagePreview">이미지 없음</div>
+          <label class="field profile-image-field">
+            <span>캐릭터 이미지 URL</span>
+            <input id="profileImageUrl" type="url" placeholder="이미지 주소를 붙여넣기" />
+          </label>
+          <div class="button-row profile-image-actions">
+            <button id="saveProfileImageBtn" class="button" type="button">이미지 등록</button>
+            <button id="clearProfileImageBtn" class="button" type="button">이미지 제거</button>
+          </div>
+        </div>
         <div class="button-row single">
           <button id="backToContentBtn" class="button">콘텐츠 선택으로</button>
           <button id="startBtn" class="button primary">새 캐릭터 생성</button>
@@ -225,6 +236,6 @@
     </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.7.42"></script>
+  <script type="module" src="./js/main.js?v=0.7.43"></script>
 </body>
 </html>

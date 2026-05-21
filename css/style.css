@@ -1455,3 +1455,56 @@ input[type="url"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* v0.7.43 profile image customization */
+.profile-image-editor {
+  border: 1px solid rgba(168, 136, 255, 0.22);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 10px 12px;
+  align-items: center;
+}
+
+.profile-image-preview {
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  border: 2px solid rgba(168, 136, 255, 0.5);
+  background: rgba(0, 0, 0, 0.26);
+  background-size: cover;
+  background-position: center;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+.profile-image-preview.has-image {
+  border-color: rgba(103, 229, 157, 0.72);
+  box-shadow: 0 0 18px rgba(103, 229, 157, 0.14);
+}
+
+.profile-image-field {
+  margin: 0;
+}
+
+.profile-image-actions {
+  grid-column: 2;
+  margin-top: -4px;
+}
+
+@media (max-width: 720px) {
+  .profile-image-editor {
+    grid-template-columns: 1fr;
+  }
+  .profile-image-preview {
+    justify-self: center;
+  }
+  .profile-image-actions {
+    grid-column: 1;
+  }
+}
