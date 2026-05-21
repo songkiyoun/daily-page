@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.7.47';
+export const VERSION = '0.8.0';
 
 export const WEAPONS = {
   spear: {
@@ -562,6 +562,26 @@ export const SKILLS = {
     cooldown: 1200,
     description: '서양검 전용. 측후면 공격을 감지하면 상대 방향으로 몸을 돌리고 짧게 밀어냅니다.'
   },
+  westernCaliburnCharge: {
+    id: 'westernCaliburnCharge',
+    name: '돌격자세',
+    source: 'weaponEvolution',
+    owner: 'western',
+    type: 'evolutionAttack',
+    maxLevel: 1,
+    cooldown: 1500,
+    description: '칼리번 전용. 적에게 다가가 좁은 범위로 강하게 찌릅니다. 반드시 치명타이며 준비 중 방어력이 오릅니다.'
+  },
+  westernExcaliburBeam: {
+    id: 'westernExcaliburBeam',
+    name: '승리의 검',
+    source: 'weaponEvolution',
+    owner: 'western',
+    type: 'evolutionAttack',
+    maxLevel: 1,
+    cooldown: 2100,
+    description: '엑스칼리버 전용. 짧게 기를 모은 뒤 일직선 빛의 검기를 뿜습니다. 준비 중 방어력이 오릅니다.'
+  },
 
   easternIaiSlash: {
     id: 'easternIaiSlash',
@@ -576,12 +596,22 @@ export const SKILLS = {
   easternComboSlash: {
     id: 'easternComboSlash',
     name: '연속베기',
-    source: 'weapon',
+    source: 'weaponEvolution',
     owner: 'eastern',
-    type: 'evolution',
-    maxLevel: 3,
-    cooldown: 1200,
-    description: '동양검 후반 강화/진화 후보입니다. 기본 장착 스킬에서는 제외하고 무신연참 계열로 확장할 예정입니다.'
+    type: 'evolutionFollowUp',
+    maxLevel: 1,
+    cooldown: 920,
+    description: '달인의 검 전용. 기본 공격 명중 후 추가 베기를 이어갑니다.'
+  },
+  easternAnnihilation: {
+    id: 'easternAnnihilation',
+    name: '섬멸',
+    source: 'weaponEvolution',
+    owner: 'eastern',
+    type: 'evolutionAttack',
+    maxLevel: 1,
+    cooldown: 1900,
+    description: '무신의 검 전용. 발도술을 연속으로 발동하듯 상대를 관통하며 베어냅니다. 반드시 치명타입니다.'
   },
   easternMindFocus: {
     id: 'easternMindFocus',
@@ -634,6 +664,26 @@ export const SKILLS = {
     cooldown: 980,
     description: '창 전용. 적이 너무 가까이 붙으면 창을 휘둘러 약한 피해와 밀어내기를 줍니다.'
   },
+  spearPierce: {
+    id: 'spearPierce',
+    name: '꿰뚫어라',
+    source: 'weaponEvolution',
+    owner: 'spear',
+    type: 'evolutionAttack',
+    maxLevel: 1,
+    cooldown: 1600,
+    description: '용기사의 창 전용. 빠르고 강하게 찌른 뒤 무기를 휘둘러 적을 크게 밀어냅니다. 반드시 치명타입니다.'
+  },
+  spearLuBu: {
+    id: 'spearLuBu',
+    name: '여포강림',
+    source: 'weaponEvolution',
+    owner: 'spear',
+    type: 'evolutionAttack',
+    maxLevel: 1,
+    cooldown: 2200,
+    description: '고룡창 전용. 연속 찌르기를 여러 번 몰아친 뒤 적을 크게 넉백시킵니다.'
+  },
 
   daggerVitalStrike: {
     id: 'daggerVitalStrike',
@@ -664,6 +714,26 @@ export const SKILLS = {
     maxLevel: 3,
     cooldown: 1200,
     description: '단검 전용. 공격 기회를 잡을 때 짧은 시간 이동 속도가 증가합니다.'
+  },
+  daggerAssassinate: {
+    id: 'daggerAssassinate',
+    name: '암살',
+    source: 'weaponEvolution',
+    owner: 'dagger',
+    type: 'evolutionAttack',
+    maxLevel: 1,
+    cooldown: 1600,
+    description: '흑랑아 전용. 적의 측면 또는 측후면으로 연속 이동하며 여러 번 찌릅니다. 반드시 치명타입니다.'
+  },
+  daggerCloneTechnique: {
+    id: 'daggerCloneTechnique',
+    name: '분신술',
+    source: 'weaponEvolution',
+    owner: 'dagger',
+    type: 'evolutionAttack',
+    maxLevel: 1,
+    cooldown: 2400,
+    description: '혈랑아 전용. 짧은 시간 동안 낮은 능력치의 분신 공격을 발생시킵니다.'
   },
 
   aggressiveBestDefense: {
@@ -796,6 +866,25 @@ export const WEAPON_SKILL_LOADOUTS = {
   eastern: ['easternIaiSlash', 'easternMindFocus', 'easternBambooStance'],
   spear: ['spearDoubleThrust', 'spearFocus', 'spearSweep'],
   dagger: ['daggerVitalStrike', 'daggerDecoyDoll', 'daggerHighSpeed']
+};
+
+export const WEAPON_EVOLUTION_SKILL_LOADOUTS = {
+  western: [
+    { stageNumber: 4, skillId: 'westernCaliburnCharge' },
+    { stageNumber: 5, skillId: 'westernExcaliburBeam' }
+  ],
+  eastern: [
+    { stageNumber: 4, skillId: 'easternComboSlash' },
+    { stageNumber: 5, skillId: 'easternAnnihilation' }
+  ],
+  spear: [
+    { stageNumber: 4, skillId: 'spearPierce' },
+    { stageNumber: 5, skillId: 'spearLuBu' }
+  ],
+  dagger: [
+    { stageNumber: 4, skillId: 'daggerAssassinate' },
+    { stageNumber: 5, skillId: 'daggerCloneTechnique' }
+  ]
 };
 
 export const PERSONALITY_SKILL_LOADOUTS = {

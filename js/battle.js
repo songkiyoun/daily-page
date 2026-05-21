@@ -9,6 +9,19 @@ import { angleDiff, angleTo, clamp, distance, moveToward } from './utils.js';
 const COMBAT_STALL_FRAMES = 180;
 const COMBAT_FORCE_FRAMES = 54;
 
+const FORCED_CRIT_SKILLS = new Set([
+  'daggerVitalStrike',
+  'westernCaliburnCharge',
+  'easternAnnihilation',
+  'spearPierce',
+  'daggerAssassinate'
+]);
+
+const CHARGE_GUARD_SKILLS = new Set([
+  'westernCaliburnCharge',
+  'westernExcaliburBeam'
+]);
+
 export function updateBattle(state) {
   if (!state.running || state.paused || state.result) return;
 
@@ -735,17 +748,17 @@ function canStartAttack(attacker, defender) {
 function beginAttack(attacker, defender) {
   const weapon = WEAPONS[attacker.weaponId];
   attacker.attackState = 'windup';
+  attacker.attackAim = angleTo(attacker, defender);
+  attacker.activeSkillAttack = chooseAttackSkill(attacker, defender);
   const focusWindupScale = attacker.weaponId === 'spear' && attacker.skillRuntime?.spearFocusTimer > 0
     ? Math.max(0.76, 0.92 - getUnitSkillLevel(attacker, 'spearFocus') * 0.04)
     : 1;
-  attacker.attackTimer = Math.max(4, Math.round(weapon.windup * focusWindupScale));
+  attacker.attackTimer = Math.max(4, Math.round(weapon.windup * focusWindupScale * getSkillWindupScale(attacker.activeSkillAttack)));
   attacker.attackWindupMax = attacker.attackTimer;
   attacker.attackActiveMax = getActiveFrames(attacker);
   attacker.attackRecoveryMax = weapon.recovery;
   attacker.attackResolved = false;
   attacker.attackOutcome = '';
-  attacker.attackAim = angleTo(attacker, defender);
-  attacker.activeSkillAttack = chooseAttackSkill(attacker, defender);
   attacker.attackVisualPhase = 0;
   attacker.vx *= getAttackEntryBrake(attacker.weaponId);
   attacker.vy *= getAttackEntryBrake(attacker.weaponId);
@@ -806,11 +819,26 @@ function updateAttackState(attacker, defender, state) {
 
 function getActiveFrames(attacker) {
   const weapon = WEAPONS[attacker.weaponId];
+  if (attacker.activeSkillAttack === 'westernExcaliburBeam') return (weapon?.activeFrames || 5) + 8;
+  if (attacker.activeSkillAttack === 'westernCaliburnCharge') return (weapon?.activeFrames || 5) + 3;
+  if (attacker.activeSkillAttack === 'easternAnnihilation') return (weapon?.activeFrames || 5) + 4;
+  if (attacker.activeSkillAttack === 'spearPierce') return (weapon?.activeFrames || 5) + 3;
+  if (attacker.activeSkillAttack === 'spearLuBu') return (weapon?.activeFrames || 5) + 5;
+  if (attacker.activeSkillAttack === 'daggerAssassinate') return (weapon?.activeFrames || 5) + 4;
+  if (attacker.activeSkillAttack === 'daggerCloneTechnique') return (weapon?.activeFrames || 5) + 6;
   if (attacker.activeSkillAttack === 'westernBash') return (weapon?.activeFrames || 5) + 3;
   if (attacker.activeSkillAttack === 'spearDoubleThrust') return (weapon?.activeFrames || 5) + 2;
   if (attacker.activeSkillAttack === 'easternIaiSlash') return (weapon?.activeFrames || 5) + 2;
   if (attacker.activeSkillAttack === 'spearSweep') return (weapon?.activeFrames || 5) + 4;
   return weapon?.activeFrames || 5;
+}
+
+function getSkillWindupScale(skillId) {
+  if (skillId === 'westernExcaliburBeam') return 4.0;
+  if (skillId === 'westernCaliburnCharge') return 1.42;
+  if (skillId === 'spearLuBu') return 1.2;
+  if (skillId === 'daggerCloneTechnique') return 1.16;
+  return 1;
 }
 
 function getAttackEntryBrake(weaponId) {
@@ -823,6 +851,13 @@ function getAttackEntryBrake(weaponId) {
 
 
 function getSkillWindupLabel(skillId) {
+  if (skillId === 'westernCaliburnCharge') return '돌격자세 준비';
+  if (skillId === 'westernExcaliburBeam') return '승리의 검 충전';
+  if (skillId === 'easternAnnihilation') return '섬멸 준비';
+  if (skillId === 'spearPierce') return '꿰뚫어라 준비';
+  if (skillId === 'spearLuBu') return '여포강림 준비';
+  if (skillId === 'daggerAssassinate') return '암살 준비';
+  if (skillId === 'daggerCloneTechnique') return '분신술 준비';
   if (skillId === 'westernBash') return '베쉬 준비';
   if (skillId === 'daggerVitalStrike') return '급소 찌르기 준비';
   if (skillId === 'easternIaiSlash') return '발도술 준비';
@@ -831,6 +866,13 @@ function getSkillWindupLabel(skillId) {
 }
 
 function getSkillActiveLabel(skillId) {
+  if (skillId === 'westernCaliburnCharge') return '돌격자세!';
+  if (skillId === 'westernExcaliburBeam') return '승리의 검!';
+  if (skillId === 'easternAnnihilation') return '섬멸!';
+  if (skillId === 'spearPierce') return '꿰뚫어라!';
+  if (skillId === 'spearLuBu') return '여포강림!';
+  if (skillId === 'daggerAssassinate') return '암살!';
+  if (skillId === 'daggerCloneTechnique') return '분신술!';
   if (skillId === 'westernBash') return '베쉬!';
   if (skillId === 'daggerVitalStrike') return '급소 찌르기!';
   if (skillId === 'easternIaiSlash') return '발도술!';
@@ -951,7 +993,28 @@ function applyAttackLunge(attacker, weapon, scale = 1) {
   let baseForward = weapon.lungePower * lungeScale * entryForward;
   let baseSide = weapon.strafeWeight * entrySide;
 
-  if (attacker.activeSkillAttack === 'spearDoubleThrust') {
+  if (attacker.activeSkillAttack === 'westernCaliburnCharge') {
+    baseForward *= 5.35;
+    baseSide *= 0.12;
+  } else if (attacker.activeSkillAttack === 'westernExcaliburBeam') {
+    baseForward *= 1.2;
+    baseSide *= 0.05;
+  } else if (attacker.activeSkillAttack === 'easternAnnihilation') {
+    baseForward *= 6.1;
+    baseSide *= 0.08;
+  } else if (attacker.activeSkillAttack === 'spearPierce') {
+    baseForward *= 6.15;
+    baseSide *= 0.08;
+  } else if (attacker.activeSkillAttack === 'spearLuBu') {
+    baseForward *= 4.7;
+    baseSide *= 0.16;
+  } else if (attacker.activeSkillAttack === 'daggerAssassinate') {
+    baseForward *= 4.9;
+    baseSide *= 1.22;
+  } else if (attacker.activeSkillAttack === 'daggerCloneTechnique') {
+    baseForward *= 3.2;
+    baseSide *= 0.7;
+  } else if (attacker.activeSkillAttack === 'spearDoubleThrust') {
     baseForward *= 5.4;
     baseSide *= 0.12;
   } else if (attacker.activeSkillAttack === 'easternIaiSlash') {
@@ -982,13 +1045,19 @@ function applyAttackLunge(attacker, weapon, scale = 1) {
   attacker.vx += Math.cos(forwardAngle) * forward + Math.cos(sideAngle) * side;
   attacker.vy += Math.sin(forwardAngle) * forward + Math.sin(sideAngle) * side;
 
-  const maxBurst = attacker.activeSkillAttack === 'spearDoubleThrust'
-    ? 8.4
-    : attacker.activeSkillAttack === 'easternIaiSlash'
-      ? 8.2
-      : attacker.activeSkillAttack === 'spearSweep'
-      ? 6.6
-      : weapon.id === 'spear' ? 7.4 : weapon.id === 'dagger' ? 7.0 : weapon.id === 'eastern' ? 6.6 : 5.9;
+  const maxBurst = ['easternAnnihilation', 'spearPierce', 'westernCaliburnCharge'].includes(attacker.activeSkillAttack)
+    ? 9.2
+    : attacker.activeSkillAttack === 'spearLuBu'
+      ? 8.8
+      : attacker.activeSkillAttack === 'daggerAssassinate'
+        ? 8.6
+        : attacker.activeSkillAttack === 'spearDoubleThrust'
+        ? 8.4
+        : attacker.activeSkillAttack === 'easternIaiSlash'
+          ? 8.2
+          : attacker.activeSkillAttack === 'spearSweep'
+          ? 6.6
+          : weapon.id === 'spear' ? 7.4 : weapon.id === 'dagger' ? 7.0 : weapon.id === 'eastern' ? 6.6 : 5.9;
   const speed = Math.hypot(attacker.vx, attacker.vy);
   if (speed > maxBurst) {
     attacker.vx = attacker.vx / speed * maxBurst;
@@ -1039,22 +1108,66 @@ function applyStaggerDrift(unit) {
 
 
 function chooseAttackSkill(attacker, defender) {
-  if (hasReadySkill(attacker, 'westernBash') && attacker.weaponId === 'western') {
-    useSkill(attacker, 'westernBash');
-    attacker.lastAction = '베쉬 준비';
-    return 'westernBash';
+  if (attacker.weaponId === 'western') {
+    if (hasReadySkill(attacker, 'westernExcaliburBeam')) {
+      useSkill(attacker, 'westernExcaliburBeam');
+      attacker.lastAction = '승리의 검 충전';
+      return 'westernExcaliburBeam';
+    }
+    if (hasReadySkill(attacker, 'westernCaliburnCharge')) {
+      useSkill(attacker, 'westernCaliburnCharge');
+      attacker.lastAction = '돌격자세 준비';
+      return 'westernCaliburnCharge';
+    }
+    if (hasReadySkill(attacker, 'westernBash')) {
+      useSkill(attacker, 'westernBash');
+      attacker.lastAction = '베쉬 준비';
+      return 'westernBash';
+    }
   }
 
-  if (hasReadySkill(attacker, 'easternIaiSlash') && attacker.weaponId === 'eastern') {
-    useSkill(attacker, 'easternIaiSlash');
-    attacker.lastAction = '발도술 준비';
-    return 'easternIaiSlash';
+  if (attacker.weaponId === 'eastern') {
+    if (hasReadySkill(attacker, 'easternAnnihilation')) {
+      useSkill(attacker, 'easternAnnihilation');
+      attacker.lastAction = '섬멸 준비';
+      return 'easternAnnihilation';
+    }
+    if (hasReadySkill(attacker, 'easternIaiSlash')) {
+      useSkill(attacker, 'easternIaiSlash');
+      attacker.lastAction = '발도술 준비';
+      return 'easternIaiSlash';
+    }
   }
 
-  if (hasReadySkill(attacker, 'daggerVitalStrike') && attacker.weaponId === 'dagger' && hasDaggerVitalStrikeAngle(attacker, defender)) {
-    useSkill(attacker, 'daggerVitalStrike');
-    attacker.lastAction = '급소 찌르기 준비';
-    return 'daggerVitalStrike';
+  if (attacker.weaponId === 'spear') {
+    if (hasReadySkill(attacker, 'spearLuBu')) {
+      useSkill(attacker, 'spearLuBu');
+      attacker.lastAction = '여포강림 준비';
+      return 'spearLuBu';
+    }
+    if (hasReadySkill(attacker, 'spearPierce')) {
+      useSkill(attacker, 'spearPierce');
+      attacker.lastAction = '꿰뚫어라 준비';
+      return 'spearPierce';
+    }
+  }
+
+  if (attacker.weaponId === 'dagger') {
+    if (hasReadySkill(attacker, 'daggerCloneTechnique')) {
+      useSkill(attacker, 'daggerCloneTechnique');
+      attacker.lastAction = '분신술 준비';
+      return 'daggerCloneTechnique';
+    }
+    if (hasReadySkill(attacker, 'daggerAssassinate') && hasDaggerVitalStrikeAngle(attacker, defender)) {
+      useSkill(attacker, 'daggerAssassinate');
+      attacker.lastAction = '암살 준비';
+      return 'daggerAssassinate';
+    }
+    if (hasReadySkill(attacker, 'daggerVitalStrike') && hasDaggerVitalStrikeAngle(attacker, defender)) {
+      useSkill(attacker, 'daggerVitalStrike');
+      attacker.lastAction = '급소 찌르기 준비';
+      return 'daggerVitalStrike';
+    }
   }
 
   return '';
@@ -1066,6 +1179,13 @@ function getSkillArcBonus(attacker) {
 }
 
 function getSkillDamageBonus(attacker, defender, skillId) {
+  if (skillId === 'westernExcaliburBeam') return 1.62;
+  if (skillId === 'westernCaliburnCharge') return 1.28;
+  if (skillId === 'easternAnnihilation') return 1.24;
+  if (skillId === 'spearPierce') return 1.34;
+  if (skillId === 'spearLuBu') return 1.12;
+  if (skillId === 'daggerAssassinate') return 1.05;
+  if (skillId === 'daggerCloneTechnique') return 0.72;
   if (skillId === 'westernBash') return 1.06 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'easternIaiSlash') return 1.04 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'daggerVitalStrike') return 1.0 + getUnitSkillLevel(attacker, skillId) * 0.025;
@@ -1075,6 +1195,13 @@ function getSkillDamageBonus(attacker, defender, skillId) {
 }
 
 function getSkillPostureDamageScale(attacker, skillId) {
+  if (skillId === 'westernExcaliburBeam') return 1.42;
+  if (skillId === 'westernCaliburnCharge') return 1.36;
+  if (skillId === 'easternAnnihilation') return 1.24;
+  if (skillId === 'spearPierce') return 1.48;
+  if (skillId === 'spearLuBu') return 1.36;
+  if (skillId === 'daggerAssassinate') return 1.0;
+  if (skillId === 'daggerCloneTechnique') return 0.78;
   if (skillId === 'westernBash') return 1.06 + getUnitSkillLevel(attacker, skillId) * 0.02;
   if (skillId === 'easternIaiSlash') return 1.1 + getUnitSkillLevel(attacker, skillId) * 0.025;
   if (skillId === 'daggerVitalStrike') return 0.94;
@@ -1122,6 +1249,10 @@ function applyIncomingSkillMitigation(defender, attacker, damage, state) {
   if (defender.skillRuntime?.reactiveGuardMitigation) {
     finalDamage *= defender.skillRuntime.reactiveGuardMitigation;
     defender.skillRuntime.reactiveGuardMitigation = 0;
+  }
+  if (CHARGE_GUARD_SKILLS.has(defender.activeSkillAttack) && defender.attackState === 'windup') {
+    finalDamage *= 0.8;
+    defender.lastAction = '집중 방어';
   }
 
   if (hasReadySkill(defender, 'westernLastStand') && finalDamage >= defender.hp) {
@@ -1417,7 +1548,7 @@ function resolveAttack(attacker, defender, state) {
 
   const positionalBonus = getPositionalBonus(attacker, defender);
   const skillAttack = attacker.activeSkillAttack || '';
-  const forcedCrit = skillAttack === 'daggerVitalStrike';
+  const forcedCrit = FORCED_CRIT_SKILLS.has(skillAttack);
   const crit = forcedCrit || Math.random() < attacker.crit;
   const personality = PERSONALITIES[attacker.personalityId];
   const aggressionBonus = 1 + personality.aggression * 0.08;
@@ -1450,6 +1581,7 @@ function resolveAttack(attacker, defender, state) {
   emitKnockbackLine(state, attacker, defender, weapon.color, hitQuality + 0.6);
   applyWeaponIdentityOnHit(attacker, defender, weapon, hitQuality);
   if (skillAttack === 'easternIaiSlash') applyEasternIaiPassThrough(attacker, defender, weapon, state, hitQuality);
+  applyEvolutionSkillOnHit(attacker, defender, weapon, skillAttack, state, hitQuality);
   twistBodyOnImpact(defender, attacker, postureDamage, weapon);
   applyImpactStop(attacker, defender, weapon);
   applyReflectDamage(defender, attacker, damage, state);
@@ -1465,6 +1597,130 @@ function resolveAttack(attacker, defender, state) {
   return true;
 }
 
+
+
+function applyEvolutionSkillOnHit(attacker, defender, weapon, skillId, state, hitQuality = 0) {
+  if (!skillId || defender.isDead || defender.hp <= 0) return;
+
+  if (skillId === 'westernCaliburnCharge') {
+    pushDefender(attacker, defender, 4.8 + hitQuality * 2.2);
+    applyPostureDamage(attacker, defender, weapon.postureDamage * 0.42, state);
+    emitCombatEvent(state, '돌파 치명타', defender.x, defender.y - 50, '#fff0a6');
+  }
+
+  if (skillId === 'westernExcaliburBeam') {
+    dealExtraSkillDamage(attacker, defender, weapon, state, '빛의 일격', 0.34, false);
+    emitEvolutionLine(state, attacker, defender, '#fff5bd', 172, 7);
+    addScreenShake(state, 4);
+  }
+
+  if (skillId === 'easternAnnihilation') {
+    applyEasternIaiPassThrough(attacker, defender, weapon, state, hitQuality + 0.25);
+    dealExtraSkillDamage(attacker, defender, weapon, state, '섬멸 2연참', 0.34, true);
+    dealExtraSkillDamage(attacker, defender, weapon, state, '섬멸 3연참', 0.28, true);
+    emitEvolutionLine(state, attacker, defender, '#ffe28a', 116, 5.6);
+  }
+
+  if (skillId === 'spearPierce') {
+    pushDefender(attacker, defender, 7.4 + hitQuality * 2.8);
+    applyPostureDamage(attacker, defender, weapon.postureDamage * 0.5, state);
+    emitCombatEvent(state, '관통 넉백', defender.x, defender.y - 50, '#d7b9ff');
+  }
+
+  if (skillId === 'spearLuBu') {
+    for (let i = 0; i < 3; i += 1) {
+      dealExtraSkillDamage(attacker, defender, weapon, state, `여포강림 ${i + 2}타`, 0.18 + i * 0.035, i === 2);
+    }
+    pushDefender(attacker, defender, 8.6 + hitQuality * 3.2);
+    emitEvolutionLine(state, attacker, defender, '#cda2ff', 148, 6.4);
+    addScreenShake(state, 4);
+  }
+
+  if (skillId === 'daggerAssassinate') {
+    moveToAssassinationAngle(attacker, defender, state);
+    for (let i = 0; i < 3; i += 1) {
+      dealExtraSkillDamage(attacker, defender, weapon, state, `암살 ${i + 2}타`, 0.18 + i * 0.025, true);
+    }
+  }
+
+  if (skillId === 'daggerCloneTechnique') {
+    for (let i = 0; i < 5; i += 1) {
+      dealExtraSkillDamage(attacker, defender, weapon, state, `분신 ${i + 1}타`, 0.08, false);
+    }
+    emitVisualEffect(state, {
+      type: 'afterimage',
+      x: attacker.x,
+      y: attacker.y,
+      color: '#d7b9ff',
+      life: 34,
+      maxLife: 34,
+      size: attacker.radius + 7
+    });
+    emitCombatEvent(state, '분신술', attacker.x, attacker.y - 52, '#d7b9ff');
+  }
+
+  if (defender.hp <= 0) {
+    defender.isDead = true;
+    defender.lastAction = '전투 불능';
+  }
+}
+
+function dealExtraSkillDamage(attacker, defender, weapon, state, label, scale, forcedCrit = false) {
+  if (defender.isDead || defender.hp <= 0) return 0;
+  const critScale = forcedCrit ? attacker.critDamage : 1;
+  const damage = Math.max(1, weapon.damage * attacker.attackScale * scale * critScale * (1 - getEffectiveDefense(defender)));
+  defender.hp = clamp(defender.hp - damage, 0, defender.maxHp);
+  attacker.damageDealt += damage;
+  attacker.hits += 1;
+  if (forcedCrit) emitCombatEvent(state, 'CRITICAL', defender.x, defender.y - 34, '#ffd45a');
+  emitCombatEvent(state, label, defender.x, defender.y - 44, weapon.color);
+  emitHitSpark(state, attacker, defender, weapon, forcedCrit, label);
+  return damage;
+}
+
+function pushDefender(attacker, defender, amount) {
+  const a = angleTo(attacker, defender);
+  defender.vx += Math.cos(a) * amount;
+  defender.vy += Math.sin(a) * amount;
+  defender.postureRecoveryDelay = Math.max(defender.postureRecoveryDelay || 0, 12);
+}
+
+function moveToAssassinationAngle(attacker, defender, state) {
+  const rearAngle = defender.facing + Math.PI + (attacker.orbitDir || 1) * 0.72;
+  const dist = defender.radius + attacker.radius + 14;
+  const fromX = attacker.x;
+  const fromY = attacker.y;
+  attacker.x = defender.x + Math.cos(rearAngle) * dist;
+  attacker.y = defender.y + Math.sin(rearAngle) * dist;
+  attacker.facing = angleTo(attacker, defender);
+  emitVisualEffect(state, {
+    type: 'trail',
+    x1: fromX,
+    y1: fromY,
+    x2: attacker.x,
+    y2: attacker.y,
+    color: '#b8ff8f',
+    life: 18,
+    maxLife: 18,
+    width: 4.2,
+    weaponId: 'dagger',
+    skillId: 'daggerAssassinate'
+  });
+}
+
+function emitEvolutionLine(state, attacker, defender, color, length, width) {
+  emitVisualEffect(state, {
+    type: 'shockline',
+    x: defender.x,
+    y: defender.y,
+    angle: angleTo(attacker, defender),
+    color,
+    life: 22,
+    maxLife: 22,
+    length,
+    width
+  });
+}
 
 function applyEasternIaiPassThrough(attacker, defender, weapon, state, hitQuality = 0) {
   const passAngle = attacker.attackAim ?? angleTo(attacker, defender);
@@ -1668,6 +1924,13 @@ function getHitQuality(attacker, defender, weapon, dist, angleGap, hitArc) {
 }
 
 function getHitArc(attacker, weapon) {
+  if (attacker.activeSkillAttack === 'westernExcaliburBeam') return Math.max(weapon.arc * 0.42, 0.34);
+  if (attacker.activeSkillAttack === 'westernCaliburnCharge') return Math.max(weapon.arc * 0.48, 0.42);
+  if (attacker.activeSkillAttack === 'easternAnnihilation') return weapon.arc * 0.82;
+  if (attacker.activeSkillAttack === 'spearPierce') return Math.max(weapon.arc * 0.68, 0.34);
+  if (attacker.activeSkillAttack === 'spearLuBu') return Math.max(weapon.arc * 1.35, 0.72);
+  if (attacker.activeSkillAttack === 'daggerAssassinate') return Math.max(weapon.arc * 1.35, 0.82);
+  if (attacker.activeSkillAttack === 'daggerCloneTechnique') return Math.max(weapon.arc * 1.55, 0.92);
   if (attacker.activeSkillAttack === 'westernBash') return weapon.arc * 1.34;
   if (attacker.activeSkillAttack === 'easternIaiSlash') return weapon.arc * 0.76;
   if (attacker.activeSkillAttack === 'spearSweep') return Math.max(weapon.arc * 3.15, 1.28);
@@ -1679,18 +1942,43 @@ function getHitArc(attacker, weapon) {
 
 function getAttackStartReach(attacker, defender, weapon) {
   const startBuffer = weapon.attackStartBuffer || 0;
-  return weapon.range + defender.radius + getReachBonus(attacker, weapon) + startBuffer;
+  const readySkillReach = getReadyEvolutionStartReach(attacker);
+  return weapon.range + defender.radius + getReachBonus(attacker, weapon) + startBuffer + readySkillReach;
+}
+
+function getReadyEvolutionStartReach(attacker) {
+  if (attacker.weaponId === 'western' && hasReadySkill(attacker, 'westernExcaliburBeam')) return 132;
+  if (attacker.weaponId === 'western' && hasReadySkill(attacker, 'westernCaliburnCharge')) return 24;
+  if (attacker.weaponId === 'spear' && hasReadySkill(attacker, 'spearPierce')) return 28;
+  if (attacker.weaponId === 'spear' && hasReadySkill(attacker, 'spearLuBu')) return 24;
+  if (attacker.weaponId === 'eastern' && hasReadySkill(attacker, 'easternAnnihilation')) return 16;
+  if (attacker.weaponId === 'dagger' && hasReadySkill(attacker, 'daggerCloneTechnique')) return 10;
+  return 0;
 }
 
 function getHitReach(attacker, defender, weapon) {
   const hitReachBonus = weapon.hitReachBonus || 0;
-  const skillReach = attacker.activeSkillAttack === 'westernBash'
-    ? 8
-    : attacker.activeSkillAttack === 'easternIaiSlash'
-      ? 12
-      : attacker.activeSkillAttack === 'spearSweep'
-        ? -Math.max(4, weapon.range * 0.22)
-        : 0;
+  const skillReach = attacker.activeSkillAttack === 'westernExcaliburBeam'
+    ? 132
+    : attacker.activeSkillAttack === 'westernCaliburnCharge'
+      ? 24
+      : attacker.activeSkillAttack === 'easternAnnihilation'
+        ? 18
+        : attacker.activeSkillAttack === 'spearPierce'
+          ? 36
+          : attacker.activeSkillAttack === 'spearLuBu'
+            ? 28
+            : attacker.activeSkillAttack === 'daggerAssassinate'
+              ? 12
+              : attacker.activeSkillAttack === 'daggerCloneTechnique'
+                ? 16
+                : attacker.activeSkillAttack === 'westernBash'
+                  ? 8
+                  : attacker.activeSkillAttack === 'easternIaiSlash'
+                    ? 12
+                    : attacker.activeSkillAttack === 'spearSweep'
+                      ? -Math.max(4, weapon.range * 0.22)
+                      : 0;
   return weapon.range + defender.radius + hitReachBonus + skillReach;
 }
 

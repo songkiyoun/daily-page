@@ -15,6 +15,7 @@ import {
   SHOP_RULES,
   SKILLS,
   WEAPON_SKILL_LOADOUTS,
+  WEAPON_EVOLUTION_SKILL_LOADOUTS,
   PERSONALITY_SKILL_LOADOUTS,
   STAT_KEYS,
   TOWER_RULES,
@@ -597,6 +598,41 @@ function getWeaponStageEffects(unit) {
   return effects;
 }
 
+
+function getEvolutionSkillIdsForStage(weaponId, weaponEvolution) {
+  const options = getWeaponEvolutionOptions(weaponId);
+  const evolutionIndex = options.findIndex((item) => item.id === weaponEvolution);
+  const stageNumber = evolutionIndex >= 0 ? evolutionIndex + 1 : 1;
+  return (WEAPON_EVOLUTION_SKILL_LOADOUTS[weaponId] || [])
+    .filter((item) => stageNumber >= item.stageNumber)
+    .map((item) => item.skillId);
+}
+
+function getAllEvolutionSkillIds() {
+  return Object.values(WEAPON_EVOLUTION_SKILL_LOADOUTS)
+    .flat()
+    .map((item) => item.skillId);
+}
+
+function syncWeaponEvolutionSkills(player) {
+  if (!player) return player;
+  const allowed = getEvolutionSkillIdsForStage(player.weaponId, player.weaponEvolution);
+  const evolutionSkillIds = new Set(getAllEvolutionSkillIds());
+  const currentSkills = Array.isArray(player.skills) ? player.skills : [];
+  player.skills = currentSkills.filter((skillId) => !evolutionSkillIds.has(skillId) || allowed.includes(skillId));
+  allowed.forEach((skillId) => {
+    if (!player.skills.includes(skillId)) player.skills.push(skillId);
+  });
+  player.skillLevels = player.skillLevels || createInitialSkillLevels(player.skills);
+  allowed.forEach((skillId) => {
+    if (!player.skillLevels[skillId]) player.skillLevels[skillId] = 1;
+  });
+  Object.keys(player.skillLevels).forEach((skillId) => {
+    if (evolutionSkillIds.has(skillId) && !allowed.includes(skillId)) delete player.skillLevels[skillId];
+  });
+  return player;
+}
+
 function upgradeWeaponGrade(player, amount = 1) {
   const growth = getWeaponGrowthInfo(player);
   if (growth.isMaxGrade) return growth.grade;
@@ -615,6 +651,7 @@ function upgradeWeaponStage(player, amount = 1) {
   const targetIndex = Math.min(currentIndex + amount, growth.options.length - 1);
   const nextStage = growth.options[targetIndex] || growth.currentStage;
   player.weaponEvolution = nextStage?.id || null;
+  syncWeaponEvolutionSkills(player);
   return nextStage;
 }
 
@@ -1009,8 +1046,8 @@ export function createRun(config) {
       weaponEvolution: heirloomState.weaponEvolution,
       weaponEvolutionOptions: getWeaponEvolutionOptions(config.playerWeapon),
       weaponEnhancement: heirloomState.enhancementLevel,
-      skills: getDefaultSkillIds(config.playerWeapon, config.playerPersonality),
-      skillLevels: createInitialSkillLevels(getDefaultSkillIds(config.playerWeapon, config.playerPersonality)),
+      skills: getDefaultSkillIds(config.playerWeapon, config.playerPersonality, heirloomState.weaponEvolution),
+      skillLevels: createInitialSkillLevels(getDefaultSkillIds(config.playerWeapon, config.playerPersonality, heirloomState.weaponEvolution)),
       externalSkillCount: 0,
       mastery: 0,
       hp: null
@@ -2194,9 +2231,10 @@ function getWeaponAgilityScales(weapon, stats, mastery, skillEffects, isPlayer) 
   };
 }
 
-function getDefaultSkillIds(weaponId, personalityId) {
+function getDefaultSkillIds(weaponId, personalityId, weaponEvolution = null) {
   return [
     ...(WEAPON_SKILL_LOADOUTS[weaponId] || []),
+    ...getEvolutionSkillIdsForStage(weaponId, weaponEvolution),
     ...(PERSONALITY_SKILL_LOADOUTS[personalityId] || [])
   ];
 }
