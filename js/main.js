@@ -962,9 +962,14 @@ function startAdminBattleTest(testId = '') {
   updatePauseButton();
 
   // 관리자 전투테스트는 전투를 즉시 시작하지 않는다.
-  // 먼저 탑 화면에서 무기/성격이 반영된 플레이어에게 스탯 포인트 99개를 배분하고,
-  // 사용자가 직접 전투 시작 버튼을 눌렀을 때 기존 보스/라이벌 입장 연출이 진행되도록 둔다.
-  hideOverlay();
+  // 탑 화면의 상태 패널에서 스탯 포인트 99개를 먼저 배분하고,
+  // 중앙 READY 오버레이의 전투 시작 버튼을 눌렀을 때 기존 보스/라이벌 입장 연출이 진행된다.
+  showOverlay(
+    introTitle,
+    `스탯을 배분한 뒤 전투 시작 버튼을 누르세요.\n${introText}`,
+    '전투 시작',
+    'start'
+  );
   showAccountMessage(`${introTitle}: 스탯을 배분한 뒤 전투 시작 버튼을 누르세요. ${introText}`, 'good');
   saveTemporarySnapshot(`adminBattleTestReady-${testId}`);
 }
