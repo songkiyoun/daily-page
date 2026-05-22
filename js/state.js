@@ -1413,6 +1413,11 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
   return {
     id: 'enemy',
     name: enemyConfig.name,
+    rivalId: enemyConfig.rivalId || null,
+    rivalTitle: enemyConfig.rivalTitle || '',
+    rivalLevel: enemyConfig.rivalLevel || 0,
+    rivalDefeatCount: enemyConfig.rivalDefeatCount || 0,
+    rivalIntroLine: enemyConfig.rivalIntroLine || '',
     bossId: enemyConfig.bossId || null,
     bossTitle: enemyConfig.bossTitle || '',
     bossDescription: enemyConfig.bossDescription || '',
@@ -1441,7 +1446,7 @@ function createUnitFromEnemy(enemyConfig, floor, x, y) {
     skillUsed: {},
     skillRuntime: {},
     mastery: enemyConfig.mastery,
-    radius: floor % TOWER_RULES.bossInterval === 0 ? 20 : 17,
+    radius: enemyConfig.rivalId ? 18 : (floor % TOWER_RULES.bossInterval === 0 ? 20 : 17),
     x,
     y,
     facing: Math.PI,
@@ -1585,6 +1590,47 @@ export function createFixedEnemyConfig({ floor = TOWER_RULES.startFloor, weaponI
     weaponGrade: 'common',
     weaponEvolution: null,
     mastery: createEnemyMastery(floor, isBossFloor)
+  };
+}
+
+export function createRivalEnemyConfig(rival = {}, floor = TOWER_RULES.startFloor) {
+  const safeFloor = Math.max(TOWER_RULES.startFloor, Math.floor(floor || TOWER_RULES.startFloor));
+  const weaponId = rival.weaponId || 'eastern';
+  const personalityId = rival.personalityId || 'balanced';
+  const rivalLevel = Math.max(1, Math.floor(rival.level || 1));
+  const effectiveFloor = safeFloor + Math.min(12, rivalLevel * 2);
+  const skills = createEnemySkills(effectiveFloor, false, weaponId, personalityId);
+  const stageNumber = Math.max(1, Math.floor(rival.weaponStageNumber || rival.weaponStage || 1));
+  const evolution = WEAPON_EVOLUTIONS[weaponId] || [];
+  const stage = evolution[stageNumber - 1] || null;
+  const baseStats = createEnemyStats(effectiveFloor, false);
+  const statBoost = Math.max(1, Math.floor(rivalLevel / 2));
+
+  return {
+    name: rival.name || '라이벌',
+    rivalId: rival.id || null,
+    rivalTitle: rival.isNemesis ? '숙적 후보' : '라이벌',
+    rivalLevel,
+    rivalDefeatCount: Math.max(0, Math.floor(rival.defeatCount || 0)),
+    rivalIntroLine: rival.isNemesis
+      ? '이번에도 네 길을 막겠다. 이제 물러설 곳은 없다.'
+      : '다시 만났군. 이번에도 쉽게 지나가진 못할 것이다.',
+    weaponId,
+    personalityId,
+    level: Math.max(1, safeFloor + rivalLevel),
+    stats: {
+      str: baseStats.str + statBoost,
+      vit: baseStats.vit + statBoost,
+      def: baseStats.def + Math.floor(statBoost * 0.8),
+      agi: baseStats.agi + Math.floor(statBoost * 0.8),
+      luck: baseStats.luck + Math.floor(statBoost * 0.5)
+    },
+    skills,
+    skillLevels: createEnemySkillLevels(skills, effectiveFloor, false),
+    weaponGrade: rival.weaponGrade || 'common',
+    weaponEvolution: stage?.id || rival.weaponEvolution || null,
+    weaponEnhancement: Math.max(0, Math.floor(rival.weaponEnhancement || 0)) + Math.max(0, Math.floor((rivalLevel - 1) / 2)),
+    mastery: createEnemyMastery(effectiveFloor, false) + Math.max(0, rivalLevel - 1)
   };
 }
 

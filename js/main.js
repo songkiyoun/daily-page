@@ -9,6 +9,7 @@ import {
   completeFloorVictory,
   createBattleState,
   createFixedEnemyConfig,
+  createRivalEnemyConfig,
   createPermanentProgress,
   createRun,
   applyPermanentProgressToPlayer,
@@ -42,7 +43,7 @@ import {
   renderSoulRoadPanel,
   updateSoulRoadRecords
 } from './features/soulRoad.js';
-import { registerRivalDefeat } from './features/rivals.js';
+import { registerRivalDefeat, registerRivalEncounter, selectRivalForFloor } from './features/rivals.js';
 
 const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
@@ -289,6 +290,14 @@ function readConfig() {
   };
 }
 
+function createBattleStateWithRivalCandidate(activeRun) {
+  if (!activeRun) return null;
+  const floor = Math.max(TOWER_RULES.startFloor, Math.floor(activeRun.floor || TOWER_RULES.startFloor));
+  const rival = selectRivalForFloor(soulRoadData, floor);
+  if (!rival) return createBattleState(activeRun);
+  return createBattleState(activeRun, { enemyConfig: createRivalEnemyConfig(rival, floor) });
+}
+
 function startNewRun() {
   const startingGold = Number.isFinite(bankInventory.gold)
     ? bankInventory.gold
@@ -302,7 +311,7 @@ function startNewRun() {
     permanentProgress,
     profileImageUrl: accountProfile.imageUrl || ''
   });
-  state = createBattleState(run);
+  state = createBattleStateWithRivalCandidate(run);
   clearPanelKeys();
   render(ctx, state);
   renderAllPanels(true);
@@ -349,11 +358,20 @@ function startCurrentFloor() {
   hideOverlay();
   if (state?.bossEncounter && !state.bossEncounter.entered) {
     startBossEncounterSequence();
+  } else if (state?.enemy?.rivalId && !state.eventLocks?.rivalIntroSeen) {
+    state.eventLocks = { ...(state.eventLocks || {}), rivalIntroSeen: true };
+    const title = state.enemy.rivalTitle || 'RIVAL';
+    const message = `${state.enemy.name}: “${state.enemy.rivalIntroLine || '다시 만났군. 이번에는 쉽게 지나가지 못한다.'}”`;
+    soulRoadData = registerRivalEncounter(soulRoadData, state.enemy.rivalId, state.run?.floor || run?.floor || 0, 'seen');
+    showOverlay(title, message, '전투 시작', 'startRival');
+    updatePauseButton();
+    renderAllPanels(true);
+    saveTemporarySnapshot('rivalIntro');
   } else {
     startState(state);
     updatePauseButton();
     renderAllPanels(true);
-    saveTemporarySnapshot('startFloor');
+    saveTemporarySnapshot(state?.enemy?.rivalId ? 'startRivalFloor' : 'startFloor');
   }
 }
 
@@ -413,6 +431,14 @@ function handleOverlayAction() {
   }
   if (action === 'retry' || action === 'newRun') {
     startNewRun();
+    return;
+  }
+  if (action === 'startRival') {
+    hideOverlay();
+    startState(state);
+    updatePauseButton();
+    renderAllPanels(true);
+    saveTemporarySnapshot('startRivalFloor');
     return;
   }
   if (action === 'start' || action === 'climbTower') {
@@ -492,6 +518,10 @@ function handleRewardClick(event) {
   const rewardType = button.dataset.rewardType || 'normal';
   state = applyRewardAndAdvance(state, button.dataset.reward, rewardType);
   run = state.run;
+  if (!state.result && !state.running && !(run.pendingRewards?.length || 0) && !(run.pendingBossRewards?.length || 0)) {
+    state = createBattleStateWithRivalCandidate(run);
+    run = state.run;
+  }
   syncBankFromRun();
   clearPanelKeys();
   updatePauseButton();
@@ -2179,6 +2209,7 @@ function renderTowerInfo(force = false) {
     state.enemy.weaponGrade || 'common',
     state.enemy.weaponEvolution || 'none',
     state.enemy.bossId || 'normal',
+    state.enemy.rivalId || 'none',
     state.enemy.bossPattern || '',
     state.enemy.bossSkill?.name || '',
     enemySkillText
@@ -2194,12 +2225,17 @@ function renderTowerInfo(force = false) {
     <div class="tower-row"><span>보스 패턴</span><strong>${state.enemy.bossPattern || '-'}</strong></div>
     <div class="tower-row"><span>보스 전용기</span><strong>${state.enemy.bossSkill?.name || '-'}</strong></div>
   ` : '';
+  const rivalRows = !isBossFloor && state.enemy.rivalId ? `
+    <div class="tower-row boss-row"><span>${state.enemy.rivalTitle || '라이벌'}</span><strong>${state.enemy.name} Lv.${state.enemy.rivalLevel || state.enemy.level}</strong></div>
+    <div class="tower-row"><span>라이벌 기록</span><strong>${state.enemy.rivalDefeatCount || 0}회 패배 기록</strong></div>
+  ` : '';
 
   controls.towerBox.innerHTML = `
     <div class="tower-row boss-row"><span>현재 층</span><strong>${state.run.floor}층${isBossFloor ? ' · 보스' : ''}</strong></div>
     <div class="tower-row"><span>층 유형</span><strong>${isBossFloor ? '보스층' : '일반층'}</strong></div>
     <div class="tower-row"><span>다음 보스층</span><strong>${isBossFloor ? '현재 층' : `${nextBossFloor}층 · ${floorsToBoss}층 남음`}</strong></div>
     ${bossRows}
+    ${rivalRows}
     <div class="tower-row"><span>승리 횟수</span><strong>${state.run.victories}회</strong></div>
     <div class="tower-row"><span>상대 무기</span><strong>${enemyWeapon.name}</strong></div>
     <div class="tower-row"><span>상대 성격</span><strong>${enemyPersonality.name}</strong></div>
@@ -2211,7 +2247,9 @@ function renderTowerInfo(force = false) {
 
   controls.enemyPreview.textContent = isBossFloor && state.enemy.bossId
     ? `${state.enemy.bossTitle || '보스'}입니다. ${state.enemy.bossDescription || '일반층보다 강한 전투 성능을 가집니다.'}`
-    : `상대는 매 층 랜덤으로 정해지며 ${nextBossFloor}층마다 보스가 등장합니다.`;
+    : state.enemy.rivalId
+      ? `${state.enemy.rivalTitle || '라이벌'}이 재등장했습니다. 처치하면 영혼의 길 기록에 복수 성공으로 남습니다.`
+      : `상대는 매 층 랜덤으로 정해지며 ${nextBossFloor}층마다 보스가 등장합니다.`;
 }
 
 function renderPlayerInfo(force = false) {
@@ -2759,6 +2797,9 @@ function renderResultIfNeeded() {
     completeFloorVictory(state);
     if (clearedEnemy?.bossId) {
       soulRoadData = recordBossEncounter(soulRoadData, clearedEnemy, clearedFloor, 'victory');
+    }
+    if (clearedEnemy?.rivalId) {
+      soulRoadData = registerRivalEncounter(soulRoadData, clearedEnemy.rivalId, clearedFloor, 'victory');
     }
     soulRoadData = updateSoulRoadRecords(soulRoadData, state.run);
     const nextFloor = state.run.floor + 1;

@@ -208,13 +208,14 @@ function renderRivals(data) {
         <article class="soul-road-line-card ${rival.isNemesis ? 'is-cleared' : ''}">
           <strong>${escapeHtml(rival.isNemesis ? '숙적 후보' : '라이벌')} · ${escapeHtml(rival.name)} Lv.${rival.level}</strong>
           <span>${escapeHtml(rival.weaponName)} / ${escapeHtml(rival.personalityName)} / ${escapeHtml(rival.weaponGradeName)} / ${escapeHtml(rival.weaponStageName)} +${rival.weaponEnhancement}</span>
-          <small>${escapeHtml(`${rival.defeatCount}회 패배 · 최초 ${rival.firstFloor || '-'}층 · 최근 ${rival.lastFloor || '-'}층`)}</small>
+          <small>${escapeHtml(`${rival.defeatCount}회 패배 · ${rival.victoryCount || 0}회 복수 · 최초 ${rival.firstFloor || '-'}층 · 최근 패배 ${rival.lastFloor || '-'}층`)}</small>
+          <small>${escapeHtml(rival.lastSeenFloor ? `최근 조우 ${rival.lastSeenFloor}층 · ${rival.lastEncounterResult === 'victory' ? '복수 성공' : rival.lastEncounterResult === 'defeat' ? '패배' : '조우'}` : '아직 재등장 기록 없음')}</small>
           ${rival.note ? `<small>${escapeHtml(rival.note)}</small>` : ''}
         </article>
       `).join('')}
       <article class="soul-road-line-card muted">
         <strong>다음 확장 예정</strong>
-        <span>라이벌은 이후 일정 층 이상에서 재등장하며, 숙적은 50층 이후 보스 후보가 됩니다.</span>
+        <span>라이벌은 10층 이상 일반층에서 랜덤 재등장하며, 숙적은 50층 이후 보스 후보가 됩니다.</span>
       </article>
     </div>
   `;
