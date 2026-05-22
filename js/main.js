@@ -961,17 +961,12 @@ function startAdminBattleTest(testId = '') {
   renderAllPanels(true);
   updatePauseButton();
 
-  if (isBossTest && state?.bossEncounter) {
-    startBossEncounterSequence();
-  } else if (state?.enemy?.rivalId) {
-    state.eventLocks = { ...(state.eventLocks || {}), rivalIntroSeen: true };
-    soulRoadData = registerRivalEncounter(soulRoadData, state.enemy.rivalId, state.run?.floor || run?.floor || 0, 'seen');
-    showOverlay(introTitle, `${introText}\n\n${state.enemy.name}: “${state.enemy.rivalIntroLine || '다시 만났군.'}”`, '전투 시작', 'startRival');
-    saveTemporarySnapshot(`adminBattleTest-${testId}`);
-  } else {
-    showOverlay(introTitle, introText, '전투 시작', 'start');
-    saveTemporarySnapshot(`adminBattleTest-${testId}`);
-  }
+  // 관리자 전투테스트는 전투를 즉시 시작하지 않는다.
+  // 먼저 탑 화면에서 무기/성격이 반영된 플레이어에게 스탯 포인트 99개를 배분하고,
+  // 사용자가 직접 전투 시작 버튼을 눌렀을 때 기존 보스/라이벌 입장 연출이 진행되도록 둔다.
+  hideOverlay();
+  showAccountMessage(`${introTitle}: 스탯을 배분한 뒤 전투 시작 버튼을 누르세요. ${introText}`, 'good');
+  saveTemporarySnapshot(`adminBattleTestReady-${testId}`);
 }
 
 
