@@ -1791,3 +1791,138 @@ input[type="url"] {
   font-size: 12px;
   line-height: 1.35;
 }
+
+/* v0.8.9 soul road module */
+.soul-road-screen {
+  display: grid;
+  place-items: center;
+  min-height: 560px;
+}
+
+.soul-road-card-wrap {
+  width: min(980px, 100%);
+}
+
+.soul-road-panel {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0 18px;
+}
+
+.soul-road-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.soul-road-tab.active {
+  border-color: rgba(255, 212, 90, 0.62);
+  background: rgba(255, 212, 90, 0.12);
+  color: var(--gold);
+}
+
+.soul-road-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.soul-road-card,
+.soul-road-line-card,
+.soul-road-record-grid > div {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 14px;
+}
+
+.soul-road-card.is-cleared,
+.soul-road-line-card.is-cleared {
+  border-color: rgba(103, 229, 157, 0.36);
+  background: rgba(103, 229, 157, 0.07);
+}
+
+.soul-road-card.is-seen {
+  border-color: rgba(255, 212, 90, 0.34);
+  background: rgba(255, 212, 90, 0.055);
+}
+
+.soul-road-card.is-locked {
+  opacity: 0.72;
+}
+
+.soul-road-card-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.soul-road-card-head strong,
+.soul-road-line-card strong {
+  color: var(--gold);
+}
+
+.soul-road-card-head span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.soul-road-card p,
+.soul-road-card small,
+.soul-road-line-card span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.soul-road-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.soul-road-card dl div,
+.soul-road-record-grid > div {
+  display: grid;
+  gap: 4px;
+}
+
+.soul-road-card dt,
+.soul-road-record-grid span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.soul-road-card dd,
+.soul-road-record-grid strong {
+  margin: 0;
+  color: var(--text);
+}
+
+.soul-road-record-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.soul-road-line-list {
+  display: grid;
+  gap: 10px;
+}
+
+.soul-road-line-card {
+  display: grid;
+  gap: 6px;
+}
+
+.soul-road-line-card.muted {
+  opacity: 0.78;
+}
+
+@media (max-width: 800px) {
+  .soul-road-grid,
+  .soul-road-record-grid {
+    grid-template-columns: 1fr;
+  }
+}

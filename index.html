@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.8.8-boss-phase" />
-  <title>Circle Battle Tower Rebuild v0.8.8</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.8.8" />
+  <meta name="build" content="circle-battle-rebuild-v0.9.0-module-refactor" />
+  <title>Circle Battle Tower Rebuild v0.9.0</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.9.0" />
 </head>
 <body>
   <main class="app">
@@ -13,13 +13,13 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">보스 2페이즈와 보스 사망 멘트 확인 흐름을 반영한 v0.8.8 업데이트입니다.</p>
+        <p class="subtext">모듈 분리 리팩토링 기초를 반영한 v0.9.0 업데이트입니다.</p>
       </div>
       <div class="topbar-actions">
         <button id="adminResourceBtn" class="button mini admin-only hidden">재화 추가</button>
         <button id="simToggleBtn" class="button mini">시뮬레이터</button>
         <div id="accountBadge" class="version account-badge">로그인 전</div>
-        <div id="versionBadge" class="version">v0.8.8</div>
+        <div id="versionBadge" class="version">v0.9.0</div>
       </div>
     </header>
 
@@ -57,7 +57,11 @@
           </button>
           <button id="farmContentBtn" class="content-choice-button" type="button">
             <strong>마이 농장</strong>
-            <span>추후 추가될 실시간 작물 성장 콘텐츠입니다.</span>
+            <span>작물을 키워 성장 재화를 보조합니다.</span>
+          </button>
+          <button id="soulRoadContentBtn" class="content-choice-button" type="button">
+            <strong>영혼의 길</strong>
+            <span>도감과 업적, 쓰러뜨린 보스의 기록을 확인합니다.</span>
           </button>
         </div>
       </section>
@@ -199,6 +203,16 @@
       </section>
     </section>
 
+    <section id="soulRoadScreen" class="screen soul-road-screen hidden">
+      <section class="card soul-road-card-wrap">
+        <p class="eyebrow">SOUL ROAD</p>
+        <h2>영혼의 길</h2>
+        <p class="hint-text">도감과 업적, 쓰러뜨린 보스의 기록을 확인합니다. 이후 라이벌과 숙적 기록도 이곳에 연결됩니다.</p>
+        <div id="soulRoadPanel" class="soul-road-panel"></div>
+        <button id="soulRoadBackToContentBtn" class="button">콘텐츠 선택으로 돌아가기</button>
+      </section>
+    </section>
+
     <section id="simulatorPanel" class="card simulator-panel simulator-drawer hidden">
       <div class="simulator-head">
         <div>
@@ -240,6 +254,6 @@
     </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.8.8"></script>
+  <script type="module" src="./js/main.js?v=0.9.0"></script>
 </body>
 </html>

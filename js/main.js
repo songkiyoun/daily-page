@@ -34,6 +34,14 @@ import {
 } from './state.js';
 import { updateBattle } from './battle.js';
 import { render } from './render.js';
+import {
+  cloneSoulRoadData,
+  normalizeSoulRoadData,
+  recordBossEncounter,
+  registerChallengeStart,
+  renderSoulRoadPanel,
+  updateSoulRoadRecords
+} from './features/soulRoad.js';
 
 const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
@@ -42,6 +50,7 @@ const controls = {
   loginScreen: document.getElementById('loginScreen'),
   contentScreen: document.getElementById('contentScreen'),
   farmScreen: document.getElementById('farmScreen'),
+  soulRoadScreen: document.getElementById('soulRoadScreen'),
   prepScreen: document.getElementById('prepScreen'),
   towerScreen: document.getElementById('towerScreen'),
   characterSetupCard: document.getElementById('characterSetupCard'),
@@ -93,8 +102,11 @@ const controls = {
   accountPw: document.getElementById('accountPw'),
   towerContentBtn: document.getElementById('towerContentBtn'),
   farmContentBtn: document.getElementById('farmContentBtn'),
+  soulRoadContentBtn: document.getElementById('soulRoadContentBtn'),
   backToContentBtn: document.getElementById('backToContentBtn'),
   farmBackToContentBtn: document.getElementById('farmBackToContentBtn'),
+  soulRoadBackToContentBtn: document.getElementById('soulRoadBackToContentBtn'),
+  soulRoadPanel: document.getElementById('soulRoadPanel'),
   farmResourceBox: document.getElementById('farmResourceBox'),
   farmSlotGrid: document.getElementById('farmSlotGrid'),
   farmSeedBox: document.getElementById('farmSeedBox'),
@@ -167,6 +179,8 @@ let accountProfile = {
   imageUrl: ''
 };
 let accountFarm = createDefaultFarmData();
+let soulRoadData = normalizeSoulRoadData();
+let activeSoulRoadTab = 'bossCodex';
 
 let state = null;
 let run = null;
@@ -208,8 +222,11 @@ function init() {
   controls.tempLoadBtn?.addEventListener('click', handleTempLoad);
   controls.towerContentBtn?.addEventListener('click', () => showPrepScreen());
   controls.farmContentBtn?.addEventListener('click', () => showFarmScreen());
+  controls.soulRoadContentBtn?.addEventListener('click', () => showSoulRoadScreen());
   controls.backToContentBtn?.addEventListener('click', handleBackToContent);
   controls.farmBackToContentBtn?.addEventListener('click', handleFarmBackToContent);
+  controls.soulRoadBackToContentBtn?.addEventListener('click', handleSoulRoadBackToContent);
+  controls.soulRoadPanel?.addEventListener('click', handleSoulRoadTabClick);
   controls.farmSlotGrid?.addEventListener('click', handleFarmSlotAction);
   controls.farmSeedBox?.addEventListener('click', handleFarmSeedAction);
   controls.adminResourceBtn?.addEventListener('click', handleAdminResourceAdd);
@@ -275,6 +292,7 @@ function startNewRun() {
   const startingGold = Number.isFinite(bankInventory.gold)
     ? bankInventory.gold
     : (Number.isFinite(bankGold) ? bankGold : undefined);
+  soulRoadData = registerChallengeStart(soulRoadData);
   run = createRun({
     ...readConfig(),
     startingGold,
@@ -361,6 +379,7 @@ function startBossEncounterSequence() {
     encounter.phase = 'combat';
     encounter.timer = 0;
     encounter.maxTimer = 0;
+    soulRoadData = recordBossEncounter(soulRoadData, state.enemy, state.run?.floor || run?.floor || 0, 'seen');
     startState(state);
     updatePauseButton();
     renderAllPanels(true);
@@ -617,6 +636,20 @@ function handleFarmBackToContent() {
   showContentScreen();
 }
 
+function handleSoulRoadBackToContent() {
+  saveTemporarySnapshot('soulRoadBackToContent');
+  autoSaveSafePoint('영혼의 길 화면 복귀');
+  showContentScreen();
+}
+
+function handleSoulRoadTabClick(event) {
+  const button = event.target.closest('.soul-road-tab');
+  if (!button) return;
+  activeSoulRoadTab = button.dataset.soulRoadTab || 'bossCodex';
+  renderSoulRoadScreen(true);
+  saveTemporarySnapshot('soulRoadTab');
+}
+
 function handleAdminResourceAdd() {
   if (!isAdminAccount()) return;
   const resources = getCurrentPersistentResources();
@@ -871,6 +904,12 @@ function renderFarmPanel(force = false) {
     <span>A씨앗은 3분 성장, 물 주기 1회 조건을 만족하면 수확할 수 있습니다.</span>
     <span>수확한 A작물은 골드, 강화석, 보스의 영혼으로 교환할 수 있습니다.</span>
   `;
+}
+
+function renderSoulRoadScreen(force = false) {
+  if (!controls.soulRoadPanel) return;
+  soulRoadData = updateSoulRoadRecords(soulRoadData, run);
+  renderSoulRoadPanel(controls.soulRoadPanel, soulRoadData, activeSoulRoadTab);
 }
 
 function handleFarmSlotAction(event) {
@@ -1942,6 +1981,7 @@ function createEmptySavePayload(reason = 'empty') {
     resources: getCurrentPersistentResources(),
     permanentProgress: clonePermanentProgress(permanentProgress),
     farmData: normalizeFarmData(accountFarm),
+    soulRoadData: cloneSoulRoadData(soulRoadData),
     stats: { bestFloor: TOWER_RULES.startFloor, totalVictories: 0, bossClears: 0 },
     session: null
   };
@@ -1951,7 +1991,9 @@ function buildSavePayload({ includeSession = false, reason = 'save' } = {}) {
   const payload = createEmptySavePayload(reason);
   payload.resources = getCurrentPersistentResources();
   payload.permanentProgress = clonePermanentProgress(permanentProgress);
+  soulRoadData = updateSoulRoadRecords(soulRoadData, run);
   payload.farmData = normalizeFarmData(accountFarm);
+  payload.soulRoadData = cloneSoulRoadData(soulRoadData);
   payload.stats = {
     bestFloor: Math.max(TOWER_RULES.startFloor, run?.bestFloor || TOWER_RULES.startFloor),
     totalVictories: run?.victories || 0,
@@ -1964,6 +2006,7 @@ function buildSavePayload({ includeSession = false, reason = 'save' } = {}) {
       screen: getCurrentScreenName(),
       activePrepTab,
       activeHeirloomWeapon,
+      activeSoulRoadTab,
       run: run ? JSON.parse(JSON.stringify(run)) : null,
       stateStatus: state ? {
         running: !!state.running,
@@ -2003,9 +2046,11 @@ function applySavePayload(payload = {}, { restoreSession = false, showDefaultScr
   permanentProgress = clonePermanentProgress(payload.permanentProgress || {});
   accountProfile = normalizeAccountProfile(payload.profile || payload.accountProfile || {});
   accountFarm = normalizeFarmData(payload.farmData || payload.farm || {});
+  soulRoadData = normalizeSoulRoadData(payload.soulRoadData || payload.soulRoad || {});
   if (controls.profileImageUrl) controls.profileImageUrl.value = accountProfile.imageUrl || '';
   activePrepTab = payload.session?.activePrepTab || 'shop';
   activeHeirloomWeapon = payload.session?.activeHeirloomWeapon || activeHeirloomWeapon;
+  activeSoulRoadTab = payload.session?.activeSoulRoadTab || activeSoulRoadTab;
 
   if (restoreSession && payload.session?.run) {
     run = payload.session.run;
@@ -2017,6 +2062,7 @@ function applySavePayload(payload = {}, { restoreSession = false, showDefaultScr
     clearPanelKeys();
     if (payload.session.screen === 'tower') showTowerScreen();
     else if (payload.session.screen === 'farm') showFarmScreen();
+    else if (payload.session.screen === 'soulRoad') showSoulRoadScreen();
     else if (payload.session.screen === 'content') showContentScreen();
     else showPrepScreen();
     return;
@@ -2053,6 +2099,7 @@ function getCurrentScreenName() {
   if (!controls.loginScreen?.classList.contains('hidden')) return 'login';
   if (!controls.contentScreen?.classList.contains('hidden')) return 'content';
   if (!controls.farmScreen?.classList.contains('hidden')) return 'farm';
+  if (!controls.soulRoadScreen?.classList.contains('hidden')) return 'soulRoad';
   if (!controls.towerScreen.classList.contains('hidden')) return 'tower';
   return 'prep';
 }
@@ -2082,6 +2129,7 @@ function renderAllPanels(force = false) {
   renderShopStatus(force);
   renderProfileImagePanel(force);
   renderFarmPanel(force);
+  renderSoulRoadScreen(force);
   renderRewardBox(force);
   renderPrepGrowthContent(force);
   renderControlState(force);
@@ -2705,7 +2753,13 @@ function renderResultIfNeeded() {
   controls.resultOverlay.dataset.resultFrame = String(state.frame);
 
   if (state.result === 'victory') {
+    const clearedFloor = state.run?.floor || 0;
+    const clearedEnemy = state.enemy ? JSON.parse(JSON.stringify(state.enemy)) : null;
     completeFloorVictory(state);
+    if (clearedEnemy?.bossId) {
+      soulRoadData = recordBossEncounter(soulRoadData, clearedEnemy, clearedFloor, 'victory');
+    }
+    soulRoadData = updateSoulRoadRecords(soulRoadData, state.run);
     const nextFloor = state.run.floor + 1;
     const isBossClear = !!state.run.lastBossRewardMessage;
     const levelText = state.run.levelMessage ? `${state.run.levelMessage}
@@ -2786,6 +2840,7 @@ function hideAllMainScreens() {
   controls.prepScreen?.classList.add('hidden');
   controls.towerScreen?.classList.add('hidden');
   controls.farmScreen?.classList.add('hidden');
+  controls.soulRoadScreen?.classList.add('hidden');
 }
 
 function showLoginScreen() {
@@ -2818,6 +2873,14 @@ function showFarmScreen() {
   hideOverlay();
   renderFarmPanel(true);
   saveTemporarySnapshot('farmOpen');
+}
+
+function showSoulRoadScreen() {
+  hideAllMainScreens();
+  controls.soulRoadScreen?.classList.remove('hidden');
+  hideOverlay();
+  renderSoulRoadScreen(true);
+  saveTemporarySnapshot('soulRoadOpen');
 }
 
 function showOverlay(title, text, buttonText, action, options = {}) {
