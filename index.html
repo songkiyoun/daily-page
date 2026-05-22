@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="build" content="circle-battle-rebuild-v0.9.3-admin-battle-test" />
-  <title>Circle Battle Tower Rebuild v0.9.3</title>
-  <link rel="stylesheet" href="./css/style.css?v=0.9.3" />
+  <meta name="build" content="circle-battle-rebuild-v0.9.4-admin-battle-test-fix" />
+  <title>Circle Battle Tower Rebuild v0.9.4</title>
+  <link rel="stylesheet" href="./css/style.css?v=0.9.4" />
 </head>
 <body>
   <main class="app">
@@ -13,14 +13,14 @@
       <div>
         <p class="eyebrow">CIRCLE BATTLE TOWER REBUILD</p>
         <h1>1:1 탑 등반 전투 시뮬레이터</h1>
-        <p class="subtext">관리자 전투테스트 메뉴를 반영한 v0.9.3 업데이트입니다.</p>
+        <p class="subtext">관리자 전투테스트 설정과 라이벌 기록 보정을 반영한 v0.9.4 업데이트입니다.</p>
       </div>
       <div class="topbar-actions">
         <button id="adminResourceBtn" class="button mini admin-only hidden">재화 추가</button>
         <button id="adminBattleTestBtn" class="button mini admin-only hidden">전투테스트</button>
         <button id="simToggleBtn" class="button mini">시뮬레이터</button>
         <div id="accountBadge" class="version account-badge">로그인 전</div>
-        <div id="versionBadge" class="version">v0.9.3</div>
+        <div id="versionBadge" class="version">v0.9.4</div>
       </div>
     </header>
 
@@ -220,6 +220,22 @@
         <p class="eyebrow">ADMIN BATTLE TEST</p>
         <h2>전투테스트</h2>
         <p class="hint-text">관리자 계정 전용 테스트 메뉴입니다. 실제 층을 오르지 않고 라이벌과 보스 전투 흐름을 바로 검수합니다.</p>
+        <section class="admin-test-config-card">
+          <div class="farm-section-head">
+            <strong>테스트 플레이어 설정</strong>
+            <span>전투테스트 전용 캐릭터의 무기와 성격을 고릅니다. 전투 시작 전 스탯 포인트 99개가 지급됩니다.</span>
+          </div>
+          <div class="sim-grid admin-test-config-grid">
+            <label class="field compact-field">
+              <span>캐릭터 무기</span>
+              <select id="adminTestWeapon"></select>
+            </label>
+            <label class="field compact-field">
+              <span>캐릭터 성격</span>
+              <select id="adminTestPersonality"></select>
+            </label>
+          </div>
+        </section>
         <div class="admin-test-layout">
           <section class="admin-test-section">
             <div class="farm-section-head">
@@ -296,6 +312,6 @@
     </section>
   </main>
 
-  <script type="module" src="./js/main.js?v=0.9.3"></script>
+  <script type="module" src="./js/main.js?v=0.9.4"></script>
 </body>
 </html>

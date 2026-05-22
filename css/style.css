@@ -1997,3 +1997,20 @@ input[type="url"] {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-test-config-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  margin-top: 16px;
+}
+
+.admin-test-config-grid {
+  margin-top: 14px;
+}
+
+.admin-test-stat-reset {
+  width: 100%;
+  margin-top: 10px;
+}

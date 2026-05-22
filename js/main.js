@@ -111,6 +111,8 @@ const controls = {
   farmBackToContentBtn: document.getElementById('farmBackToContentBtn'),
   soulRoadBackToContentBtn: document.getElementById('soulRoadBackToContentBtn'),
   adminBattleTestBackBtn: document.getElementById('adminBattleTestBackBtn'),
+  adminTestWeapon: document.getElementById('adminTestWeapon'),
+  adminTestPersonality: document.getElementById('adminTestPersonality'),
   soulRoadPanel: document.getElementById('soulRoadPanel'),
   farmResourceBox: document.getElementById('farmResourceBox'),
   farmSlotGrid: document.getElementById('farmSlotGrid'),
@@ -219,6 +221,8 @@ function init() {
   populateSelect(controls.simPlayerPersonality, PERSONALITIES, 'balanced');
   populateSelect(controls.simEnemyWeapon, WEAPONS, 'dagger');
   populateSelect(controls.simEnemyPersonality, PERSONALITIES, 'assassin');
+  populateSelect(controls.adminTestWeapon, WEAPONS, 'eastern');
+  populateSelect(controls.adminTestPersonality, PERSONALITIES, 'balanced');
   controls.version.textContent = `v${VERSION}`;
   updateAccountBadge();
 
@@ -258,6 +262,7 @@ function init() {
   });
   controls.giveUpBtn.addEventListener('click', handleGiveUp);
   controls.prepPlayerBox.addEventListener('click', handleStatClick);
+  controls.towerPlayerBox?.addEventListener('click', handleStatClick);
   controls.towerPlayerBox.addEventListener('click', handleStatClick);
   controls.overlayRewardBox.addEventListener('click', handleRewardClick);
   controls.overlayShopBox.addEventListener('click', handleShopClick);
@@ -293,6 +298,13 @@ function readConfig() {
   return {
     playerWeapon: controls.playerWeapon.value,
     playerPersonality: controls.playerPersonality.value
+  };
+}
+
+function readAdminTestConfig() {
+  return {
+    playerWeapon: controls.adminTestWeapon?.value || controls.playerWeapon?.value || 'eastern',
+    playerPersonality: controls.adminTestPersonality?.value || controls.playerPersonality?.value || 'balanced'
   };
 }
 
@@ -505,7 +517,24 @@ function handleGiveUp() {
   saveTemporarySnapshot('giveUp');
 }
 
+function resetAdminBattleTestStats() {
+  if (!run?.adminBattleTest || !run.player || !state || state.running || state.result) return;
+  run.player.stats = { ...PLAYER_START_STATS };
+  run.player.statPoints = Math.max(0, Math.floor(run.adminBattleTestStatPoints || 99));
+  run.player.hp = null;
+  refreshPlayerUnit(state);
+  panelKeys.player = '';
+  renderAllPanels(true);
+  render(ctx, state);
+  saveTemporarySnapshot('adminBattleTestStatReset');
+}
+
 function handleStatClick(event) {
+  const resetButton = event.target.closest('[data-admin-test-stat-reset]');
+  if (resetButton) {
+    resetAdminBattleTestStats();
+    return;
+  }
   const button = event.target.closest('.stat-button');
   if (!button || button.disabled || !run || !state) return;
   const didSpend = spendPlayerStat(run, button.dataset.stat);
@@ -735,7 +764,7 @@ function handleAdminBattleTestSelect(event) {
 function createAdminTestRunAtFloor(floor) {
   const resources = getCurrentPersistentResources();
   const testRun = createRun({
-    ...readConfig(),
+    ...readAdminTestConfig(),
     startingGold: resources.gold,
     startingEnhancementStone: resources.enhancementStone,
     startingBossSoul: resources.bossSoul,
@@ -746,6 +775,10 @@ function createAdminTestRunAtFloor(floor) {
   testRun.shop.available = false;
   testRun.shop.enteredTower = true;
   testRun.adminBattleTest = true;
+  testRun.adminBattleTestStatPoints = 99;
+  testRun.player.stats = { ...PLAYER_START_STATS };
+  testRun.player.statPoints = 99;
+  testRun.player.hp = null;
   return testRun;
 }
 
@@ -772,8 +805,8 @@ function createAdminRivalRecord(kind = 'win') {
     weaponEnhancement: strong ? 3 : 0,
     firstFloor: strong ? 9 : 3,
     lastFloor: strong ? 9 : 3,
-    defeatCount: strong ? 2 : 1,
-    level: strong ? 4 : 1,
+    defeatCount: 0,
+    level: strong ? 3 : 1,
     isNemesis: false,
     firstDefeatedAt: now,
     lastDefeatedAt: now,
@@ -798,7 +831,19 @@ function ensureAdminTestRival(kind = 'win') {
   };
   const index = next.rivals.findIndex((item) => item.id === record.id);
   if (index >= 0) {
-    next.rivals[index] = { ...next.rivals[index], ...record, victoryCount: next.rivals[index].victoryCount || record.victoryCount, isResolved: false, resolvedAt: '' };
+    const existing = next.rivals[index];
+    next.rivals[index] = {
+      ...existing,
+      ...record,
+      defeatCount: Math.max(existing.defeatCount || 0, record.defeatCount || 0),
+      level: Math.max(existing.level || 1, record.level || 1),
+      victoryCount: existing.victoryCount || record.victoryCount || 0,
+      isNemesis: !!existing.isNemesis || !!record.isNemesis || (existing.defeatCount || 0) >= 3,
+      firstDefeatedAt: existing.firstDefeatedAt || record.firstDefeatedAt,
+      lastDefeatedAt: existing.lastDefeatedAt || record.lastDefeatedAt,
+      isResolved: false,
+      resolvedAt: ''
+    };
   } else {
     next.rivals.push(record);
   }
@@ -839,8 +884,8 @@ function startAdminBattleTest(testId = '') {
 
   if (testId === 'rivalWin') {
     const rival = ensureAdminTestRival('win');
-    testRun = createAdminTestRunAtFloor(10);
-    enemyConfig = createRivalEnemyConfig(rival, 10);
+    testRun = createAdminTestRunAtFloor(9);
+    enemyConfig = createRivalEnemyConfig(rival, 9);
     enemyConfig.stats = { str: 1, vit: 1, def: 1, agi: 1, luck: 1 };
     enemyConfig.level = 1;
     enemyConfig.mastery = 0;
@@ -849,8 +894,8 @@ function startAdminBattleTest(testId = '') {
     introText = '체력 10의 약한 라이벌입니다. 처치 후 영혼의 길에서 복수 성공 기록을 확인합니다.';
   } else if (testId === 'rivalLose') {
     const rival = ensureAdminTestRival('lose');
-    testRun = createAdminTestRunAtFloor(10);
-    enemyConfig = createRivalEnemyConfig(rival, 10);
+    testRun = createAdminTestRunAtFloor(9);
+    enemyConfig = createRivalEnemyConfig(rival, 9);
     enemyConfig.stats = { str: 85, vit: 85, def: 70, agi: 70, luck: 45 };
     enemyConfig.level = 99;
     enemyConfig.mastery = 18;
@@ -1129,6 +1174,8 @@ function renderFarmPanel(force = false) {
 
 function renderSoulRoadScreen(force = false) {
   if (!controls.soulRoadPanel) return;
+  const visible = !controls.soulRoadScreen?.classList.contains('hidden');
+  if (!force && !visible) return;
   soulRoadData = updateSoulRoadRecords(soulRoadData, run);
   renderSoulRoadPanel(controls.soulRoadPanel, soulRoadData, activeSoulRoadTab);
 }
@@ -2485,6 +2532,7 @@ function renderPlayerInfo(force = false) {
     statKey,
     player.skills.map((skillId) => `${skillId}:${player.skillLevels?.[skillId] || 1}`).join(','),
     player.externalSkillCount || 0,
+    run.adminBattleTest ? 'adminTest' : 'normalRun',
     state.running ? 'running' : 'ready',
     state.result || 'none'
   ].join('|');
@@ -2507,6 +2555,10 @@ function renderPlayerInfo(force = false) {
     </button>
   `).join('');
 
+  const adminStatResetHtml = run.adminBattleTest && !state.running && !state.result
+    ? '<button class="button mini admin-test-stat-reset" type="button" data-admin-test-stat-reset>테스트 스탯 초기화</button>'
+    : '';
+
   const playerInfoHtml = `
     <div class="tower-row"><span>레벨</span><strong>Lv.${player.level}</strong></div>
     <div class="tower-row"><span>경험치</span><strong>${player.exp} / ${expNeed}</strong></div>
@@ -2517,6 +2569,7 @@ function renderPlayerInfo(force = false) {
     <div class="stat-grid">${statButtons}</div>
     <div class="skill-list">${skillText}</div>
     <div class="skill-list">${traitText}</div>
+    ${adminStatResetHtml}
     <p class="hint-text">스탯 포인트는 탑 입장 전 또는 다음 층 대기 상태에서 배분할 수 있습니다.</p>
   `;
   controls.prepPlayerBox.innerHTML = playerInfoHtml;
@@ -3118,9 +3171,14 @@ function showFarmScreen() {
 }
 
 function showSoulRoadScreen() {
+  if (state?.run?.adminBattleTest && state.running && !state.result) {
+    state.running = false;
+    state.paused = false;
+  }
   hideAllMainScreens();
   controls.soulRoadScreen?.classList.remove('hidden');
   hideOverlay();
+  activeSoulRoadTab = activeSoulRoadTab || 'bossCodex';
   renderSoulRoadScreen(true);
   saveTemporarySnapshot('soulRoadOpen');
 }
