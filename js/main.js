@@ -397,7 +397,21 @@ function handleOverlayAction() {
   }
   if (action === 'start' || action === 'climbTower') {
     startCurrentFloor();
+    return;
   }
+  if (action === 'showBossReward') {
+    showBossRewardOverlay();
+  }
+}
+
+function showBossRewardOverlay() {
+  if (!state || state.result !== 'victory') return;
+  const bossDeathLine = state.enemy?.bossDefeatLine ? `${state.enemy.name}: “${state.enemy.bossDefeatLine}”
+` : '';
+  const bossClearMessage = `${bossDeathLine}기본보상 : 레벨 및 숙련도 +1, 스텟포인트+5, 보스영혼, 강화석을 얻었습니다.
+일반 보상과 보스 전용 보상을 각각 선택 후, 다음층으로 이동합니다.`;
+  showOverlay('BOSS CLEAR', bossClearMessage, '', 'waitReward', { hideButton: true, keepRewards: true });
+  renderRewardBox(true);
 }
 
 function syncBankFromRun() {
@@ -2694,22 +2708,33 @@ function renderResultIfNeeded() {
     completeFloorVictory(state);
     const nextFloor = state.run.floor + 1;
     const isBossClear = !!state.run.lastBossRewardMessage;
-    const levelText = state.run.levelMessage ? `${state.run.levelMessage}\n` : '';
-    const goldText = state.run.victoryGoldMessage ? `${state.run.victoryGoldMessage}\n` : '';
+    const levelText = state.run.levelMessage ? `${state.run.levelMessage}
+` : '';
+    const goldText = state.run.victoryGoldMessage ? `${state.run.victoryGoldMessage}
+` : '';
     const normalClearMessage = `${levelText}${goldText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`;
-    const bossDeathLine = state.enemy.bossDefeatLine ? `${state.enemy.name}: “${state.enemy.bossDefeatLine}”\n` : '';
-    const bossClearMessage = `${bossDeathLine}기본보상 : 레벨 및 숙련도 +1, 스텟포인트+5, 보스영혼, 강화석을 얻었습니다.\n일반 보상과 보스 전용 보상을 각각 선택 후, 다음층으로 이동합니다.`;
+    const bossDeathLine = state.enemy.bossDefeatLine ? `${state.enemy.name}: “${state.enemy.bossDefeatLine}”` : '보스가 쓰러졌습니다.';
     panelKeys.player = '';
     panelKeys.tower = '';
-    showOverlay(
-      isBossClear ? 'BOSS CLEAR' : 'VICTORY',
-      isBossClear ? bossClearMessage : normalClearMessage,
-      '',
-      'waitReward',
-      { hideButton: true }
-    );
+    if (isBossClear) {
+      showOverlay(
+        'BOSS FALLEN',
+        bossDeathLine,
+        '보상 확인',
+        'showBossReward',
+        { hideButton: false }
+      );
+    } else {
+      showOverlay(
+        'VICTORY',
+        normalClearMessage,
+        '',
+        'waitReward',
+        { hideButton: true }
+      );
+    }
     renderAllPanels(true);
-    saveTemporarySnapshot('victoryRewardPending');
+    saveTemporarySnapshot(isBossClear ? 'bossDefeatLinePending' : 'victoryRewardPending');
   } else if (state.result === 'defeat') {
     syncBankFromRun();
     showChallengeEndOverlay('도전 종료', `${state.run.floor}층에서 쓰러졌습니다.`);

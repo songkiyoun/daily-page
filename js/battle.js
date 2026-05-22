@@ -38,6 +38,7 @@ export function updateBattle(state) {
 
   state.frame += 1;
   state.elapsed += 1 / 60;
+  updateBossCinematicTimers(state);
   updateCombatEffects(state);
   updateSummonedClones(state);
   updateBossPattern(state);
@@ -68,14 +69,15 @@ function updateBossPattern(state) {
   const player = state.player;
   if (!boss?.bossSkill || !boss.bossSkillState || boss.isDead || player.isDead) return;
 
-  const skill = boss.bossSkill;
+  updateBossPhaseTransition(state, boss);
+
+  const skill = getEffectiveBossSkill(boss.bossSkill, boss);
   const runtime = boss.bossSkillState;
   if (runtime.cooldown > 0) runtime.cooldown -= 1;
 
   if (runtime.phase === 'ready') {
-    const hpRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
     const cooldownReady = runtime.cooldown <= 0;
-    const distanceOk = distance(boss, player) < 340 || skill.id === 'deathMark';
+    const distanceOk = distance(boss, player) < 360 || skill.id === 'deathMark';
     if (!cooldownReady || !distanceOk) return;
 
     runtime.phase = 'casting';
@@ -86,8 +88,8 @@ function updateBossPattern(state) {
     boss.skillRuntime.bossActionLabel = skill.name;
     boss.lastAction = skill.name;
     emitBossTelegraph(state, boss, player, skill, runtime.payload);
-    emitCombatEvent(state, skill.name, boss.x, boss.y - 58, '#ff5d6c');
-    addScreenShake(state, hpRatio <= 0.5 ? 4 : 3);
+    emitCombatEvent(state, skill.name, boss.x, boss.y - 58, boss.bossPhase >= 2 ? '#ffd45a' : '#ff5d6c');
+    addScreenShake(state, boss.bossPhase >= 2 ? 5 : 3);
     return;
   }
 
@@ -97,21 +99,68 @@ function updateBossPattern(state) {
     resolveBossSkillImpact(state, boss, player, skill, runtime.payload || {});
     runtime.resolved = true;
     runtime.phase = 'ready';
-    const hpRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
-    runtime.cooldown = Math.max(150, Math.round((skill.cooldown || 320) * (hpRatio <= 0.5 ? 0.74 : 1)));
+    runtime.cooldown = Math.max(110, Math.round((boss.bossSkill.cooldown || 320) * (boss.bossPhase >= 2 ? (boss.bossSkill.phase2?.cooldownScale || 0.72) : 1)));
     runtime.payload = null;
   }
+}
+
+function updateBossPhaseTransition(state, boss) {
+  if (!boss || boss.bossPhase2Triggered || boss.maxHp <= 0) return;
+  const hpRatio = boss.hp / boss.maxHp;
+  if (hpRatio > 0.5) return;
+
+  boss.bossPhase = 2;
+  boss.bossPhase2Triggered = true;
+  if (boss.bossSkillState) boss.bossSkillState.cooldown = Math.min(boss.bossSkillState.cooldown || 0, 36);
+  boss.skillRuntime.bossActionLock = Math.max(boss.skillRuntime.bossActionLock || 0, 58);
+  boss.skillRuntime.bossActionLabel = '2페이즈 각성';
+  boss.lastAction = '2페이즈 각성';
+
+  if (state.bossEncounter) {
+    state.bossEncounter.phase = 'phase2';
+    state.bossEncounter.timer = 96;
+    state.bossEncounter.maxTimer = 96;
+    state.bossEncounter.phaseLine = boss.bossPhaseLine || state.bossEncounter.phaseLine || '보스의 기세가 변했습니다.';
+  }
+
+  emitCombatEvent(state, '2페이즈', boss.x, boss.y - 72, '#ffd45a');
+  emitVisualEffect(state, { type: 'warningCircle', x: boss.x, y: boss.y, radius: 136, color: '#ffd45a', life: 72, maxLife: 72 });
+  emitVisualEffect(state, { type: 'ring', x: boss.x, y: boss.y, color: '#ffd45a', life: 42, maxLife: 42, size: 128, power: 2 });
+  addScreenShake(state, 8);
+}
+
+function getEffectiveBossSkill(skill, boss) {
+  if (!skill || boss?.bossPhase < 2 || !skill.phase2) return skill;
+  const phase = skill.phase2;
+  return {
+    ...skill,
+    name: phase.label || skill.name,
+    cooldown: Math.round((skill.cooldown || 320) * (phase.cooldownScale || 0.72)),
+    telegraph: Math.round((skill.telegraph || 60) * (phase.telegraphScale || 1)),
+    radius: Math.round((skill.radius || 0) * (phase.radiusScale || 1)) || skill.radius,
+    width: Math.round((skill.width || 0) * (phase.widthScale || 1)) || skill.width,
+    length: Math.round((skill.length || 0) * (phase.lengthScale || 1)) || skill.length,
+    damageScale: (skill.damageScale || 1.35) + (phase.damageScaleBonus || 0),
+    doubleStrike: !!phase.doubleStrike,
+    shadowFollowUp: !!phase.shadowFollowUp
+  };
 }
 
 function createBossSkillPayload(skill, boss, player) {
   if (skill.id === 'archerVanguardPierce') {
     const aim = angleTo(boss, player);
+    const sideOffset = boss.bossPhase >= 2 && skill.doubleStrike ? Math.PI / 18 : 0;
     return {
       aim,
-      x1: boss.x + Math.cos(aim) * boss.radius,
-      y1: boss.y + Math.sin(aim) * boss.radius,
-      x2: boss.x + Math.cos(aim) * (skill.length || 420),
-      y2: boss.y + Math.sin(aim) * (skill.length || 420)
+      secondAim: skill.doubleStrike ? aim - sideOffset * 2 : null,
+      x1: boss.x + Math.cos(aim + sideOffset) * boss.radius,
+      y1: boss.y + Math.sin(aim + sideOffset) * boss.radius,
+      x2: boss.x + Math.cos(aim + sideOffset) * (skill.length || 420),
+      y2: boss.y + Math.sin(aim + sideOffset) * (skill.length || 420),
+      x1b: skill.doubleStrike ? boss.x + Math.cos(aim - sideOffset) * boss.radius : null,
+      y1b: skill.doubleStrike ? boss.y + Math.sin(aim - sideOffset) * boss.radius : null,
+      x2b: skill.doubleStrike ? boss.x + Math.cos(aim - sideOffset) * (skill.length || 420) : null,
+      y2b: skill.doubleStrike ? boss.y + Math.sin(aim - sideOffset) * (skill.length || 420) : null
     };
   }
   if (skill.id === 'arbiterWarGodPressure') {
@@ -122,7 +171,7 @@ function createBossSkillPayload(skill, boss, player) {
 
 function emitBossTelegraph(state, boss, player, skill, payload) {
   const telegraph = Math.max(30, skill.telegraph || 60);
-  const common = { life: telegraph, maxLife: telegraph, color: '#ff4d5f' };
+  const common = { life: telegraph, maxLife: telegraph, color: boss.bossPhase >= 2 ? '#ffd45a' : '#ff4d5f' };
   if (skill.id === 'archerVanguardPierce') {
     emitVisualEffect(state, {
       ...common,
@@ -133,6 +182,17 @@ function emitBossTelegraph(state, boss, player, skill, payload) {
       y2: payload.y2,
       width: skill.width || 48
     });
+    if (skill.doubleStrike) {
+      emitVisualEffect(state, {
+        ...common,
+        type: 'warningLine',
+        x1: payload.x1b,
+        y1: payload.y1b,
+        x2: payload.x2b,
+        y2: payload.y2b,
+        width: skill.width || 48
+      });
+    }
     return;
   }
   if (skill.id === 'deathMark') {
@@ -159,11 +219,19 @@ function resolveBossSkillImpact(state, boss, player, skill, payload) {
   if (player.isDead || player.hp <= 0) return;
   let hit = false;
   if (skill.id === 'archerVanguardPierce') {
-    hit = distancePointToSegment(player.x, player.y, payload.x1, payload.y1, payload.x2, payload.y2) <= (skill.width || 48) / 2 + player.radius * 0.5;
+    const firstHit = distancePointToSegment(player.x, player.y, payload.x1, payload.y1, payload.x2, payload.y2) <= (skill.width || 48) / 2 + player.radius * 0.5;
+    const secondHit = skill.doubleStrike && distancePointToSegment(player.x, player.y, payload.x1b, payload.y1b, payload.x2b, payload.y2b) <= (skill.width || 48) / 2 + player.radius * 0.5;
+    hit = firstHit || secondHit;
     emitVisualEffect(state, { type: 'trail', x1: payload.x1, y1: payload.y1, x2: payload.x2, y2: payload.y2, color: '#ff7a5c', life: 18, maxLife: 18, width: 7, skillId: 'bossPierce' });
+    if (skill.doubleStrike) {
+      emitVisualEffect(state, { type: 'trail', x1: payload.x1b, y1: payload.y1b, x2: payload.x2b, y2: payload.y2b, color: '#ffd45a', life: 20, maxLife: 20, width: 6, skillId: 'bossPierce' });
+    }
   } else if (skill.id === 'deathMark') {
     hit = true;
     emitVisualEffect(state, { type: 'ring', x: player.x, y: player.y, color: '#a56cff', life: 24, maxLife: 24, size: (skill.radius || 72) * 0.8, power: 1.45 });
+    if (skill.shadowFollowUp) {
+      emitVisualEffect(state, { type: 'afterimage', x: player.x - 18, y: player.y + 12, color: '#a56cff', life: 34, maxLife: 34, size: 30 });
+    }
   } else {
     const center = skill.id === 'arbiterWarGodPressure' ? payload : payload;
     hit = distance(player, center) <= (skill.radius || 86) + player.radius;
@@ -174,6 +242,9 @@ function resolveBossSkillImpact(state, boss, player, skill, payload) {
     return;
   }
   applyBossSkillDamage(state, boss, player, skill);
+  if (!player.isDead && skill.shadowFollowUp) {
+    applyBossSkillDamage(state, boss, player, { ...skill, name: '그림자 추격', damageScale: Math.max(0.6, (skill.damageScale || 1.4) * 0.45) });
+  }
 }
 
 function applyBossSkillDamage(state, attacker, defender, skill) {
@@ -540,6 +611,17 @@ function emitKnockbackLine(state, from, to, color = '#ffffff', power = 1) {
   });
 }
 
+
+function updateBossCinematicTimers(state) {
+  const encounter = state.bossEncounter;
+  if (!encounter || encounter.phase !== 'phase2') return;
+  encounter.timer = Math.max(0, (encounter.timer || 0) - 1);
+  if (encounter.timer <= 0) {
+    encounter.phase = 'combat';
+    encounter.timer = 0;
+    encounter.maxTimer = 0;
+  }
+}
 
 function updateCombatEffects(state) {
   if (!state.effects) state.effects = [];

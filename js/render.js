@@ -949,6 +949,18 @@ function drawBossCinematic(ctx, state) {
     ctx.font = '17px system-ui, sans-serif';
     ctx.fillStyle = 'rgba(255,220,226,0.9)';
     ctx.fillText('보스 전용 패턴을 주의하세요', state.arena.centerX, state.arena.centerY + 34);
+  } else if (phase === 'phase2') {
+    ctx.fillStyle = `rgba(0,0,0,${0.18 + progress * 0.18})`;
+    ctx.fillRect(0, 0, state.arena.width, state.arena.height);
+    ctx.font = `900 ${Math.round(32 + inv * 12)}px system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(255,212,90,0.96)';
+    ctx.fillText('PHASE 2', state.arena.centerX, state.arena.centerY - 38);
+    ctx.font = '700 20px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,238,184,0.94)';
+    ctx.fillText(encounter.bossName || 'BOSS', state.arena.centerX, state.arena.centerY + 2);
+    ctx.font = '16px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(238,234,248,0.92)';
+    ctx.fillText(encounter.phaseLine || '보스의 기세가 변했습니다.', state.arena.centerX, state.arena.centerY + 36);
   }
 
   ctx.restore();

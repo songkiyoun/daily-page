@@ -2,7 +2,7 @@
 // 프로젝트의 순수 데이터만 관리합니다.
 // 수정 원칙: 무기·성격·스탯·스킬·층 스케일링 수치 변경은 이 파일에서 직접 수정합니다. 패치 블록을 추가하지 않습니다.
 
-export const VERSION = '0.8.7';
+export const VERSION = '0.8.8';
 
 export const WEAPONS = {
   spear: {
@@ -1074,7 +1074,8 @@ export const BOSS_PROFILES = [
     pattern: '심판의 일격 · 방어 · 반격',
     introLine: '이 탑을 오를 자격이 있는지, 내 검으로 판결하겠다.',
     defeatLine: '좋다. 네 의지는 검보다 단단하군.',
-    bossSkill: { id: 'callonJudgement', name: '심판의 일격', cooldown: 330, telegraph: 64, radius: 82, damageScale: 1.58 }
+    phaseLine: '판결은 아직 끝나지 않았다. 이 일격부터 견뎌 보아라.',
+    bossSkill: { id: 'callonJudgement', name: '심판의 일격', cooldown: 330, telegraph: 64, radius: 82, damageScale: 1.58, phase2: { label: '대심판의 일격', radiusScale: 1.32, damageScaleBonus: 0.16, cooldownScale: 0.7 } }
   },
   {
     id: 'archer',
@@ -1093,7 +1094,8 @@ export const BOSS_PROFILES = [
     pattern: '선봉 관통창 · 거리 유지 · 밀어내기',
     introLine: '선봉은 물러서지 않는다. 네 걸음을 여기서 멈추겠다.',
     defeatLine: '대열이 무너졌군. 다음 길은 네 것이다.',
-    bossSkill: { id: 'archerVanguardPierce', name: '선봉 관통창', cooldown: 305, telegraph: 56, width: 48, length: 420, damageScale: 1.34 }
+    phaseLine: '선봉은 무너지지 않는다. 두 번째 창끝을 받아라.',
+    bossSkill: { id: 'archerVanguardPierce', name: '선봉 관통창', cooldown: 305, telegraph: 56, width: 48, length: 420, damageScale: 1.34, phase2: { label: '선봉 쌍관통창', widthScale: 1.12, lengthScale: 1.08, damageScaleBonus: 0.1, cooldownScale: 0.68, doubleStrike: true } }
   },
   {
     id: 'arbiter',
@@ -1112,7 +1114,8 @@ export const BOSS_PROFILES = [
     pattern: '무신의 검압 · 발도 돌파 · 섬멸',
     introLine: '기억뿐인 몸이라도, 검의 끝은 아직 살아 있다.',
     defeatLine: '무신의 기억을 넘어섰다면, 더 높은 곳을 보아라.',
-    bossSkill: { id: 'arbiterWarGodPressure', name: '무신의 검압', cooldown: 318, telegraph: 60, radius: 118, damageScale: 1.42 }
+    phaseLine: '이제 기억이 아니라, 무신의 잔향을 상대해라.',
+    bossSkill: { id: 'arbiterWarGodPressure', name: '무신의 검압', cooldown: 318, telegraph: 60, radius: 118, damageScale: 1.42, phase2: { label: '무신의 대검압', radiusScale: 1.22, damageScaleBonus: 0.14, cooldownScale: 0.66 } }
   },
   {
     id: 'death',
@@ -1131,7 +1134,8 @@ export const BOSS_PROFILES = [
     pattern: '죽음의 표식 · 암살 · 분신술',
     introLine: '그림자가 닿는 순간, 네 생명은 이미 내 손에 있다.',
     defeatLine: '죽음도 붙잡지 못한 자라... 흥미롭군.',
-    bossSkill: { id: 'deathMark', name: '죽음의 표식', cooldown: 292, telegraph: 88, radius: 72, damageScale: 1.52 }
+    phaseLine: '그림자가 짙어졌다. 이제 표식은 피할 수 없다.',
+    bossSkill: { id: 'deathMark', name: '죽음의 표식', cooldown: 292, telegraph: 88, radius: 72, damageScale: 1.52, phase2: { label: '사신의 표식', radiusScale: 1.18, damageScaleBonus: 0.18, cooldownScale: 0.68, shadowFollowUp: true } }
   }
 ];
 
