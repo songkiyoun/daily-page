@@ -77,6 +77,8 @@ export function normalizeRivalList(source = []) {
         lastSeenFloor: Math.max(0, Math.floor(toNumber(item.lastSeenFloor, item.lastFloor || 0))),
         victoryCount: Math.max(0, Math.floor(toNumber(item.victoryCount, 0))),
         lastEncounterResult: item.lastEncounterResult || '',
+        isResolved: !!item.isResolved,
+        resolvedAt: item.resolvedAt || '',
         note: item.note || ''
       };
     })
@@ -129,6 +131,8 @@ export function registerRivalDefeat(data = {}, enemy = null, floor = 0) {
       lastSeenAt: now,
       lastSeenFloor: safeFloor,
       victoryCount: 0,
+      isResolved: false,
+      resolvedAt: '',
       lastEncounterResult: 'defeat',
       note: ''
     };
@@ -168,7 +172,7 @@ export function getRivalSpawnChance(rival = {}, floor = 0) {
 export function selectRivalForFloor(data = {}, floor = 0) {
   const safeFloor = Math.max(0, Math.floor(toNumber(floor, 0)));
   if (safeFloor < 10 || safeFloor % TOWER_RULES.bossInterval === 0) return null;
-  const rivals = normalizeRivalList(data.rivals || []).filter((rival) => rival.defeatCount > 0);
+  const rivals = normalizeRivalList(data.rivals || []).filter((rival) => rival.defeatCount > 0 && !rival.isResolved);
   if (!rivals.length) return null;
 
   const chance = Math.max(...rivals.map((rival) => getRivalSpawnChance(rival, safeFloor)));
@@ -202,9 +206,11 @@ export function registerRivalEncounter(data = {}, rivalId = '', floor = 0, resul
   rival.lastEncounterResult = result;
   if (result === 'victory') {
     rival.victoryCount = Math.max(0, Math.floor(toNumber(rival.victoryCount, 0))) + 1;
+    rival.isResolved = true;
+    rival.resolvedAt = now;
     rival.note = rival.isNemesis
-      ? '숙적 후보에게 복수했습니다. 추후 숙적 보스화 단계에서 별도 보상으로 연결됩니다.'
-      : '라이벌에게 복수에 성공했습니다. 이후에도 다시 등장할 수 있습니다.';
+      ? '숙적 후보에게 복수했습니다. 활성 라이벌 목록에서는 제외되며, 숙적 보스화 단계에서 별도 기록으로 연결됩니다.'
+      : '라이벌에게 복수에 성공했습니다. 활성 라이벌에서는 제외되어 일반층에 재등장하지 않습니다.';
     next.records.rivalVictories = Math.max(0, Math.floor(toNumber(next.records.rivalVictories, 0))) + 1;
   }
   next.rivals = normalizeRivalList(next.rivals);

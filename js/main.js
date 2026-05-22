@@ -2,7 +2,7 @@
 // 앱 초기화, UI 연결, 단일 게임 루프만 담당합니다.
 // requestAnimationFrame은 이 파일에서만 호출합니다.
 
-import { PERSONALITIES, PLAYER_START_STATS, REWARD_RARITIES, REWARD_TRAITS, SHOP_RULES, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS } from './data.js';
+import { PERSONALITIES, PLAYER_START_STATS, REWARD_RARITIES, REWARD_TRAITS, SHOP_RULES, SKILLS, STAT_LABELS, TOWER_RULES, VERSION, WEAPONS, WEAPON_EVOLUTIONS } from './data.js';
 import {
   applyRewardAndAdvance,
   clonePermanentProgress,
@@ -43,7 +43,7 @@ import {
   renderSoulRoadPanel,
   updateSoulRoadRecords
 } from './features/soulRoad.js';
-import { registerRivalDefeat, registerRivalEncounter, selectRivalForFloor } from './features/rivals.js';
+import { createRivalKey, normalizeRivalList, registerRivalDefeat, registerRivalEncounter, selectRivalForFloor } from './features/rivals.js';
 
 const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
@@ -53,6 +53,7 @@ const controls = {
   contentScreen: document.getElementById('contentScreen'),
   farmScreen: document.getElementById('farmScreen'),
   soulRoadScreen: document.getElementById('soulRoadScreen'),
+  adminBattleTestScreen: document.getElementById('adminBattleTestScreen'),
   prepScreen: document.getElementById('prepScreen'),
   towerScreen: document.getElementById('towerScreen'),
   characterSetupCard: document.getElementById('characterSetupCard'),
@@ -67,6 +68,7 @@ const controls = {
   startBtn: document.getElementById('startBtn'),
   climbBtn: document.getElementById('climbBtn'),
   adminResourceBtn: document.getElementById('adminResourceBtn'),
+  adminBattleTestBtn: document.getElementById('adminBattleTestBtn'),
   simToggleBtn: document.getElementById('simToggleBtn'),
   shopStatusBox: document.getElementById('shopStatusBox'),
   simulatorPanel: document.getElementById('simulatorPanel'),
@@ -108,6 +110,7 @@ const controls = {
   backToContentBtn: document.getElementById('backToContentBtn'),
   farmBackToContentBtn: document.getElementById('farmBackToContentBtn'),
   soulRoadBackToContentBtn: document.getElementById('soulRoadBackToContentBtn'),
+  adminBattleTestBackBtn: document.getElementById('adminBattleTestBackBtn'),
   soulRoadPanel: document.getElementById('soulRoadPanel'),
   farmResourceBox: document.getElementById('farmResourceBox'),
   farmSlotGrid: document.getElementById('farmSlotGrid'),
@@ -232,6 +235,9 @@ function init() {
   controls.farmSlotGrid?.addEventListener('click', handleFarmSlotAction);
   controls.farmSeedBox?.addEventListener('click', handleFarmSeedAction);
   controls.adminResourceBtn?.addEventListener('click', handleAdminResourceAdd);
+  controls.adminBattleTestBtn?.addEventListener('click', showAdminBattleTestScreen);
+  controls.adminBattleTestBackBtn?.addEventListener('click', handleAdminBattleTestBack);
+  controls.adminBattleTestScreen?.addEventListener('click', handleAdminBattleTestSelect);
   controls.startBtn.addEventListener('click', handleMainButton);
   controls.climbBtn.addEventListener('click', startCurrentFloor);
   controls.playerWeapon.addEventListener('change', handleConfigChange);
@@ -704,6 +710,190 @@ function handleAdminResourceAdd() {
   saveTemporarySnapshot('adminResourceAdd');
   autoSaveSafePoint('관리자 재화 추가');
   showAccountMessage('관리자 재화 추가: 골드 +100,000 / 강화석 +100 / 보스의 영혼 +100', 'good');
+}
+
+
+function showAdminBattleTestScreen() {
+  if (!isAdminAccount()) return;
+  hideAllMainScreens();
+  controls.adminBattleTestScreen?.classList.remove('hidden');
+  hideOverlay();
+  saveTemporarySnapshot('adminBattleTestOpen');
+}
+
+function handleAdminBattleTestBack() {
+  saveTemporarySnapshot('adminBattleTestBackToContent');
+  showContentScreen();
+}
+
+function handleAdminBattleTestSelect(event) {
+  const button = event.target.closest('[data-admin-battle-test]');
+  if (!button || !isAdminAccount()) return;
+  startAdminBattleTest(button.dataset.adminBattleTest);
+}
+
+function createAdminTestRunAtFloor(floor) {
+  const resources = getCurrentPersistentResources();
+  const testRun = createRun({
+    ...readConfig(),
+    startingGold: resources.gold,
+    startingEnhancementStone: resources.enhancementStone,
+    startingBossSoul: resources.bossSoul,
+    permanentProgress,
+    profileImageUrl: accountProfile.imageUrl || ''
+  });
+  testRun.floor = Math.max(TOWER_RULES.startFloor, Math.floor(floor || TOWER_RULES.startFloor));
+  testRun.shop.available = false;
+  testRun.shop.enteredTower = true;
+  testRun.adminBattleTest = true;
+  return testRun;
+}
+
+function createAdminRivalRecord(kind = 'win') {
+  const strong = kind === 'lose';
+  const weaponId = strong ? 'dagger' : 'eastern';
+  const personalityId = strong ? 'assassin' : 'balanced';
+  const stageNumber = strong ? 2 : 1;
+  const name = strong ? '관리자 테스트 숙적후보' : '관리자 테스트 라이벌';
+  const now = new Date().toISOString();
+  const key = createRivalKey({ name, weaponId, personalityId, weaponEvolution: stageNumber });
+  const evolution = WEAPON_EVOLUTIONS[weaponId] || [];
+  return {
+    id: key,
+    name,
+    weaponId,
+    weaponName: WEAPONS[weaponId]?.name || '미확인 무기',
+    personalityId,
+    personalityName: PERSONALITIES[personalityId]?.name || '균형형',
+    weaponGrade: strong ? 'rare' : 'common',
+    weaponGradeName: strong ? '희귀' : '일반',
+    weaponStageNumber: stageNumber,
+    weaponStageName: evolution[stageNumber - 1]?.name || `${stageNumber}단계`,
+    weaponEnhancement: strong ? 3 : 0,
+    firstFloor: strong ? 9 : 3,
+    lastFloor: strong ? 9 : 3,
+    defeatCount: strong ? 2 : 1,
+    level: strong ? 4 : 1,
+    isNemesis: false,
+    firstDefeatedAt: now,
+    lastDefeatedAt: now,
+    lastSeenAt: now,
+    lastSeenFloor: strong ? 9 : 3,
+    victoryCount: 0,
+    lastEncounterResult: 'seen',
+    isResolved: false,
+    resolvedAt: '',
+    note: strong
+      ? '관리자 라이벌 패배 테스트용입니다. 이 전투에서 패배하면 숙적 후보 전환을 확인할 수 있습니다.'
+      : '관리자 라이벌 승리 테스트용입니다. 체력 10 고정으로 복수 성공 기록을 확인할 수 있습니다.'
+  };
+}
+
+function ensureAdminTestRival(kind = 'win') {
+  const record = createAdminRivalRecord(kind);
+  const next = {
+    ...soulRoadData,
+    records: { ...(soulRoadData.records || {}) },
+    rivals: normalizeRivalList(soulRoadData.rivals || [])
+  };
+  const index = next.rivals.findIndex((item) => item.id === record.id);
+  if (index >= 0) {
+    next.rivals[index] = { ...next.rivals[index], ...record, victoryCount: next.rivals[index].victoryCount || record.victoryCount, isResolved: false, resolvedAt: '' };
+  } else {
+    next.rivals.push(record);
+  }
+  next.rivals = normalizeRivalList(next.rivals);
+  soulRoadData = next;
+  return next.rivals.find((item) => item.id === record.id) || record;
+}
+
+function createAdminNemesisBossConfig() {
+  const existing = normalizeRivalList(soulRoadData.rivals || []).find((item) => item.isNemesis || item.defeatCount >= 3);
+  const rival = existing || { ...createAdminRivalRecord('lose'), defeatCount: 3, level: 5, isNemesis: true, note: '관리자 숙적 보스 테스트용 임시 숙적입니다.' };
+  const enemy = createRivalEnemyConfig(rival, 50);
+  return {
+    ...enemy,
+    name: `${rival.name || enemy.name} · 숙적화`,
+    bossId: `nemesis-${rival.id || enemy.rivalId || 'admin-test'}`,
+    bossTitle: '숙적 보스',
+    bossDescription: '플레이어를 반복해서 쓰러뜨린 라이벌이 보스화된 테스트 전투입니다.',
+    bossPattern: '원한의 일격 · 추적 · 강화된 라이벌 전투',
+    bossIntroLine: '네가 쓰러진 자리마다, 나는 더 강해졌다.',
+    bossDefeatLine: '이 원한까지 넘어섰다면... 오늘은 네 승리다.',
+    bossPhaseLine: '아직 끝나지 않았다. 이 원한은 쉽게 꺼지지 않는다.',
+    bossSkill: { id: 'callonJudgement', name: '원한의 일격', cooldown: 300, telegraph: 58, radius: 92, damageScale: 1.48, phase2: { label: '숙적의 대일격', radiusScale: 1.25, damageScaleBonus: 0.16, cooldownScale: 0.68 } },
+    bossTuning: { hpScale: 1.12, postureScale: 1.1, attackScale: 1.12, defenseBonus: 0.015, evasionBonus: 0.01, critBonus: 0.02 },
+    weaponGrade: rival.weaponGrade || enemy.weaponGrade || 'rare',
+    weaponEnhancement: Math.max(enemy.weaponEnhancement || 0, rival.weaponEnhancement || 0, 3)
+  };
+}
+
+function startAdminBattleTest(testId = '') {
+  if (!isAdminAccount()) return;
+  const bossFloors = { boss10: 10, boss20: 20, boss30: 30, boss40: 40 };
+  let testRun = null;
+  let enemyConfig = null;
+  let introTitle = 'ADMIN TEST';
+  let introText = '관리자 전투 테스트를 시작합니다.';
+  let isBossTest = false;
+
+  if (testId === 'rivalWin') {
+    const rival = ensureAdminTestRival('win');
+    testRun = createAdminTestRunAtFloor(10);
+    enemyConfig = createRivalEnemyConfig(rival, 10);
+    enemyConfig.stats = { str: 1, vit: 1, def: 1, agi: 1, luck: 1 };
+    enemyConfig.level = 1;
+    enemyConfig.mastery = 0;
+    enemyConfig.weaponEnhancement = 0;
+    introTitle = '라이벌 승리 테스트';
+    introText = '체력 10의 약한 라이벌입니다. 처치 후 영혼의 길에서 복수 성공 기록을 확인합니다.';
+  } else if (testId === 'rivalLose') {
+    const rival = ensureAdminTestRival('lose');
+    testRun = createAdminTestRunAtFloor(10);
+    enemyConfig = createRivalEnemyConfig(rival, 10);
+    enemyConfig.stats = { str: 85, vit: 85, def: 70, agi: 70, luck: 45 };
+    enemyConfig.level = 99;
+    enemyConfig.mastery = 18;
+    enemyConfig.weaponEnhancement = 10;
+    introTitle = '라이벌 패배 테스트';
+    introText = '매우 강한 라이벌입니다. 패배 후 라이벌 레벨 상승과 숙적 후보 전환을 확인합니다.';
+  } else if (testId === 'nemesisBoss') {
+    testRun = createAdminTestRunAtFloor(50);
+    enemyConfig = createAdminNemesisBossConfig();
+    introTitle = '숙적 보스 도전';
+    introText = '숙적 후보 또는 테스트 숙적을 보스화한 전투입니다.';
+    isBossTest = true;
+  } else if (bossFloors[testId]) {
+    testRun = createAdminTestRunAtFloor(bossFloors[testId]);
+    isBossTest = true;
+  }
+
+  if (!testRun) return;
+  run = testRun;
+  state = createBattleState(run, enemyConfig ? { enemyConfig } : {});
+  if (testId === 'rivalWin' && state?.enemy) {
+    state.enemy.hp = 10;
+    state.enemy.maxHp = 10;
+    state.enemy.posture = Math.min(state.enemy.posture || 10, 10);
+    state.enemy.maxPosture = Math.min(state.enemy.maxPosture || 10, 10);
+  }
+  clearPanelKeys();
+  showTowerScreen();
+  render(ctx, state);
+  renderAllPanels(true);
+  updatePauseButton();
+
+  if (isBossTest && state?.bossEncounter) {
+    startBossEncounterSequence();
+  } else if (state?.enemy?.rivalId) {
+    state.eventLocks = { ...(state.eventLocks || {}), rivalIntroSeen: true };
+    soulRoadData = registerRivalEncounter(soulRoadData, state.enemy.rivalId, state.run?.floor || run?.floor || 0, 'seen');
+    showOverlay(introTitle, `${introText}\n\n${state.enemy.name}: “${state.enemy.rivalIntroLine || '다시 만났군.'}”`, '전투 시작', 'startRival');
+    saveTemporarySnapshot(`adminBattleTest-${testId}`);
+  } else {
+    showOverlay(introTitle, introText, '전투 시작', 'start');
+    saveTemporarySnapshot(`adminBattleTest-${testId}`);
+  }
 }
 
 
@@ -1962,8 +2152,9 @@ function updateAccountBadge() {
 }
 
 function updateAdminControls() {
-  if (!controls.adminResourceBtn) return;
-  controls.adminResourceBtn.classList.toggle('hidden', !isAdminAccount());
+  const hidden = !isAdminAccount();
+  controls.adminResourceBtn?.classList.toggle('hidden', hidden);
+  controls.adminBattleTestBtn?.classList.toggle('hidden', hidden);
 }
 
 function setAccountButtonsDisabled(disabled) {
@@ -2094,6 +2285,7 @@ function applySavePayload(payload = {}, { restoreSession = false, showDefaultScr
     if (payload.session.screen === 'tower') showTowerScreen();
     else if (payload.session.screen === 'farm') showFarmScreen();
     else if (payload.session.screen === 'soulRoad') showSoulRoadScreen();
+    else if (payload.session.screen === 'adminBattleTest' && isAdminAccount()) showAdminBattleTestScreen();
     else if (payload.session.screen === 'content') showContentScreen();
     else showPrepScreen();
     return;
@@ -2131,6 +2323,7 @@ function getCurrentScreenName() {
   if (!controls.contentScreen?.classList.contains('hidden')) return 'content';
   if (!controls.farmScreen?.classList.contains('hidden')) return 'farm';
   if (!controls.soulRoadScreen?.classList.contains('hidden')) return 'soulRoad';
+  if (!controls.adminBattleTestScreen?.classList.contains('hidden')) return 'adminBattleTest';
   if (!controls.towerScreen.classList.contains('hidden')) return 'tower';
   return 'prep';
 }
@@ -2889,6 +3082,7 @@ function hideAllMainScreens() {
   controls.towerScreen?.classList.add('hidden');
   controls.farmScreen?.classList.add('hidden');
   controls.soulRoadScreen?.classList.add('hidden');
+  controls.adminBattleTestScreen?.classList.add('hidden');
 }
 
 function showLoginScreen() {

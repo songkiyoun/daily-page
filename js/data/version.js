@@ -1,4 +1,4 @@
 // version.js
-// data.js에서 분리된 순수 데이터 모듈입니다.
+// 빌드 버전을 분리 관리합니다.
 
-export const VERSION = '0.9.2';
+export const VERSION = '0.9.3';

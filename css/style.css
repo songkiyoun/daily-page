@@ -1502,9 +1502,45 @@ input[type="url"] {
   color: var(--good);
 }
 
+
+.admin-battle-test-card {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.admin-test-layout {
+  display: grid;
+  gap: 18px;
+  margin: 18px 0;
+}
+
+.admin-test-section {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.compact-choice-grid {
+  margin-top: 14px;
+}
+
+.boss-test-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.danger-choice {
+  border-color: rgba(255, 93, 108, 0.35);
+}
+
+.danger-choice:hover {
+  border-color: rgba(255, 93, 108, 0.7);
+}
+
 @media (max-width: 800px) {
   .content-choice-grid,
-  .farm-placeholder-grid {
+  .farm-placeholder-grid,
+  .boss-test-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1918,6 +1954,41 @@ input[type="url"] {
 
 .soul-road-line-card.muted {
   opacity: 0.78;
+}
+
+
+.admin-battle-test-card {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.admin-test-layout {
+  display: grid;
+  gap: 18px;
+  margin: 18px 0;
+}
+
+.admin-test-section {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.compact-choice-grid {
+  margin-top: 14px;
+}
+
+.boss-test-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.danger-choice {
+  border-color: rgba(255, 93, 108, 0.35);
+}
+
+.danger-choice:hover {
+  border-color: rgba(255, 93, 108, 0.7);
 }
 
 @media (max-width: 800px) {
