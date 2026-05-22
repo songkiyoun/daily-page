@@ -43,7 +43,7 @@ import {
   renderSoulRoadPanel,
   updateSoulRoadRecords
 } from './features/soulRoad.js';
-import { createRivalKey, normalizeRivalList, registerRivalDefeat, registerRivalEncounter, selectRivalForFloor } from './features/rivals.js';
+import { createRivalKey, normalizeRivalList, registerRivalDefeat, registerRivalEncounter, selectActiveNemesisForBoss, selectRivalForFloor } from './features/rivals.js';
 
 const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
@@ -311,6 +311,10 @@ function readAdminTestConfig() {
 function createBattleStateWithRivalCandidate(activeRun) {
   if (!activeRun) return null;
   const floor = Math.max(TOWER_RULES.startFloor, Math.floor(activeRun.floor || TOWER_RULES.startFloor));
+  const activeNemesis = selectActiveNemesisForBoss(soulRoadData, floor);
+  if (activeNemesis) {
+    return createBattleState(activeRun, { enemyConfig: createNemesisBossConfig(activeNemesis, floor) });
+  }
   const rival = selectRivalForFloor(soulRoadData, floor);
   if (!rival) return createBattleState(activeRun);
   return createBattleState(activeRun, { enemyConfig: createRivalEnemyConfig(rival, floor) });
@@ -710,10 +714,19 @@ function handleSoulRoadBackToContent() {
 
 function handleSoulRoadTabClick(event) {
   const button = event.target.closest('.soul-road-tab');
-  if (!button) return;
+  if (!button || !controls.soulRoadPanel?.contains(button)) return;
+  event.preventDefault();
+  event.stopPropagation();
   activeSoulRoadTab = button.dataset.soulRoadTab || 'bossCodex';
   renderSoulRoadScreen(true);
   saveTemporarySnapshot('soulRoadTab');
+}
+
+function bindSoulRoadTabButtons() {
+  if (!controls.soulRoadPanel) return;
+  controls.soulRoadPanel.querySelectorAll('.soul-road-tab').forEach((button) => {
+    button.onclick = (event) => handleSoulRoadTabClick(event);
+  });
 }
 
 function handleAdminResourceAdd() {
@@ -864,6 +877,27 @@ function ensureAdminTestRival(kind = 'win') {
   return next.rivals.find((item) => item.id === record.id) || record;
 }
 
+function createNemesisBossConfig(rival = {}, floor = 50) {
+  const safeFloor = Math.max(50, Math.floor(floor || 50));
+  const enemy = createRivalEnemyConfig(rival, safeFloor);
+  const weaponName = rival.weaponName || enemy.weaponName || '미확인 무기';
+  return {
+    ...enemy,
+    name: `${rival.name || enemy.name} · 숙적화`,
+    bossId: `nemesis-${rival.id || enemy.rivalId || 'unknown'}`,
+    bossTitle: '숙적 보스',
+    bossDescription: `${weaponName} 계열 라이벌이 숙적으로 각성한 개인 보스입니다.`,
+    bossPattern: '원한의 일격 · 추적 · 강화된 라이벌 전투',
+    bossIntroLine: rival.nemesisIntroLine || '네가 쓰러진 자리마다, 나는 더 강해졌다.',
+    bossDefeatLine: rival.nemesisDefeatLine || '이 원한까지 넘어섰다면... 오늘은 네 승리다.',
+    bossPhaseLine: rival.nemesisPhaseLine || '아직 끝나지 않았다. 이 원한은 쉽게 꺼지지 않는다.',
+    bossSkill: { id: 'callonJudgement', name: '원한의 일격', cooldown: 300, telegraph: 58, radius: 92, damageScale: 1.48, phase2: { label: '숙적의 대일격', radiusScale: 1.25, damageScaleBonus: 0.16, cooldownScale: 0.68 } },
+    bossTuning: { hpScale: 1.12, postureScale: 1.1, attackScale: 1.12, defenseBonus: 0.015, evasionBonus: 0.01, critBonus: 0.02 },
+    weaponGrade: rival.weaponGrade || enemy.weaponGrade || 'rare',
+    weaponEnhancement: Math.max(enemy.weaponEnhancement || 0, rival.weaponEnhancement || 0, 3)
+  };
+}
+
 function createAdminNemesisBossConfig() {
   let existing = normalizeRivalList(soulRoadData.rivals || []).find((item) => item.isNemesis && item.nemesisState !== 'sealed');
   if (!existing) {
@@ -889,23 +923,9 @@ function createAdminNemesisBossConfig() {
     }
   }
   const rival = existing || { ...createAdminRivalRecord('lose'), defeatCount: 3, level: 5, isNemesis: true, nemesisState: 'active', nemesisTitle: '활성 숙적', note: '관리자 숙적 보스 테스트용 임시 숙적입니다.' };
-  const enemy = createRivalEnemyConfig(rival, 50);
-  return {
-    ...enemy,
-    name: `${rival.name || enemy.name} · 숙적화`,
-    bossId: `nemesis-${rival.id || enemy.rivalId || 'admin-test'}`,
-    bossTitle: '숙적 보스',
-    bossDescription: '플레이어를 반복해서 쓰러뜨린 라이벌이 보스화된 테스트 전투입니다.',
-    bossPattern: '원한의 일격 · 추적 · 강화된 라이벌 전투',
-    bossIntroLine: '네가 쓰러진 자리마다, 나는 더 강해졌다.',
-    bossDefeatLine: '이 원한까지 넘어섰다면... 오늘은 네 승리다.',
-    bossPhaseLine: '아직 끝나지 않았다. 이 원한은 쉽게 꺼지지 않는다.',
-    bossSkill: { id: 'callonJudgement', name: '원한의 일격', cooldown: 300, telegraph: 58, radius: 92, damageScale: 1.48, phase2: { label: '숙적의 대일격', radiusScale: 1.25, damageScaleBonus: 0.16, cooldownScale: 0.68 } },
-    bossTuning: { hpScale: 1.12, postureScale: 1.1, attackScale: 1.12, defenseBonus: 0.015, evasionBonus: 0.01, critBonus: 0.02 },
-    weaponGrade: rival.weaponGrade || enemy.weaponGrade || 'rare',
-    weaponEnhancement: Math.max(enemy.weaponEnhancement || 0, rival.weaponEnhancement || 0, 3)
-  };
+  return createNemesisBossConfig(rival, 50);
 }
+
 function startAdminBattleTest(testId = '') {
   if (!isAdminAccount()) return;
   const bossFloors = { boss10: 10, boss20: 20, boss30: 30, boss40: 40 };
@@ -1211,6 +1231,7 @@ function renderSoulRoadScreen(force = false) {
   if (!force && !visible) return;
   soulRoadData = updateSoulRoadRecords(soulRoadData, run);
   renderSoulRoadPanel(controls.soulRoadPanel, soulRoadData, activeSoulRoadTab);
+  bindSoulRoadTabButtons();
 }
 
 function handleFarmSlotAction(event) {
@@ -3210,9 +3231,10 @@ function showSoulRoadScreen() {
     state.paused = false;
   }
   hideAllMainScreens();
-  controls.soulRoadScreen?.classList.remove('hidden');
   hideOverlay();
   activeSoulRoadTab = activeSoulRoadTab || 'bossCodex';
+  controls.soulRoadScreen?.classList.remove('hidden');
+  clearPanelKeys();
   renderSoulRoadScreen(true);
   saveTemporarySnapshot('soulRoadOpen');
 }

@@ -2014,3 +2014,21 @@ input[type="url"] {
   width: 100%;
   margin-top: 10px;
 }
+
+
+/* v0.9.9: 영혼의 길 내부 탭 클릭 안정화 */
+.soul-road-panel,
+.soul-road-tabs,
+.soul-road-tab {
+  pointer-events: auto;
+}
+
+.soul-road-tabs {
+  position: relative;
+  z-index: 3;
+}
+
+.soul-road-tab {
+  position: relative;
+  z-index: 4;
+}

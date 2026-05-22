@@ -226,6 +226,32 @@ export function selectRivalForFloor(data = {}, floor = 0) {
   return weighted[0]?.rival || null;
 }
 
+
+
+export function selectActiveNemesisForBoss(data = {}, floor = 0) {
+  const safeFloor = Math.max(0, Math.floor(toNumber(floor, 0)));
+  if (safeFloor < 50 || safeFloor % TOWER_RULES.bossInterval !== 0) return null;
+  const nemeses = normalizeRivalList(data.rivals || []).filter((rival) => (
+    rival.isNemesis &&
+    rival.nemesisState === 'active' &&
+    !rival.isSealed &&
+    !rival.isResolved
+  ));
+  if (!nemeses.length) return null;
+
+  const weighted = nemeses.map((rival) => ({
+    rival,
+    weight: 6 + Math.max(0, rival.level || 1) + Math.max(0, rival.defeatCount || 0) * 3
+  }));
+  const total = weighted.reduce((sum, item) => sum + item.weight, 0);
+  let roll = Math.random() * total;
+  for (const item of weighted) {
+    roll -= item.weight;
+    if (roll <= 0) return item.rival;
+  }
+  return weighted[0]?.rival || null;
+}
+
 export function registerRivalEncounter(data = {}, rivalId = '', floor = 0, result = 'seen') {
   if (!rivalId) return data;
   const next = {
