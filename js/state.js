@@ -1609,11 +1609,11 @@ export function createRivalEnemyConfig(rival = {}, floor = TOWER_RULES.startFloo
   return {
     name: rival.name || '라이벌',
     rivalId: rival.id || null,
-    rivalTitle: rival.isNemesis ? '숙적 후보' : '라이벌',
+    rivalTitle: rival.isNemesis ? (rival.nemesisState === 'sealed' ? '봉인된 숙적' : '활성 숙적') : '라이벌',
     rivalLevel,
     rivalDefeatCount: Math.max(0, Math.floor(rival.defeatCount || 0)),
     rivalIntroLine: rival.isNemesis
-      ? '이번에도 네 길을 막겠다. 이제 물러설 곳은 없다.'
+      ? '이제 나는 단순한 라이벌이 아니다. 네 길 끝에서 기다리겠다.'
       : '다시 만났군. 이번에도 쉽게 지나가진 못할 것이다.',
     weaponId,
     personalityId,

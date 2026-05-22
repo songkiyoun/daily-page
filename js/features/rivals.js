@@ -1,6 +1,6 @@
 // features/rivals.js
 // 라이벌/숙적 기록을 관리합니다.
-// v0.9.2에서는 라이벌 등록, 재등장, 처치/패배 갱신을 담당합니다.
+// v0.9.5에서는 숙적 승격, 봉인, 라이벌/숙적 기록 갱신까지 담당합니다.
 
 import { TOWER_RULES, WEAPONS, PERSONALITIES, WEAPON_GRADES, WEAPON_EVOLUTIONS } from '../data.js';
 
@@ -37,6 +37,20 @@ function getGradeName(gradeId) {
   return WEAPON_GRADES.find((item) => item.id === gradeId)?.name || '일반';
 }
 
+function getNemesisState(item = {}, defeatCount = 0) {
+  if (item.nemesisState) return item.nemesisState;
+  if (item.isSealed) return 'sealed';
+  if (item.isResolved && (item.isNemesis || defeatCount >= 3)) return 'sealed';
+  if (item.isNemesis || defeatCount >= 3) return 'active';
+  return 'none';
+}
+
+function getNemesisTitle(state = 'none') {
+  if (state === 'sealed') return '봉인된 숙적';
+  if (state === 'active') return '활성 숙적';
+  return '라이벌';
+}
+
 export function createRivalKey(enemy = {}) {
   return [
     sanitizeId(enemy.name),
@@ -70,14 +84,20 @@ export function normalizeRivalList(source = []) {
         lastFloor: Math.max(0, Math.floor(toNumber(item.lastFloor, item.firstFloor || 0))),
         defeatCount,
         level,
-        isNemesis: !!item.isNemesis || defeatCount >= 3,
+        isNemesis: getNemesisState(item, defeatCount) !== 'none',
+        nemesisState: getNemesisState(item, defeatCount),
+        nemesisTitle: getNemesisTitle(getNemesisState(item, defeatCount)),
+        nemesisPromotedAt: item.nemesisPromotedAt || '',
+        nemesisSealedAt: item.nemesisSealedAt || item.resolvedAt || '',
         firstDefeatedAt: item.firstDefeatedAt || '',
         lastDefeatedAt: item.lastDefeatedAt || '',
         lastSeenAt: item.lastSeenAt || '',
         lastSeenFloor: Math.max(0, Math.floor(toNumber(item.lastSeenFloor, item.lastFloor || 0))),
         victoryCount: Math.max(0, Math.floor(toNumber(item.victoryCount, 0))),
+        nemesisClearCount: Math.max(0, Math.floor(toNumber(item.nemesisClearCount, 0))),
         lastEncounterResult: item.lastEncounterResult || '',
-        isResolved: !!item.isResolved,
+        isResolved: !!item.isResolved || getNemesisState(item, defeatCount) === 'sealed',
+        isSealed: !!item.isSealed || getNemesisState(item, defeatCount) === 'sealed',
         resolvedAt: item.resolvedAt || '',
         note: item.note || ''
       };
@@ -126,6 +146,12 @@ export function registerRivalDefeat(data = {}, enemy = null, floor = 0) {
       defeatCount: 0,
       level: 1,
       isNemesis: false,
+      nemesisState: 'none',
+      nemesisTitle: '라이벌',
+      nemesisPromotedAt: '',
+      nemesisSealedAt: '',
+      isSealed: false,
+      nemesisClearCount: 0,
       firstDefeatedAt: now,
       lastDefeatedAt: now,
       lastSeenAt: now,
@@ -148,14 +174,23 @@ export function registerRivalDefeat(data = {}, enemy = null, floor = 0) {
   rival.lastEncounterResult = 'defeat';
   if (!rival.firstDefeatedAt) rival.firstDefeatedAt = now;
   if (!rival.firstFloor) rival.firstFloor = safeFloor;
-  rival.isNemesis = rival.defeatCount >= 3;
-  rival.note = rival.isNemesis
-    ? '3회 이상 패배하여 숙적 후보로 기록되었습니다. 추후 50층 이후 보스 후보가 됩니다.'
-    : '일반층에서 플레이어를 쓰러뜨린 라이벌입니다.';
+  if (rival.defeatCount >= 3) {
+    rival.isNemesis = true;
+    rival.nemesisState = rival.nemesisState === 'sealed' ? 'sealed' : 'active';
+    rival.nemesisTitle = getNemesisTitle(rival.nemesisState);
+    if (!rival.nemesisPromotedAt) rival.nemesisPromotedAt = now;
+    rival.note = '3회 이상 패배하여 활성 숙적으로 승격되었습니다. 50층 이후 숙적 보스 후보가 됩니다.';
+  } else {
+    rival.isNemesis = false;
+    rival.nemesisState = 'none';
+    rival.nemesisTitle = '라이벌';
+    rival.note = '일반층에서 플레이어를 쓰러뜨린 라이벌입니다.';
+  }
 
   next.rivals = normalizeRivalList(next.rivals).slice(0, 24);
   next.records.rivalDefeats = Math.max(0, Math.floor(toNumber(next.records.rivalDefeats, 0))) + 1;
-  next.records.nemesisCount = next.rivals.filter((item) => item.isNemesis).length;
+  next.records.nemesisCount = next.rivals.filter((item) => item.isNemesis && item.nemesisState !== 'sealed').length;
+  next.records.sealedNemesisCount = next.rivals.filter((item) => item.nemesisState === 'sealed' || item.isSealed).length;
   next.records.bestFloor = Math.max(Math.floor(toNumber(next.records.bestFloor, TOWER_RULES.startFloor)), safeFloor);
   return next;
 }
@@ -172,7 +207,7 @@ export function getRivalSpawnChance(rival = {}, floor = 0) {
 export function selectRivalForFloor(data = {}, floor = 0) {
   const safeFloor = Math.max(0, Math.floor(toNumber(floor, 0)));
   if (safeFloor < 10 || safeFloor % TOWER_RULES.bossInterval === 0) return null;
-  const rivals = normalizeRivalList(data.rivals || []).filter((rival) => rival.defeatCount > 0 && !rival.isResolved);
+  const rivals = normalizeRivalList(data.rivals || []).filter((rival) => rival.defeatCount > 0 && !rival.isResolved && !rival.isNemesis);
   if (!rivals.length) return null;
 
   const chance = Math.max(...rivals.map((rival) => getRivalSpawnChance(rival, safeFloor)));
@@ -204,15 +239,26 @@ export function registerRivalEncounter(data = {}, rivalId = '', floor = 0, resul
   rival.lastSeenAt = now;
   rival.lastSeenFloor = Math.max(0, Math.floor(toNumber(floor, 0)));
   rival.lastEncounterResult = result;
-  if (result === 'victory') {
+  if (result === 'victory' || result === 'nemesisVictory') {
     rival.victoryCount = Math.max(0, Math.floor(toNumber(rival.victoryCount, 0))) + 1;
     rival.isResolved = true;
     rival.resolvedAt = now;
-    rival.note = rival.isNemesis
-      ? '숙적 후보에게 복수했습니다. 활성 라이벌 목록에서는 제외되며, 숙적 보스화 단계에서 별도 기록으로 연결됩니다.'
-      : '라이벌에게 복수에 성공했습니다. 활성 라이벌에서는 제외되어 일반층에 재등장하지 않습니다.';
+    if (rival.isNemesis || result === 'nemesisVictory') {
+      rival.isNemesis = true;
+      rival.isSealed = true;
+      rival.nemesisState = 'sealed';
+      rival.nemesisTitle = '봉인된 숙적';
+      rival.nemesisSealedAt = now;
+      rival.nemesisClearCount = Math.max(0, Math.floor(toNumber(rival.nemesisClearCount, 0))) + 1;
+      rival.note = '숙적 보스를 토벌하여 봉인했습니다. 더 이상 일반 라이벌로 재등장하지 않고, 숙적 기록에 보존됩니다.';
+      next.records.nemesisSealed = Math.max(0, Math.floor(toNumber(next.records.nemesisSealed, 0))) + 1;
+    } else {
+      rival.note = '라이벌에게 복수에 성공했습니다. 활성 라이벌에서는 제외되어 일반층에 재등장하지 않습니다.';
+    }
     next.records.rivalVictories = Math.max(0, Math.floor(toNumber(next.records.rivalVictories, 0))) + 1;
   }
   next.rivals = normalizeRivalList(next.rivals);
+  next.records.nemesisCount = next.rivals.filter((item) => item.isNemesis && item.nemesisState !== 'sealed').length;
+  next.records.sealedNemesisCount = next.rivals.filter((item) => item.nemesisState === 'sealed' || item.isSealed).length;
   return next;
 }

@@ -807,7 +807,13 @@ function createAdminRivalRecord(kind = 'win') {
     lastFloor: strong ? 9 : 3,
     defeatCount: 0,
     level: strong ? 3 : 1,
-    isNemesis: false,
+    isNemesis: strong,
+    nemesisState: strong ? 'active' : 'none',
+    nemesisTitle: strong ? '활성 숙적' : '라이벌',
+    nemesisPromotedAt: strong ? now : '',
+    nemesisSealedAt: '',
+    isSealed: false,
+    nemesisClearCount: 0,
     firstDefeatedAt: now,
     lastDefeatedAt: now,
     lastSeenAt: now,
@@ -839,6 +845,12 @@ function ensureAdminTestRival(kind = 'win') {
       level: Math.max(existing.level || 1, record.level || 1),
       victoryCount: existing.victoryCount || record.victoryCount || 0,
       isNemesis: !!existing.isNemesis || !!record.isNemesis || (existing.defeatCount || 0) >= 3,
+      nemesisState: existing.nemesisState || record.nemesisState || ((existing.defeatCount || 0) >= 3 ? 'active' : 'none'),
+      nemesisTitle: existing.nemesisTitle || record.nemesisTitle || ((existing.defeatCount || 0) >= 3 ? '활성 숙적' : '라이벌'),
+      nemesisPromotedAt: existing.nemesisPromotedAt || record.nemesisPromotedAt || '',
+      nemesisSealedAt: existing.nemesisSealedAt || record.nemesisSealedAt || '',
+      isSealed: !!existing.isSealed || !!record.isSealed,
+      nemesisClearCount: existing.nemesisClearCount || record.nemesisClearCount || 0,
       firstDefeatedAt: existing.firstDefeatedAt || record.firstDefeatedAt,
       lastDefeatedAt: existing.lastDefeatedAt || record.lastDefeatedAt,
       isResolved: false,
@@ -853,8 +865,30 @@ function ensureAdminTestRival(kind = 'win') {
 }
 
 function createAdminNemesisBossConfig() {
-  const existing = normalizeRivalList(soulRoadData.rivals || []).find((item) => item.isNemesis || item.defeatCount >= 3);
-  const rival = existing || { ...createAdminRivalRecord('lose'), defeatCount: 3, level: 5, isNemesis: true, note: '관리자 숙적 보스 테스트용 임시 숙적입니다.' };
+  let existing = normalizeRivalList(soulRoadData.rivals || []).find((item) => item.isNemesis && item.nemesisState !== 'sealed');
+  if (!existing) {
+    const seeded = ensureAdminTestRival('lose');
+    const next = {
+      ...soulRoadData,
+      records: { ...(soulRoadData.records || {}) },
+      rivals: normalizeRivalList(soulRoadData.rivals || [])
+    };
+    const target = next.rivals.find((item) => item.id === seeded.id);
+    if (target) {
+      const now = new Date().toISOString();
+      target.defeatCount = Math.max(3, target.defeatCount || 0);
+      target.level = Math.max(5, target.level || 1);
+      target.isNemesis = true;
+      target.nemesisState = 'active';
+      target.nemesisTitle = '활성 숙적';
+      target.nemesisPromotedAt = target.nemesisPromotedAt || now;
+      target.note = '관리자 숙적 보스 테스트용 활성 숙적입니다.';
+      next.records.nemesisCount = next.rivals.filter((item) => item.isNemesis && item.nemesisState !== 'sealed').length;
+      soulRoadData = next;
+      existing = target;
+    }
+  }
+  const rival = existing || { ...createAdminRivalRecord('lose'), defeatCount: 3, level: 5, isNemesis: true, nemesisState: 'active', nemesisTitle: '활성 숙적', note: '관리자 숙적 보스 테스트용 임시 숙적입니다.' };
   const enemy = createRivalEnemyConfig(rival, 50);
   return {
     ...enemy,
@@ -872,7 +906,6 @@ function createAdminNemesisBossConfig() {
     weaponEnhancement: Math.max(enemy.weaponEnhancement || 0, rival.weaponEnhancement || 0, 3)
   };
 }
-
 function startAdminBattleTest(testId = '') {
   if (!isAdminAccount()) return;
   const bossFloors = { boss10: 10, boss20: 20, boss30: 30, boss40: 40 };
@@ -906,7 +939,7 @@ function startAdminBattleTest(testId = '') {
     testRun = createAdminTestRunAtFloor(50);
     enemyConfig = createAdminNemesisBossConfig();
     introTitle = '숙적 보스 도전';
-    introText = '숙적 후보 또는 테스트 숙적을 보스화한 전투입니다.';
+    introText = '활성 숙적을 보스화한 전투입니다. 승리 시 봉인된 숙적으로 기록됩니다.';
     isBossTest = true;
   } else if (bossFloors[testId]) {
     testRun = createAdminTestRunAtFloor(bossFloors[testId]);
@@ -3045,7 +3078,8 @@ function renderResultIfNeeded() {
       soulRoadData = recordBossEncounter(soulRoadData, clearedEnemy, clearedFloor, 'victory');
     }
     if (clearedEnemy?.rivalId) {
-      soulRoadData = registerRivalEncounter(soulRoadData, clearedEnemy.rivalId, clearedFloor, 'victory');
+      const rivalResult = clearedEnemy.bossId && String(clearedEnemy.bossId).startsWith('nemesis-') ? 'nemesisVictory' : 'victory';
+      soulRoadData = registerRivalEncounter(soulRoadData, clearedEnemy.rivalId, clearedFloor, rivalResult);
     }
     soulRoadData = updateSoulRoadRecords(soulRoadData, state.run);
     const nextFloor = state.run.floor + 1;

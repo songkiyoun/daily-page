@@ -9,7 +9,8 @@ export const SOUL_ROAD_TABS = [
   { id: 'bossCodex', name: '보스 도감', description: '만난 보스와 처치 기록을 확인합니다.' },
   { id: 'clearRecords', name: '클리어 기록', description: '도전과 층 등반 기록을 확인합니다.' },
   { id: 'achievements', name: '업적', description: '달성한 업적과 앞으로 열릴 목표를 확인합니다.' },
-  { id: 'rivals', name: '라이벌 기록', description: '일반층에서 나를 쓰러뜨린 라이벌과 숙적 후보를 확인합니다.' }
+  { id: 'rivals', name: '라이벌 기록', description: '일반층에서 나를 쓰러뜨린 라이벌을 확인합니다.' },
+  { id: 'nemesis', name: '숙적 기록', description: '활성 숙적과 봉인된 숙적을 확인합니다.' }
 ];
 
 const DEFAULT_ACHIEVEMENTS = [
@@ -55,6 +56,9 @@ function normalizeBossCodex(source = {}) {
 
 export function normalizeSoulRoadData(source = {}) {
   const recordsSource = source.records || {};
+  const rivals = normalizeRivalList(source.rivals || []);
+  const activeNemesisCount = rivals.filter((item) => item.isNemesis && item.nemesisState !== 'sealed').length;
+  const sealedNemesisCount = rivals.filter((item) => item.nemesisState === 'sealed' || item.isSealed).length;
   return {
     bossCodex: normalizeBossCodex(source.bossCodex || {}),
     records: {
@@ -64,10 +68,11 @@ export function normalizeSoulRoadData(source = {}) {
       highestBossFloor: Math.max(0, Math.floor(toNumber(recordsSource.highestBossFloor, 0))),
       totalChallenges: Math.max(0, Math.floor(toNumber(recordsSource.totalChallenges, 0))),
       rivalDefeats: Math.max(0, Math.floor(toNumber(recordsSource.rivalDefeats, 0))),
-      nemesisCount: Math.max(0, Math.floor(toNumber(recordsSource.nemesisCount, 0)))
+      nemesisCount: rivals.length ? activeNemesisCount : Math.max(0, Math.floor(toNumber(recordsSource.nemesisCount, 0))),
+      sealedNemesisCount: rivals.length ? sealedNemesisCount : Math.max(0, Math.floor(toNumber(recordsSource.sealedNemesisCount ?? recordsSource.nemesisSealed, 0)))
     },
     achievements: { ...(source.achievements || {}) },
-    rivals: normalizeRivalList(source.rivals || []),
+    rivals,
     roadmap: {
       rivalSystemPlanned: true,
       nemesisBossFloorStart: 50,
@@ -80,7 +85,6 @@ export function normalizeSoulRoadData(source = {}) {
     }
   };
 }
-
 export function cloneSoulRoadData(data) {
   return normalizeSoulRoadData(clone(data));
 }
@@ -169,7 +173,8 @@ function renderClearRecords(data) {
       <div><span>보스 처치</span><strong>${records.bossClears || 0}회</strong></div>
       <div><span>최고 보스층</span><strong>${records.highestBossFloor || '-'}${records.highestBossFloor ? '층' : ''}</strong></div>
       <div><span>도전 시작</span><strong>${records.totalChallenges || 0}회</strong></div>
-      <div><span>숙적 등록</span><strong>${records.nemesisCount || 0}명</strong></div>
+      <div><span>활성 숙적</span><strong>${records.nemesisCount || 0}명</strong></div>
+      <div><span>봉인된 숙적</span><strong>${records.sealedNemesisCount || 0}명</strong></div>
     </div>
   `;
 }
@@ -188,7 +193,7 @@ function renderAchievements(data) {
 }
 
 function renderRivals(data) {
-  const rivals = normalizeRivalList(data.rivals || []);
+  const rivals = normalizeRivalList(data.rivals || []).filter((rival) => !rival.isNemesis);
   const notes = data.roadmap?.notes || [];
   if (!rivals.length) {
     return `
@@ -197,7 +202,7 @@ function renderRivals(data) {
           <strong>아직 등록된 라이벌이 없습니다.</strong>
           <span>보스층이 아닌 일반층에서 적에게 쓰러지면, 해당 적이 라이벌로 기록됩니다.</span>
         </article>
-        ${notes.map((note) => `<article class="soul-road-line-card muted"><span>${escapeHtml(note)}</span></article>`).join('')}
+        ${notes.slice(0, 2).map((note) => `<article class="soul-road-line-card muted"><span>${escapeHtml(note)}</span></article>`).join('')}
       </div>
     `;
   }
@@ -205,8 +210,8 @@ function renderRivals(data) {
   return `
     <div class="soul-road-line-list">
       ${rivals.map((rival) => `
-        <article class="soul-road-line-card ${rival.isResolved ? 'is-cleared' : (rival.isNemesis ? 'is-cleared' : '')}">
-          <strong>${escapeHtml(rival.isResolved ? '복수 완료' : (rival.isNemesis ? '숙적 후보' : '라이벌'))} · ${escapeHtml(rival.name)} Lv.${rival.level}</strong>
+        <article class="soul-road-line-card ${rival.isResolved ? 'is-cleared' : ''}">
+          <strong>${escapeHtml(rival.isResolved ? '복수 완료' : '라이벌')} · ${escapeHtml(rival.name)} Lv.${rival.level}</strong>
           <span>${escapeHtml(rival.weaponName)} / ${escapeHtml(rival.personalityName)} / ${escapeHtml(rival.weaponGradeName)} / ${escapeHtml(rival.weaponStageName)} +${rival.weaponEnhancement}</span>
           <small>${escapeHtml(`${rival.defeatCount}회 패배 · ${rival.victoryCount || 0}회 복수 · 최초 ${rival.firstFloor || '-'}층 · 최근 패배 ${rival.lastFloor || '-'}층`)}</small>
           <small>${escapeHtml(rival.isResolved ? `복수 완료 · 활성 라이벌 제외` : (rival.lastSeenFloor ? `최근 조우 ${rival.lastSeenFloor}층 · ${rival.lastEncounterResult === 'victory' ? '복수 성공' : rival.lastEncounterResult === 'defeat' ? '패배' : '조우'}` : '아직 재등장 기록 없음'))}</small>
@@ -214,8 +219,48 @@ function renderRivals(data) {
         </article>
       `).join('')}
       <article class="soul-road-line-card muted">
-        <strong>다음 확장 예정</strong>
-        <span>활성 라이벌은 10층 이상 일반층에서 랜덤 재등장하며, 복수에 성공하면 활성 목록에서 제외됩니다. 숙적은 50층 이후 보스 후보가 됩니다.</span>
+        <strong>라이벌 규칙</strong>
+        <span>활성 라이벌은 10층 이상 일반층에서 랜덤 재등장하며, 복수에 성공하면 활성 목록에서 제외됩니다. 같은 라이벌에게 3회 이상 패배하면 숙적 기록으로 넘어갑니다.</span>
+      </article>
+    </div>
+  `;
+}
+
+function renderNemesis(data) {
+  const nemeses = normalizeRivalList(data.rivals || []).filter((rival) => rival.isNemesis);
+  if (!nemeses.length) {
+    return `
+      <div class="soul-road-line-list">
+        <article class="soul-road-line-card">
+          <strong>아직 숙적이 없습니다.</strong>
+          <span>같은 라이벌에게 3회 이상 패배하면 활성 숙적으로 승격됩니다.</span>
+        </article>
+        <article class="soul-road-line-card muted">
+          <strong>예정 흐름</strong>
+          <span>활성 숙적은 50층 이후 보스 후보가 되며, 토벌 후에는 봉인된 숙적으로 기록됩니다.</span>
+        </article>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="soul-road-line-list">
+      ${nemeses.map((rival) => {
+        const sealed = rival.nemesisState === 'sealed' || rival.isSealed || rival.isResolved;
+        const title = sealed ? '봉인된 숙적' : '활성 숙적';
+        return `
+          <article class="soul-road-line-card ${sealed ? 'is-cleared' : 'is-seen'}">
+            <strong>${escapeHtml(title)} · ${escapeHtml(rival.name)} Lv.${rival.level}</strong>
+            <span>${escapeHtml(rival.weaponName)} / ${escapeHtml(rival.personalityName)} / ${escapeHtml(rival.weaponGradeName)} / ${escapeHtml(rival.weaponStageName)} +${rival.weaponEnhancement}</span>
+            <small>${escapeHtml(`${rival.defeatCount}회 패배 · ${rival.victoryCount || 0}회 복수 · 숙적 토벌 ${rival.nemesisClearCount || 0}회`)}</small>
+            <small>${escapeHtml(sealed ? '봉인 완료 · 50층 이후 숙적 보스 후보에서 제외' : '50층 이후 숙적 보스 후보 · 보스화 대기')}</small>
+            ${rival.note ? `<small>${escapeHtml(rival.note)}</small>` : ''}
+          </article>
+        `;
+      }).join('')}
+      <article class="soul-road-line-card muted">
+        <strong>숙적 규칙</strong>
+        <span>숙적은 일반 라이벌처럼 사라지지 않고, 보스화와 봉인 기록으로 이어지는 개인 서사 콘텐츠입니다.</span>
       </article>
     </div>
   `;
@@ -228,6 +273,7 @@ export function renderSoulRoadPanel(container, data = {}, activeTab = 'bossCodex
   if (activeTab === 'clearRecords') body = renderClearRecords(normalized);
   else if (activeTab === 'achievements') body = renderAchievements(normalized);
   else if (activeTab === 'rivals') body = renderRivals(normalized);
+  else if (activeTab === 'nemesis') body = renderNemesis(normalized);
   else body = renderBossCodex(normalized);
 
   container.innerHTML = `
