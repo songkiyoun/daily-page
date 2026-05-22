@@ -42,6 +42,7 @@ import {
   renderSoulRoadPanel,
   updateSoulRoadRecords
 } from './features/soulRoad.js';
+import { registerRivalDefeat } from './features/rivals.js';
 
 const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
@@ -2790,6 +2791,12 @@ function renderResultIfNeeded() {
     renderAllPanels(true);
     saveTemporarySnapshot(isBossClear ? 'bossDefeatLinePending' : 'victoryRewardPending');
   } else if (state.result === 'defeat') {
+    const defeatedFloor = state.run?.floor || run?.floor || 0;
+    const defeatedBy = state.enemy ? JSON.parse(JSON.stringify(state.enemy)) : null;
+    if (defeatedBy && !defeatedBy.bossId && defeatedFloor % TOWER_RULES.bossInterval !== 0) {
+      soulRoadData = registerRivalDefeat(soulRoadData, defeatedBy, defeatedFloor);
+    }
+    soulRoadData = updateSoulRoadRecords(soulRoadData, state.run);
     syncBankFromRun();
     showChallengeEndOverlay('도전 종료', `${state.run.floor}층에서 쓰러졌습니다.`);
     renderAllPanels(true);
