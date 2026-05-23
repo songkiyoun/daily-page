@@ -1,4 +1,2 @@
-// data/version.js
-// 빌드 버전을 분리 관리합니다.
-
-export const VERSION = '1.0.4';
+export const VERSION = '1.0.5';
+export const BUILD_LABEL = 'Circle Battle Tower Rebuild v1.0.5';

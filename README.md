@@ -1,4 +1,4 @@
-# v1.0.4
+# v1.0.5
 
 ## 업데이트 요약
 - Google Spreadsheet 저장용 Apps Script 파일을 추가했습니다.
@@ -12,14 +12,14 @@
 - 계정 생성 후 `Accounts` 탭에 계정과 `saveDataJson`이 생성되는지 확인하세요.
 - 저장 이벤트 후 `Resources`, `BossCodex`, `Rivals`, `Nemeses`, `Inventory` 등 탭에 데이터가 반영되는지 확인하세요.
 
-# v1.0.4
+# v1.0.5
 
 - Google Spreadsheet 탭 저장 구조를 프론트엔드 저장 요청에 맞춰 정리했습니다.
 - 새 모듈 `js/data/saveSchema.js`와 `js/features/spreadsheetSave.js`를 추가했습니다.
 - 기존 `saveData` 저장은 유지하면서, `sheetData.tabs` 형태로 `Accounts`, `Characters`, `Resources`, `Progress`, `Weapons`, `Heirlooms`, `SoulEngraving`, `Farm`, `BossCodex`, `ClearRecords`, `Achievements`, `Rivals`, `Nemeses`, `Inventory`, `SystemLog` 탭 데이터를 함께 전송합니다.
 - `SPREADSHEET_SCHEMA.md`에 권장 탭명과 저장 요청 형태를 정리했습니다.
 - 실제 탭별 기록 처리는 Apps Script 확장이 필요하므로, 이번 ZIP에는 `google-apps-script` 폴더를 포함하지 않았습니다.
-- `VERSION`과 캐시버스트 값을 v1.0.4로 통일했습니다.
+- `VERSION`과 캐시버스트 값을 v1.0.5로 통일했습니다.
 
 ## v1.0.0 - 보상 시스템 정리 및 원한덩어리 추가
 
