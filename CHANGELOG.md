@@ -1,3 +1,9 @@
+# v1.0.3
+
+- Apps Script Web App URL을 `js/config.js`에 직접 반영했습니다.
+- `index.html`, 캐시버스트, `VERSION` 값을 v1.0.3으로 통일했습니다.
+- 로그인 시 URL 미설정 안내가 뜨는 문제를 방지하기 위해 기본 URL을 포함했습니다.
+
 # v1.0.2
 
 - Google Spreadsheet 저장용 Apps Script 파일을 추가했습니다.

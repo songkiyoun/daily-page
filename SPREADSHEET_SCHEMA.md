@@ -1,4 +1,4 @@
-# Circle Battle Tower Rebuild - Google Spreadsheet 저장 구조 v1.0.2
+# Circle Battle Tower Rebuild - Google Spreadsheet 저장 구조 v1.0.3
 
 현재 게임은 `localStorage`를 임시 캐시로 사용하고, 로그인 계정 저장 요청에는 `saveData`와 함께 `sheetData`를 전송합니다. Apps Script가 `sheetData.tabs`를 처리하도록 확장되면 아래 탭 구조로 계정별 데이터가 분리 저장됩니다.
 
@@ -34,7 +34,7 @@
 {
   "action": "save",
   "app": "circle-battle-tower-rebuild",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "id": "player01",
   "pw": "****",
   "saveData": {},
@@ -66,9 +66,9 @@
 
 Apps Script가 아직 `sheetData`를 처리하지 않아도 기존 `saveData` 저장 방식은 유지됩니다.
 
-## v1.0.2 Apps Script 저장 연동 메모
+## v1.0.3 Apps Script 저장 연동 메모
 
-v1.0.2부터 `google-apps-script/Code.gs`가 포함됩니다.
+v1.0.3부터 `google-apps-script/Code.gs`가 포함됩니다.
 사용자는 스프레드시트에 바인딩된 Apps Script에 해당 코드를 붙여넣고 웹 앱으로 배포한 뒤, 발급된 Web App URL을 `js/config.js`에 입력합니다.
 
 ### Accounts 탭 필수/자동 컬럼
