@@ -192,7 +192,7 @@ let activeSoulRoadTab = 'bossCodex';
 let state = null;
 let run = null;
 let bankGold = null;
-let bankInventory = { gold: null, enhancementStone: 0, bossSoul: 0 };
+let bankInventory = { gold: null, enhancementStone: 0, bossSoul: 0, grudgeMass: 0 };
 let permanentProgress = createPermanentProgress();
 let activePrepTab = 'shop';
 let activeHeirloomWeapon = 'western';
@@ -330,6 +330,7 @@ function startNewRun() {
     startingGold,
     startingEnhancementStone: bankInventory.enhancementStone || 0,
     startingBossSoul: bankInventory.bossSoul || 0,
+    startingGrudgeMass: bankInventory.grudgeMass || 0,
     permanentProgress,
     profileImageUrl: accountProfile.imageUrl || ''
   });
@@ -476,8 +477,9 @@ function showBossRewardOverlay() {
   if (!state || state.result !== 'victory') return;
   const bossDeathLine = state.enemy?.bossDefeatLine ? `${state.enemy.name}: “${state.enemy.bossDefeatLine}”
 ` : '';
-  const bossClearMessage = `${bossDeathLine}기본보상 : 레벨 및 숙련도 +1, 스텟포인트+5, 보스영혼, 강화석을 얻었습니다.
-일반 보상과 보스 전용 보상을 각각 선택 후, 다음층으로 이동합니다.`;
+  const extraRewardLine = [state.run?.lastNemesisRewardMessage, state.run?.lastRivalRewardMessage].filter(Boolean).join('\n');
+  const extraRewardText = extraRewardLine ? `${extraRewardLine}\n` : '';
+  const bossClearMessage = `${bossDeathLine}${extraRewardText}기본보상 : 레벨 및 숙련도 +1, 스텟포인트+5, 보스영혼, 강화석을 얻었습니다.\n일반 보상과 보스 전용 보상을 각각 선택 후, 다음층으로 이동합니다.`;
   showOverlay('BOSS CLEAR', bossClearMessage, '', 'waitReward', { hideButton: true, keepRewards: true });
   renderRewardBox(true);
 }
@@ -488,7 +490,8 @@ function syncBankFromRun() {
   bankInventory = {
     gold: inventory.gold,
     enhancementStone: inventory.enhancementStone,
-    bossSoul: inventory.bossSoul
+    bossSoul: inventory.bossSoul,
+    grudgeMass: inventory.grudgeMass
   };
   bankGold = inventory.gold;
   if (run.permanentProgress) permanentProgress = clonePermanentProgress(run.permanentProgress);
@@ -633,6 +636,7 @@ function handleSoulEngravingPurchase(itemId) {
     run.player.gold = bankInventory.gold;
     run.player.enhancementStone = bankInventory.enhancementStone;
     run.player.bossSoul = bankInventory.bossSoul;
+    run.player.grudgeMass = bankInventory.grudgeMass;
     run.permanentProgress = clonePermanentProgress(permanentProgress);
     applyPermanentProgressToPlayer(run.player, permanentProgress);
     if (result.ok && result.itemId === 'startStatPoint' && isPreTowerShopAvailable(run)) {
@@ -660,6 +664,7 @@ function handleHeirloomUpgrade(upgradeType) {
     run.player.gold = bankInventory.gold;
     run.player.enhancementStone = bankInventory.enhancementStone;
     run.player.bossSoul = bankInventory.bossSoul;
+    run.player.grudgeMass = bankInventory.grudgeMass;
     run.permanentProgress = clonePermanentProgress(permanentProgress);
     applyPermanentProgressToPlayer(run.player, permanentProgress);
 
@@ -735,7 +740,8 @@ function handleAdminResourceAdd() {
   bankInventory = {
     gold: resources.gold + 100000,
     enhancementStone: resources.enhancementStone + 100,
-    bossSoul: resources.bossSoul + 100
+    bossSoul: resources.bossSoul + 100,
+    grudgeMass: resources.grudgeMass + 100
   };
   bankGold = bankInventory.gold;
 
@@ -743,6 +749,7 @@ function handleAdminResourceAdd() {
     run.player.gold = bankInventory.gold;
     run.player.enhancementStone = bankInventory.enhancementStone;
     run.player.bossSoul = bankInventory.bossSoul;
+    run.player.grudgeMass = bankInventory.grudgeMass;
     refreshPlayerUnit(state);
   }
 
@@ -781,6 +788,7 @@ function createAdminTestRunAtFloor(floor) {
     startingGold: resources.gold,
     startingEnhancementStone: resources.enhancementStone,
     startingBossSoul: resources.bossSoul,
+    startingGrudgeMass: resources.grudgeMass,
     permanentProgress,
     profileImageUrl: accountProfile.imageUrl || ''
   });
@@ -1147,6 +1155,7 @@ function renderFarmPanel(force = false) {
     <span>${getItemIcon('gold')} 골드 <strong>${resources.gold}G</strong></span>
     <span>${getItemIcon('enhancementStone')} 강화석 <strong>${resources.enhancementStone}</strong></span>
     <span>${getItemIcon('bossSoul')} 보스의 영혼 <strong>${resources.bossSoul}</strong></span>
+    <span>${getItemIcon('grudgeMass')} 원한덩어리 <strong>${resources.grudgeMass}</strong></span>
   `;
 
   controls.farmSlotGrid.innerHTML = accountFarm.slots.map((slot) => {
@@ -1278,20 +1287,23 @@ function exchangeFarmCrop(exchangeId) {
   bankInventory = {
     gold: resources.gold + Math.max(0, Math.floor(reward.gold || 0)),
     enhancementStone: resources.enhancementStone + Math.max(0, Math.floor(reward.enhancementStone || 0)),
-    bossSoul: resources.bossSoul + Math.max(0, Math.floor(reward.bossSoul || 0))
+    bossSoul: resources.bossSoul + Math.max(0, Math.floor(reward.bossSoul || 0)),
+    grudgeMass: resources.grudgeMass + Math.max(0, Math.floor(reward.grudgeMass || 0))
   };
   bankGold = bankInventory.gold;
   if (run?.player) {
     run.player.gold = bankInventory.gold;
     run.player.enhancementStone = bankInventory.enhancementStone;
     run.player.bossSoul = bankInventory.bossSoul;
+    run.player.grudgeMass = bankInventory.grudgeMass;
   }
   accountFarm.updatedAt = new Date().toISOString();
 
   const rewardText = [
     reward.gold ? `골드 +${reward.gold}` : '',
     reward.enhancementStone ? `강화석 +${reward.enhancementStone}` : '',
-    reward.bossSoul ? `보스의 영혼 +${reward.bossSoul}` : ''
+    reward.bossSoul ? `보스의 영혼 +${reward.bossSoul}` : '',
+    reward.grudgeMass ? `원한덩어리 +${reward.grudgeMass}` : ''
   ].filter(Boolean).join(' / ');
   persistFarmChange(`${exchange.name} 완료: ${rewardText}`);
 }
@@ -1352,13 +1364,15 @@ function harvestFarmSlot(slotIndex) {
   bankInventory = {
     gold: resources.gold + Math.max(0, Math.floor(reward.gold || 0)),
     enhancementStone: resources.enhancementStone + Math.max(0, Math.floor(reward.enhancementStone || 0)),
-    bossSoul: resources.bossSoul + Math.max(0, Math.floor(reward.bossSoul || 0))
+    bossSoul: resources.bossSoul + Math.max(0, Math.floor(reward.bossSoul || 0)),
+    grudgeMass: resources.grudgeMass + Math.max(0, Math.floor(reward.grudgeMass || 0))
   };
   bankGold = bankInventory.gold;
   if (run?.player) {
     run.player.gold = bankInventory.gold;
     run.player.enhancementStone = bankInventory.enhancementStone;
     run.player.bossSoul = bankInventory.bossSoul;
+    run.player.grudgeMass = bankInventory.grudgeMass;
   }
   Object.entries(reward.seeds || {}).forEach(([seedId, amount]) => {
     accountFarm.inventory.seeds[seedId] = (accountFarm.inventory.seeds[seedId] || 0) + Math.max(0, Math.floor(amount || 0));
@@ -2348,13 +2362,15 @@ function getCurrentPersistentResources() {
     return {
       gold: inventory.gold,
       enhancementStone: inventory.enhancementStone,
-      bossSoul: inventory.bossSoul
+      bossSoul: inventory.bossSoul,
+      grudgeMass: inventory.grudgeMass
     };
   }
   return {
     gold: Number.isFinite(bankInventory.gold) ? Math.max(0, Math.floor(bankInventory.gold)) : SHOP_RULES.initialGold,
     enhancementStone: Math.max(0, Math.floor(bankInventory.enhancementStone || 0)),
-    bossSoul: Math.max(0, Math.floor(bankInventory.bossSoul || 0))
+    bossSoul: Math.max(0, Math.floor(bankInventory.bossSoul || 0)),
+    grudgeMass: Math.max(0, Math.floor(bankInventory.grudgeMass || 0))
   };
 }
 
@@ -2363,7 +2379,8 @@ function applySavePayload(payload = {}, { restoreSession = false, showDefaultScr
   bankInventory = {
     gold: Number.isFinite(resources.gold) ? Math.max(0, Math.floor(resources.gold)) : SHOP_RULES.initialGold,
     enhancementStone: Math.max(0, Math.floor(resources.enhancementStone || 0)),
-    bossSoul: Math.max(0, Math.floor(resources.bossSoul || 0))
+    bossSoul: Math.max(0, Math.floor(resources.bossSoul || 0)),
+    grudgeMass: Math.max(0, Math.floor(resources.grudgeMass || 0))
   };
   bankGold = bankInventory.gold;
   permanentProgress = clonePermanentProgress(payload.permanentProgress || {});
@@ -2663,12 +2680,14 @@ function getItemIcon(itemId, extraClass = '') {
   const itemFile = {
     gold: 'item_gold.png',
     enhancementStone: 'item_enhancement_stone.png',
-    bossSoul: 'item_boss_soul.png'
+    bossSoul: 'item_boss_soul.png',
+    grudgeMass: 'item_grudge_mass.png'
   };
   const fallbackIcon = {
     gold: 'G',
     enhancementStone: '◆',
-    bossSoul: '魂'
+    bossSoul: '魂',
+    grudgeMass: '怨'
   };
   const fileName = itemFile[itemId];
   const fallback = fallbackIcon[itemId] || '•';
@@ -2729,7 +2748,8 @@ function renderInventory(force = false) {
     inventory.mastery,
     inventory.gold,
     inventory.enhancementStone,
-    inventory.bossSoul
+    inventory.bossSoul,
+    inventory.grudgeMass
   ].join('|');
   if (!force && panelKeys.inventory === key) return;
   panelKeys.inventory = key;
@@ -2747,6 +2767,7 @@ function renderInventory(force = false) {
       <div><span>${getItemIcon('gold', 'small')} 골드</span><strong>${inventory.gold}G</strong></div>
       <div><span>${getItemIcon('enhancementStone', 'small')} 강화석</span><strong>${inventory.enhancementStone}</strong></div>
       <div><span>${getItemIcon('bossSoul', 'small')} 보스의 영혼</span><strong>${inventory.bossSoul}</strong></div>
+      <div><span>${getItemIcon('grudgeMass', 'small')} 원한덩어리</span><strong>${inventory.grudgeMass}</strong></div>
     </div>
   `;
 }
@@ -2758,15 +2779,17 @@ function renderShopStatus(force = false) {
     : {
       gold: Number.isFinite(bankInventory.gold) ? bankInventory.gold : SHOP_RULES.initialGold,
       enhancementStone: bankInventory.enhancementStone || 0,
-      bossSoul: bankInventory.bossSoul || 0
+      bossSoul: bankInventory.bossSoul || 0,
+      grudgeMass: bankInventory.grudgeMass || 0
     };
-  const key = [resources.gold, resources.enhancementStone, resources.bossSoul, run?.lastRewardLog || ''].join('|');
+  const key = [resources.gold, resources.enhancementStone, resources.bossSoul, resources.grudgeMass, run?.lastRewardLog || ''].join('|');
   if (!force && controls.shopStatusBox.dataset.key === key) return;
   controls.shopStatusBox.dataset.key = key;
   controls.shopStatusBox.innerHTML = `
     <span><small>${getItemIcon('gold', 'small')} 골드</small><strong>${resources.gold}G</strong></span>
     <span><small>${getItemIcon('enhancementStone', 'small')} 강화석</small><strong>${resources.enhancementStone}</strong></span>
     <span><small>${getItemIcon('bossSoul', 'small')} 보스의 영혼</small><strong>${resources.bossSoul}</strong></span>
+    <span><small>${getItemIcon('grudgeMass', 'small')} 원한덩어리</small><strong>${resources.grudgeMass}</strong></span>
   `;
 }
 
@@ -2850,7 +2873,8 @@ function renderSoulEngravingBox(force = false, message = '') {
     : {
       gold: Number.isFinite(bankInventory.gold) ? bankInventory.gold : SHOP_RULES.initialGold,
       enhancementStone: bankInventory.enhancementStone || 0,
-      bossSoul: bankInventory.bossSoul || 0
+      bossSoul: bankInventory.bossSoul || 0,
+      grudgeMass: bankInventory.grudgeMass || 0
     };
   const offers = getSoulEngravingOffers(permanentProgress, resources);
   const key = ['soul', resources.gold, message, offers.map((item) => `${item.id}:${item.level}:${item.price}:${item.disabled}`).join('|')].join('|');
@@ -3109,7 +3133,9 @@ function renderResultIfNeeded() {
 ` : '';
     const goldText = state.run.victoryGoldMessage ? `${state.run.victoryGoldMessage}
 ` : '';
-    const normalClearMessage = `${levelText}${goldText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`;
+    const rivalRewardText = state.run.lastRivalRewardMessage ? `${state.run.lastRivalRewardMessage}\n` : '';
+    const nemesisRewardText = state.run.lastNemesisRewardMessage ? `${state.run.lastNemesisRewardMessage}\n` : '';
+    const normalClearMessage = `${levelText}${goldText}${rivalRewardText}${nemesisRewardText}${state.run.floor}층을 클리어했습니다. 보상을 하나 선택하면 ${nextFloor}층으로 이동합니다.`;
     const bossDeathLine = state.enemy.bossDefeatLine ? `${state.enemy.name}: “${state.enemy.bossDefeatLine}”` : '보스가 쓰러졌습니다.';
     panelKeys.player = '';
     panelKeys.tower = '';
@@ -3161,13 +3187,14 @@ function buildChallengeEndDetails() {
       <div><span>획득 골드</span><strong>${run.challenge?.earnedGold || 0}G</strong></div>
       <div><span>획득 강화석</span><strong>${run.challenge?.earnedEnhancementStone || 0}</strong></div>
       <div><span>획득 보스의 영혼</span><strong>${run.challenge?.earnedBossSoul || 0}</strong></div>
+      <div><span>획득 원한덩어리</span><strong>${run.challenge?.earnedGrudgeMass || 0}</strong></div>
     </div>
     <div class="challenge-weapon-summary">
       <span>${getWeaponIcon(inventory.weaponId, inventory.weaponStageNumber, 'small')}</span>
       <strong>${inventory.weaponName} +${inventory.weaponEnhancement}</strong>
       <em>${inventory.weaponGrade} · ${inventory.weaponStage}</em>
     </div>
-    <p class="challenge-reset-note">골드, 강화석, 보스의 영혼은 유지됩니다. 도전 중 성장 효과는 초기화되며, 영혼의 각인과 가보는 영구적으로 유지됩니다.</p>
+    <p class="challenge-reset-note">골드, 강화석, 보스의 영혼, 원한덩어리는 유지됩니다. 도전 중 성장 효과는 초기화되며, 영혼의 각인과 가보는 영구적으로 유지됩니다.</p>
   `;
 }
 

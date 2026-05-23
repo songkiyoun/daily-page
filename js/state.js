@@ -505,14 +505,16 @@ function getWeaponEvolutionOptions(weaponId) {
 }
 
 function ensurePlayerResources(player) {
-  if (!player) return { gold: 0, enhancementStone: 0, bossSoul: 0 };
+  if (!player) return { gold: 0, enhancementStone: 0, bossSoul: 0, grudgeMass: 0 };
   player.gold = Math.max(0, Math.floor(player.gold || 0));
   player.enhancementStone = Math.max(0, Math.floor(player.enhancementStone || 0));
   player.bossSoul = Math.max(0, Math.floor(player.bossSoul || 0));
+  player.grudgeMass = Math.max(0, Math.floor(player.grudgeMass || 0));
   return {
     gold: player.gold,
     enhancementStone: player.enhancementStone,
-    bossSoul: player.bossSoul
+    bossSoul: player.bossSoul,
+    grudgeMass: player.grudgeMass
   };
 }
 
@@ -1033,9 +1035,11 @@ export function createRun(config) {
       startGold: Number.isFinite(config.startingGold) ? Math.max(0, Math.floor(config.startingGold)) : SHOP_RULES.initialGold,
       startEnhancementStone: Number.isFinite(config.startingEnhancementStone) ? Math.max(0, Math.floor(config.startingEnhancementStone)) : 0,
       startBossSoul: Number.isFinite(config.startingBossSoul) ? Math.max(0, Math.floor(config.startingBossSoul)) : 0,
+      startGrudgeMass: Number.isFinite(config.startingGrudgeMass) ? Math.max(0, Math.floor(config.startingGrudgeMass)) : 0,
       earnedGold: 0,
       earnedEnhancementStone: 0,
-      earnedBossSoul: 0
+      earnedBossSoul: 0,
+      earnedGrudgeMass: 0
     },
     shop: {
       available: true,
@@ -1056,6 +1060,7 @@ export function createRun(config) {
       gold: Number.isFinite(config.startingGold) ? Math.max(0, Math.floor(config.startingGold)) : SHOP_RULES.initialGold,
       enhancementStone: Number.isFinite(config.startingEnhancementStone) ? Math.max(0, Math.floor(config.startingEnhancementStone)) : 0,
       bossSoul: Number.isFinite(config.startingBossSoul) ? Math.max(0, Math.floor(config.startingBossSoul)) : 0,
+      grudgeMass: Number.isFinite(config.startingGrudgeMass) ? Math.max(0, Math.floor(config.startingGrudgeMass)) : 0,
       statPoints: PLAYER_START_STAT_POINTS + permanentEffects.startStatPointBonus,
       stats: { ...PLAYER_START_STATS },
       permanentProgress: clonePermanentProgress(permanentProgress),
@@ -1177,6 +1182,23 @@ export function completeFloorVictory(state) {
   if (isBossFloor) {
     run.lastBossRewardMessage = grantBossClearRewards(run);
     run.pendingBossRewards = createBossRewardChoices(run);
+  }
+
+  run.lastRivalRewardMessage = '';
+  run.lastNemesisRewardMessage = '';
+  const defeatedEnemy = state.enemy || null;
+  if (defeatedEnemy?.rivalId) {
+    if (defeatedEnemy.bossId && String(defeatedEnemy.bossId).startsWith('nemesis-')) {
+      const grudgeAmount = Math.max(1, Math.min(3, Math.ceil((defeatedEnemy.rivalLevel || 1) / 3)));
+      run.player.grudgeMass = (run.player.grudgeMass || 0) + grudgeAmount;
+      if (run.challenge) run.challenge.earnedGrudgeMass = (run.challenge.earnedGrudgeMass || 0) + grudgeAmount;
+      run.lastNemesisRewardMessage = `숙적 토벌 보상 · 원한덩어리 +${grudgeAmount}`;
+    } else {
+      const stoneAmount = Math.max(1, Math.min(5, Math.ceil((defeatedEnemy.rivalLevel || 1) / 2)));
+      run.player.enhancementStone = (run.player.enhancementStone || 0) + stoneAmount;
+      if (run.challenge) run.challenge.earnedEnhancementStone = (run.challenge.earnedEnhancementStone || 0) + stoneAmount;
+      run.lastRivalRewardMessage = `라이벌 복수 보상 · 강화석 +${stoneAmount}`;
+    }
   }
 
   const baseExpGain = REWARD_RULES.baseExp + run.floor * REWARD_RULES.expPerFloor;
@@ -2038,7 +2060,14 @@ function createHeroReward(run) {
   }
 
   Object.values(REWARD_TRAITS)
-    .filter((trait) => trait.rarity === 'hero' && !run.player.rewardTraits?.includes(trait.id))
+    .filter((trait) => {
+      if (trait.rarity !== 'hero' || run.player.rewardTraits?.includes(trait.id)) return false;
+      if (trait.id === 'personalityReinforcement') {
+        const boostLevel = run.player.shopBoosts?.personalityBoostLevel || 0;
+        return boostLevel < (SHOP_RULES.personalityBoostMaxLevel || 3);
+      }
+      return true;
+    })
     .forEach((trait) => {
       pool.push({
         id: `hero-trait-${trait.id}`,
@@ -2306,6 +2335,12 @@ function applyReward(run, reward) {
     player.bossSoul += reward.amount;
     if (run.challenge) run.challenge.earnedBossSoul = (run.challenge.earnedBossSoul || 0) + reward.amount;
     run.lastRewardLog = `보스의 영혼 +${reward.amount}`;
+  }
+
+  if (reward.type === 'grudgeMass') {
+    player.grudgeMass = (player.grudgeMass || 0) + reward.amount;
+    if (run.challenge) run.challenge.earnedGrudgeMass = (run.challenge.earnedGrudgeMass || 0) + reward.amount;
+    run.lastRewardLog = `원한덩어리 +${reward.amount}`;
   }
 
   if (reward.type === 'bossJackpot') {

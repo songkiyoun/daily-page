@@ -29,3 +29,4 @@
 - item_gold.png
 - item_enhancement_stone.png
 - item_boss_soul.png
+- item_grudge_mass.png : 원한덩어리 아이콘
