@@ -1,3 +1,21 @@
+# v1.0.2
+
+- Google Spreadsheet 저장용 Apps Script 파일을 추가했습니다.
+- `google-apps-script/Code.gs`를 포함했습니다.
+- `js/config.js`에 Apps Script Web App URL을 입력하는 구조로 분리했습니다.
+- `Accounts` 탭의 `saveDataJson`으로 로그인 복원을 지원합니다.
+- 각 탭의 기존 계정 데이터를 교체 저장하고 `SystemLog`는 누적 기록으로 남기도록 구성했습니다.
+- `VERSION`, `index.html`, CSS/JS 캐시버스트를 v1.0.2로 통일했습니다.
+
+# v1.0.2
+
+- Google Spreadsheet 탭 저장 구조를 프론트엔드 저장 요청에 맞춰 정리했습니다.
+- 새 모듈 `js/data/saveSchema.js`와 `js/features/spreadsheetSave.js`를 추가했습니다.
+- 기존 `saveData` 저장은 유지하면서, `sheetData.tabs` 형태로 `Accounts`, `Characters`, `Resources`, `Progress`, `Weapons`, `Heirlooms`, `SoulEngraving`, `Farm`, `BossCodex`, `ClearRecords`, `Achievements`, `Rivals`, `Nemeses`, `Inventory`, `SystemLog` 탭 데이터를 함께 전송합니다.
+- `SPREADSHEET_SCHEMA.md`에 권장 탭명과 저장 요청 형태를 정리했습니다.
+- 실제 탭별 기록 처리는 Apps Script 확장이 필요하므로, 이번 ZIP에는 `google-apps-script` 폴더를 포함하지 않았습니다.
+- `VERSION`과 캐시버스트 값을 v1.0.2로 통일했습니다.
+
 # v1.0.0
 
 - 성격 강화 최대 단계 보상 후보 제외.

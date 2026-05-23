@@ -44,6 +44,7 @@ import {
   updateSoulRoadRecords
 } from './features/soulRoad.js';
 import { createRivalKey, normalizeRivalList, registerRivalDefeat, registerRivalEncounter, selectActiveNemesisForBoss, selectRivalForFloor } from './features/rivals.js';
+import { buildSpreadsheetSyncPayload, SAVE_SCHEMA_VERSION } from './features/spreadsheetSave.js';
 
 const canvas = document.getElementById('arena');
 const ctx = canvas.getContext('2d');
@@ -124,9 +125,9 @@ const controls = {
   accountMessage: document.getElementById('accountMessage')
 };
 
-const SAVE_SCHEMA_VERSION = 1;
 const LOCAL_TEMP_SAVE_KEY = 'circleBattleTowerRebuild.tempSave.v1';
-const CLOUD_SAVE_API_URL = 'https://script.google.com/macros/s/AKfycbyWV1AKwISvdbzBC8-mP4ze-GAy_z5YIZoxpoi__YXCFsKQULafCs7E4M-urFR1P5Ym8g/exec';
+const DEFAULT_CLOUD_SAVE_API_URL = '';
+const CLOUD_SAVE_API_URL = (window.CBT_CLOUD_SAVE_API_URL || DEFAULT_CLOUD_SAVE_API_URL || '').trim();
 
 const FARM_SLOT_COUNT = 6;
 const FARM_STARTER_SEED_COUNT = 3;
@@ -758,7 +759,7 @@ function handleAdminResourceAdd() {
   renderAllPanels(true);
   saveTemporarySnapshot('adminResourceAdd');
   autoSaveSafePoint('관리자 재화 추가');
-  showAccountMessage('관리자 재화 추가: 골드 +100,000 / 강화석 +100 / 보스의 영혼 +100', 'good');
+  showAccountMessage('관리자 재화 추가: 골드 +100,000 / 강화석 +100 / 보스의 영혼 +100 / 원한덩어리 +100', 'good');
 }
 
 
@@ -2287,16 +2288,26 @@ function showAccountMessage(message, type = '') {
 
 async function requestCloudSave(action, payload = {}) {
   const endpoint = payload.endpoint || account.endpoint || CLOUD_SAVE_API_URL;
-  if (!endpoint) throw new Error('저장 서버 URL이 없습니다.');
+  if (!endpoint || endpoint.includes('PASTE_YOUR_APPS_SCRIPT')) throw new Error('Apps Script Web App URL이 설정되지 않았습니다. js/config.js에 배포 URL을 입력하세요.');
+  const outboundPayload = {
+    action,
+    app: 'circle-battle-tower-rebuild',
+    version: VERSION,
+    ...payload
+  };
+  if (outboundPayload.saveData && !outboundPayload.sheetData) {
+    outboundPayload.sheetData = buildSpreadsheetSyncPayload(outboundPayload.saveData, {
+      action,
+      accountId: outboundPayload.id || account.id || outboundPayload.saveData?.account?.id,
+      role: account.role,
+      mode: account.mode,
+      version: VERSION
+    });
+  }
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      action,
-      app: 'circle-battle-tower-rebuild',
-      version: VERSION,
-      ...payload
-    })
+    body: JSON.stringify(outboundPayload)
   });
   if (!response.ok) throw new Error(`스프레드시트 요청 실패: ${response.status}`);
   return response.json();
@@ -2315,6 +2326,7 @@ function createEmptySavePayload(reason = 'empty') {
     version: VERSION,
     savedAt: new Date().toISOString(),
     reason,
+    storageMode: 'sheetData-v2-with-local-cache',
     resources: getCurrentPersistentResources(),
     permanentProgress: clonePermanentProgress(permanentProgress),
     farmData: normalizeFarmData(accountFarm),
