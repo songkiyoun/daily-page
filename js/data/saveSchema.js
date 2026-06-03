@@ -1,7 +1,7 @@
 // saveSchema.js
 // Google Spreadsheet 탭 구조와 저장 스키마 이름을 한곳에서 관리합니다.
 
-export const SAVE_SCHEMA_VERSION = 2;
+export const SAVE_SCHEMA_VERSION = 3;
 
 export const SPREADSHEET_TABS = [
   { id: 'Accounts', description: '계정 ID, 권한, 마지막 저장 시점' },
@@ -22,6 +22,24 @@ export const SPREADSHEET_TABS = [
 ];
 
 export const SPREADSHEET_TAB_NAMES = SPREADSHEET_TABS.map((tab) => tab.id);
+
+export const SPREADSHEET_TAB_HEADERS = {
+  Accounts: ['accountId', 'username', 'passwordHash', 'role', 'mode', 'version', 'schemaVersion', 'createdAt', 'updatedAt', 'lastLoginAt', 'saveDataJson'],
+  Characters: ['accountId', 'profileImageUrl', 'weaponId', 'personalityId', 'level', 'statPoints', 'raw', 'updatedAt'],
+  Resources: ['accountId', 'resourceKey', 'amount', 'updatedAt'],
+  Progress: ['accountId', 'bestFloor', 'totalVictories', 'bossClears', 'totalChallenges', 'activeNemesisCount', 'sealedNemesisCount', 'updatedAt'],
+  Weapons: ['accountId', 'weaponId', 'weaponGrade', 'weaponEvolution', 'weaponStageName', 'weaponEnhancement', 'mastery', 'updatedAt'],
+  Heirlooms: ['accountId', 'weaponId', 'weaponGrade', 'weaponEvolution', 'enhancementLevel', 'updatedAt'],
+  SoulEngraving: ['accountId', 'engravingId', 'level', 'updatedAt'],
+  Farm: ['accountId', 'slotIndex', 'cropId', 'plantedAt', 'wateredAt', 'harvestedAt', 'state', 'raw', 'updatedAt'],
+  BossCodex: ['accountId', 'bossId', 'name', 'seen', 'defeated', 'defeatCount', 'firstSeenFloor', 'firstDefeatedFloor', 'lastSeenAt', 'lastDefeatedAt', 'updatedAt'],
+  ClearRecords: ['accountId', 'raw', 'updatedAt'],
+  Achievements: ['accountId', 'achievementId', 'achieved', 'raw', 'updatedAt'],
+  Rivals: ['accountId', 'rivalId', 'name', 'weaponId', 'weaponName', 'personalityId', 'personalityName', 'level', 'defeatCount', 'victoryCount', 'firstFloor', 'lastFloor', 'lastEncounterResult', 'isResolved', 'isNemesis', 'nemesisState', 'updatedAt'],
+  Nemeses: ['accountId', 'rivalId', 'name', 'weaponId', 'weaponName', 'personalityId', 'personalityName', 'level', 'defeatCount', 'victoryCount', 'firstFloor', 'lastFloor', 'lastEncounterResult', 'isResolved', 'isNemesis', 'nemesisState', 'updatedAt'],
+  Inventory: ['accountId', 'itemKey', 'name', 'amount', 'icon', 'source', 'updatedAt'],
+  SystemLog: ['accountId', 'action', 'reason', 'message', 'version', 'tabCount', 'savedAt']
+};
 
 export function createEmptySpreadsheetTabs() {
   return SPREADSHEET_TAB_NAMES.reduce((tabs, tabName) => {

@@ -1,3 +1,12 @@
+# v1.0.6
+
+- 스프레드시트 탭별 저장 안정화를 진행했습니다.
+- `Accounts` 외 모든 데이터 탭에 기준 헤더 자동 생성/보정을 적용했습니다.
+- `Resources`, `Progress`, `Weapons`, `Heirlooms`, `SoulEngraving`, `Farm`, `BossCodex`, `ClearRecords`, `Achievements`, `Rivals`, `Nemeses`, `Inventory` 탭은 같은 계정의 기존 행을 교체 저장하도록 정리했습니다.
+- `SystemLog`는 기존처럼 누적 로그로 유지합니다.
+- 저장 스키마 버전을 3으로 올렸습니다.
+- `VERSION`, `index.html`, CSS/JS 캐시버스트, Apps Script API 버전을 v1.0.6으로 통일했습니다.
+
 # v1.0.5
 
 - Apps Script Web App URL을 `js/config.js`에 직접 반영했습니다.

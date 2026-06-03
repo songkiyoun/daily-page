@@ -1,10 +1,10 @@
-# Circle Battle Tower Rebuild - Google Spreadsheet 저장 구조 v1.0.5
+# Circle Battle Tower Rebuild - Google Spreadsheet 저장 구조 v1.0.6
 
-현재 게임은 `localStorage`를 임시 캐시로 사용하고, 로그인 계정 저장 요청에는 `saveData`와 함께 `sheetData`를 전송합니다. Apps Script가 `sheetData.tabs`를 처리하도록 확장되면 아래 탭 구조로 계정별 데이터가 분리 저장됩니다.
+현재 게임은 `localStorage`를 임시 캐시로 사용하고, 클라우드 저장 시 `saveData`와 함께 `sheetData.tabs`를 Apps Script로 전송합니다. v1.0.6부터 Apps Script는 각 탭의 기준 헤더를 자동으로 생성/보정하고, `Accounts`를 제외한 데이터 탭은 계정 기준 스냅샷으로 교체 저장합니다.
 
 ## 권장 탭명
 
-1. `Accounts` - 계정 ID, 권한, 마지막 저장 시점
+1. `Accounts` - 계정 ID, 권한, 로그인 복원용 전체 저장 데이터
 2. `Characters` - 프로필, 선택 캐릭터, 현재 세션 캐릭터 요약
 3. `Resources` - 골드, 강화석, 보스의 영혼, 원한덩어리
 4. `Progress` - 최고층, 누적 승리, 도전 횟수 등 진행 요약
@@ -22,24 +22,38 @@
 
 ## 핵심 아이템 키
 
-- 원한덩어리 내부 키: `grudgeMass`
+- 원한덩어리 내부 리소스 키: `grudgeMass`
 - 원한덩어리 저장/아이템 키: `grudge_mass`
 - 원한덩어리 아이콘: `icon/item_grudge_mass.png`
 
-## 저장 요청 형태
+## Accounts 탭 기준 헤더
 
-프론트엔드는 기존 호환을 위해 `saveData`를 그대로 보내고, 추가로 아래 형태의 `sheetData`를 함께 보냅니다.
+```txt
+accountId | username | passwordHash | role | mode | version | schemaVersion | createdAt | updatedAt | lastLoginAt | saveDataJson
+```
+
+비밀번호 원문은 저장하지 않고 `passwordHash`로 저장합니다. 기존에 `id`, `pw` 헤더를 만들어둔 경우에도 Apps Script가 `accountId`, `username`, `passwordHash` 기준으로 자동 보정합니다.
+
+## 탭별 저장 방식
+
+- `Accounts`: 계정별 1행 유지, 로그인 복원용 `saveDataJson` 저장
+- `SystemLog`: 로그인/저장/오류 이벤트 누적 기록
+- 그 외 탭: 저장 시 같은 계정의 기존 행을 삭제하고 최신 스냅샷 행으로 교체
+
+이 방식은 같은 계정의 `Resources`, `Rivals`, `Nemeses`, `Inventory` 등이 저장할 때마다 중복으로 계속 쌓이지 않도록 하기 위한 구조입니다.
+
+## 저장 요청 형태
 
 ```json
 {
   "action": "save",
   "app": "circle-battle-tower-rebuild",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "id": "player01",
   "pw": "****",
   "saveData": {},
   "sheetData": {
-    "schemaVersion": 2,
+    "schemaVersion": 3,
     "app": "circle-battle-tower-rebuild",
     "accountId": "player01",
     "savedAt": "2026-05-23T00:00:00.000Z",
@@ -64,35 +78,6 @@
 }
 ```
 
-Apps Script가 아직 `sheetData`를 처리하지 않아도 기존 `saveData` 저장 방식은 유지됩니다.
+## v1.0.6 Apps Script 메모
 
-## v1.0.5 Apps Script 저장 연동 메모
-
-v1.0.5 기준 `google-apps-script/Code.gs`는 `Accounts` 탭 헤더를 자동 보정합니다.
-사용자는 스프레드시트에 바인딩된 Apps Script에 해당 코드를 붙여넣고 웹 앱으로 배포한 뒤, 발급된 Web App URL을 `js/config.js`에 입력합니다.
-
-### Accounts 탭 필수/자동 컬럼
-
-Apps Script는 `Accounts` 탭에 아래 컬럼을 자동으로 생성하거나 보완합니다.
-
-| 컬럼 | 설명 |
-|---|---|
-| accountId | 계정 ID, 로그인 식별자 |
-| username | 화면/관리용 로그인 ID. 현재는 accountId와 동일하게 저장 |
-| passwordHash | 비밀번호 해시값. 원문 비밀번호는 저장하지 않음 |
-| role | player 또는 admin |
-| mode | cloud |
-| version | 마지막 저장 버전 |
-| schemaVersion | 저장 스키마 버전 |
-| createdAt | 계정 생성 시각 |
-| updatedAt | 마지막 저장 시각 |
-| lastLoginAt | 마지막 로그인 시각 |
-| saveDataJson | 로그인 복원용 전체 저장 데이터 |
-
-관리자 계정은 `Accounts` 탭에서 해당 계정의 `role` 값을 `admin`으로 수정한 뒤 다시 로그인하면 적용됩니다.
-
-
-### 기존 id / pw 헤더 관련
-
-초기 테스트 과정에서 `id`, `pw` 헤더를 만들어둔 경우에도 v1.0.5 Apps Script가 `Accounts` 탭을 자동 보정합니다.
-최종 기준은 `accountId`, `username`, `passwordHash`이며, `pw` 원문 저장은 사용하지 않습니다.
+`google-apps-script/Code.gs`를 v1.0.6 코드로 교체한 뒤 웹 앱 배포를 업데이트해야 탭별 헤더 자동 보정과 중복 방지 저장이 반영됩니다.
